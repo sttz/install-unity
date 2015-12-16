@@ -16,6 +16,7 @@ import math
 import hashlib
 import subprocess
 import pipes
+import getpass
 
 # ---- CONFIGURATION ----
 
@@ -54,9 +55,15 @@ parser.add_argument('--install',
     action='store_const', const='install', dest='operation',
     help='only install the version(s), they must have been downloaded previously')
 
+parser.add_argument('--volume', 
+    default='/',
+    help='set the target volume (must be a volume mountpoint)')
 parser.add_argument('-p', '--package', 
     action='append',
     help='add package to download or install, default is to install all available')
+parser.add_argument('--no-move', 
+    action='store_true',
+    help='don\'t manage existing unity installations by moving them')
 parser.add_argument('-k', '--keep', 
     action='store_true',
     help='don\'t remove installer files after installation')
@@ -165,9 +172,11 @@ def select_version(version):
     for i in reversed(range(len(sorted_versions))):
         two = parse_version(sorted_versions[i])
         if match_version(one, two):
+            if version != sorted_versions[i]:
+                print 'Selected version %s for input version %s' % (sorted_versions[i], version)
             return sorted_versions[i]
     
-    return None
+    error('Version %s is now a known Unity version' % version)
 
 # ---- INSTALLATION ----
 
@@ -210,6 +219,9 @@ def hashfile(path, blocksize=65536):
         return hasher.hexdigest()
 
 def load_ini(version, path):
+    if not version in unity_versions:
+        error('Version %s is now a known Unity version' % version)
+    
     ini_name = UNITY_INI_NAME % version
     ini_path = os.path.join(path, ini_name)
     
@@ -244,6 +256,10 @@ def select_packages(config, packages):
             else:
                 print 'WARNING: Unity version %s has no package "%s"' % (version, select)
     
+    if 'Unity' in selected:
+        selected.remove('Unity')
+        selected.insert(0, 'Unity')
+    
     return selected
 
 def download(version, path, config, selected):
@@ -264,18 +280,68 @@ def download(version, path, config, selected):
             if not digest == config.get(pkg, 'md5'):
                 error('Downloaded file "%s" is corrupt, hash does not match.' % filename)
 
+def find_unity_installs():
+    installs = {}
+    
+    app_dir = os.path.join(args.volume, 'Applications')
+    if not os.path.isdir(app_dir):
+        error('Applications directory on target volume "%s" not found' % args.volume)
+    
+    install_paths = [x for x in os.listdir(app_dir) if x.startswith('Unity')]
+    for install_path in install_paths:
+        plist_path = os.path.join(app_dir, install_path, 'Unity.app', 'Contents', 'Info.plist')
+        if not os.path.isfile(plist_path):
+            print "WARNING: No Info.plist found at '%s'" % plist_path
+            continue
+        
+        installed_version = subprocess.check_output(['defaults', 'read', plist_path, 'CFBundleVersion']).strip()
+        
+        installs[installed_version] = install_path
+    
+    print 'Found %d existing Unity installations' % len(installs)
+    
+    return installs
+
 def install(version, path, selected):
     print 'Installing Unity %s...' % version
+    
+    if not version in installs and not 'Unity' in selected:
+            error('Installing only components but no matching Unity %s installation found' % version)
+    
+    install_path = os.path.join(args.volume, 'Applications', 'Unity')
+    moved_unity_to = None
+    if version in installs and installs[version] == 'Unity':
+        pass
+    elif os.path.isdir(install_path):
+        lookup = [vers for vers,name in installs.iteritems() if name == 'Unity']
+        if len(lookup) != 1:
+            error('Directory "%s" not recognized as Unity installation.' % install_path)
+        
+        moved_unity_to = os.path.join(args.volume, 'Applications', 'Unity %s' % lookup[0])
+        os.rename(install_path, moved_unity_to)
+    
+    moved_unity_from = None
+    if version in installs and installs[version] != 'Unity':
+        moved_unity_from = os.path.join(args.volume, 'Applications', installs[version])
+        os.rename(moved_unity_from, install_path)
     
     for pkg in selected:
         filename = os.path.basename(config.get(pkg, 'url'))
         package = os.path.join(path, filename)
         
-        command = '/usr/bin/sudo /usr/sbin/installer -pkg %s -target %s -verbose' % (pipes.quote(package), pipes.quote("/"))
+        print 'Installing %s...' % filename
+        
+        command = 'echo "%s" | /usr/bin/sudo -S /usr/sbin/installer -pkg %s -target %s -verbose' % (pwd, pipes.quote(package), pipes.quote(args.volume))
         try:
             subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             error('Installation of package "%s" failed: %s' % (filename, e.output))
+    
+    if moved_unity_from:
+        os.rename(install_path, moved_unity_from)
+    
+    if moved_unity_to:
+        os.rename(moved_unity_to, install_path)
 
 # ---- MAIN ----
 
@@ -284,18 +350,30 @@ operation = args.operation
 packages = [x.lower() for x in args.package] if args.package else []
 
 # Version cache
-unity_versions = read_versions_cache()
-sorted_versions = sorted(unity_versions.keys(), compare_versions)
-
+unity_versions = read_versions_cache() or {}
 if args.update or not unity_versions:
     update_version_cache(unity_versions)
+
+sorted_versions = sorted(unity_versions.keys(), compare_versions)
+
+# Start root shell if necessary
+if not operation or operation == 'install':
+    # Get root password for installation
+    pwd = getpass.getpass('Root password:')
+    command = 'sudo -k && echo "%s" | /usr/bin/sudo -S /usr/bin/whoami' % pwd
+    result = subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result != 0:
+        error('Root password invalid (%d)' % result)
+    
+    # Find existing installations
+    installs = find_unity_installs()
 
 # Main Operation
 if args.list_versions or len(args.versions) == 0:
     list_versions(args.list_versions)
 
 else:
-    versions = map(select_version, args.versions)
+    versions = set(map(select_version, args.versions))
     
     for version in versions:
         path = os.path.expanduser(DOWNLOAD_PATH % version)
@@ -314,5 +392,6 @@ else:
         
         if operation == 'download' or not operation:
             download(version, path, config, selected)
+        
         if operation == 'install' or not operation:
             install(version, path, selected)
