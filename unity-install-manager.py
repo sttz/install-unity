@@ -21,23 +21,39 @@ import time
 import urllib
 import urllib2
 
+# TODO: Select installed version for package
+# TODO: List installed versions
+
 # ---- CONFIGURATION ----
 
-VERSION = '0.0.1'
+VERSION = '0.0.1b'
 
+# URL to look for main Unity releases
 UNITY_DOWNLOADS = 'http://unity3d.com/get-unity/download/archive'
+# URL to look for Unity patch releases
 UNITY_PATCHES = 'http://unity3d.com/unity/qa/patch-releases'
+# Regex to parse package URLs from HTML
 UNITY_DOWNLOADS_RE = '"(https?:\/\/[\w\/.-]+\/[0-9a-f]{12}\/)MacEditorInstaller\/[\w\/.-]+(\d+\.\d+\.\d+\w\d+)[\w\/.-]+"'
+
+# Name of the ini file at the package URL that contains package information (%s = version)
 UNITY_INI_NAME = 'unity-%s-osx.ini'
+# Regex to parse URLs given to --discover
 UNITY_INI_RE = '(https?:\/\/[\w\/.-]+\/[0-9a-f]{12}\/)[\w\/.-]+(\d+\.\d+\.\d+\w\d+)[\w\/.-]+'
 
+# Name of the Unity versions cache (created from above URLs)
 CACHE_FILE = 'unity_versions.json'
+# Lifetime of the cache, use --update to force an update
 CACHE_LIFETIME = 60*60*24
 
+# Regex to parse Unity versions in the format of e.g. '5.3.2p3'"
 VERSION_RE = '^(\d+)(?:\.(\d+)(?:\.(\d+))?)?(?:(\w)(?:(\d+))?)?$'
+# Unity release types and corresponding letters in version string
 RELEASE_LETTERS = { 'release': 'f', 'patch': 'p' }
+# Sorting power of unity release types
 RELEASE_LETTER_STRENGTH = { 'f': 1, 'p': 2 }
 
+# Location where downloaded packages are temporarily stored
+# (Unless --download or --keep is used, in which case they are not removed)
 DOWNLOAD_PATH = '~/Downloads/Unity Install Manager/'
 
 # ---- ARGUMENTS ----
@@ -92,102 +108,132 @@ def error(message):
 
 # ---- VERSIONS CACHE ----
 
-def update_version_cache(version_cache):
-    print 'Updating Unity versions list...'
+class version_cache:
+    def __init__(self, cache_path, force_update):
+        self.cache_path = cache_path
+        self.cache_file = os.path.join(cache_path, CACHE_FILE)
+        
+        self.cache = {}
+        self.sorted_versions = None
+        
+        self.load()
+        
+        need_update = force_update or not 'lastupdate' in self.cache
+        if not need_update:
+            lastupdate = dateutil.parser.parse(self.cache['lastupdate'])
+            if (datetime.datetime.utcnow() - lastupdate).total_seconds() > CACHE_LIFETIME:
+                need_update = True
+        
+        if need_update:
+            self.update()
     
-    version_cache['versions'] = {}
+    def load(self):
+        if not os.path.isfile(self.cache_file):
+            return
+        
+        with open(self.cache_file, 'r') as file:
+            data = file.read()
+            self.cache = json.loads(data)
+            self.sorted_versions = None
     
-    for file in os.listdir(script_dir):
-        if file.startswith("unity") and file.endswith(".ini"):
-            os.remove(os.path.join(script_dir, file))
+    def update(self):
+        print 'Updating Unity versions list...'
+        self.cache['versions'] = {}
+        
+        print 'Loading Unity releases...'
+        count = self._load_and_parse(UNITY_DOWNLOADS, UNITY_DOWNLOADS_RE, self.cache['versions'])
+        if count > 0: print 'Found %i Unity releases.' % count
+        
+        print 'Loading Unity patch releases...'
+        count = self._load_and_parse(UNITY_PATCHES, UNITY_DOWNLOADS_RE, self.cache['versions'])
+        if count > 0: print 'Found %i Unity patch releases.' % count
+        
+        self.save()
+        self.sorted_versions = None
     
-    print 'Loading Unity releases...'
-    count = load_and_parse(UNITY_DOWNLOADS, UNITY_DOWNLOADS_RE, version_cache['versions'])
-    if count > 0: print 'Found %i Unity releases.' % count
+    def _load_and_parse(self, url, pattern, unity_versions):
+        try:
+            response = urllib2.urlopen(url)
+        except Exception as e:
+            error('Could not load URL "%s": %s' % url, e.reason)
+        
+        result = re.findall(pattern, response.read())
+        for match in result:
+            unity_versions[match[1]] = match[0]
+        return len(result)
     
-    print 'Loading Unity patch releases...'
-    count = load_and_parse(UNITY_PATCHES, UNITY_DOWNLOADS_RE, version_cache['versions'])
-    if count > 0: print 'Found %i Unity patch releases.' % count
+    def save(self):
+        with open(self.cache_file, 'w') as file:
+            data = json.dumps(self.cache)
+            file.write(data)
     
-    save_version_cache(version_cache)
-
-def load_and_parse(url, pattern, unity_versions):
-    try:
-        response = urllib2.urlopen(url)
-    except Exception as e:
-        error('Could not load URL "%s": %s' % url, e.reason)
+    def add(self, url):
+        result = re.search(UNITY_INI_RE, url)
+        if result is None:
+            print 'WARNING: Could not parse Unity packages url: %s' % url
+            return None
+        
+        baseurl = result.group(1)
+        version = result.group(2)
+        
+        ini_name = UNITY_INI_NAME % version
+        
+        ini_url = baseurl + ini_name
+        success = False
+        try:
+            urllib2.urlopen(ini_url)
+        except urllib2.HTTPError, e:
+            print 'ERROR: Failed to load url "%s", returned error code %d' % (ini_url, e.code)
+        except urllib2.URLError, e:
+            print 'ERROR: Failed to load url "%s", error: %s' % (ini_url, e.reason)
+        else:
+            success = True
+        
+        if not success: return None
+        
+        if not 'discovered' in self.cache:
+            self.cache['discovered'] = {}
+        
+        self.cache['discovered'][version] = baseurl
+        self.sorted_versions = None
+        return version
     
-    result = re.findall(pattern, response.read())
-    for match in result:
-        unity_versions[match[1]] = match[0]
-    return len(result)
-
-def read_version_cache():
-    path = os.path.join(script_dir, CACHE_FILE)
-    if not os.path.isfile(path):
-        return None
+    def remove(self, version):
+        if not 'discovered' in self.cache or not version in self.cache['discovered']:
+            print "WARNING: Version %s not found in manually discovered versions" % versions
+            return False
+        
+        del self.cache['discovered'][version]
+        self.sorted_versions = None
+        return True
     
-    with open(path, 'r') as file:
-        data = file.read()
-        return json.loads(data)
-
-def version_cache_add(url):
-    result = re.search(UNITY_INI_RE, url)
-    if result is None:
-        print 'WARNING: Could not parse Unity packages url: %s' % url
-        return None
+    def get_baseurl(self, version):
+        if 'discovered' in self.cache and version in self.cache['discovered']:
+            return self.cache['discovered'][version]
+        elif version in self.cache['versions']:
+            return self.cache['versions'][version]
+        else:
+            return None
     
-    baseurl = result.group(1)
-    version = result.group(2)
+    def get_sorted_versions(self):
+        if self.sorted_versions == None:
+            all_versions = self.cache['versions'].keys()
+            if 'discovered' in self.cache:
+                all_versions += self.cache['discovered'].keys()
+            self.sorted_versions = sorted(all_versions, compare_versions)
+        
+        return self.sorted_versions
     
-    ini_name = UNITY_INI_NAME % version
-    
-    ini_url = baseurl + ini_name
-    success = False
-    try:
-        urllib2.urlopen(ini_url)
-    except urllib2.HTTPError, e:
-        print 'ERROR: Failed to load url "%s", returned error code %d' % (ini_url, e.code)
-    except urllib2.URLError, e:
-        print 'ERROR: Failed to load url "%s", error: %s' % (ini_url, e.reason)
-    else:
-        success = True
-    
-    if not success: return
-    
-    if not 'discovered' in version_cache:
-        version_cache['discovered'] = {}
-    
-    version_cache['discovered'][version] = baseurl
-
-def version_cache_remove(version):
-    if not 'discovered' in version_cache or not version in version_cache['discovered']:
-        print "WARNING: Version %s not found in manually discovered versions" % versions
-    del version_cache['discovered'][version]
-
-def version_cache_get_baseurl(version):
-    if 'discovered' in version_cache and version in version_cache['discovered']:
-        return version_cache['discovered'][version]
-    elif version in version_cache['versions']:
-        return version_cache['versions'][version]
-    else:
-        return None
-
-def save_version_cache(version_cache):
-    with open(os.path.join(script_dir, CACHE_FILE), 'w') as file:
-        data = json.dumps(version_cache)
-        file.write(data)
-
-def list_versions(type):
-    letter = None
-    if type:
-        letter = RELEASE_LETTERS[type]
-    
-    print 'Available Unity versions:'
-    for version in sorted_versions:
-        if letter and not letter in version:
-            continue
-        print '- %s' % version
+    def list(self, type):
+        letter = None
+        if type:
+            letter = RELEASE_LETTERS[type]
+        
+        print 'Available Unity versions:'
+        for version in cache.get_sorted_versions():
+            if letter and not letter in version:
+                continue
+            print '- %s' % version
 
 # ---- VERSION HANDLING ----
 
@@ -198,6 +244,7 @@ def parse_version(version):
     
     parts = list(match.groups())
     
+    # Convert to int, except fourth element wich is release type letter
     for i in range(len(parts)):
         if not parts[i] or i == 3: continue
         parts[i] = int(parts[i])
@@ -221,6 +268,7 @@ def match_version(one, two):
 def select_version(version):
     one = parse_version(version)
     
+    sorted_versions = cache.get_sorted_versions()
     for i in reversed(range(len(sorted_versions))):
         two = parse_version(sorted_versions[i])
         if match_version(one, two):
@@ -230,7 +278,7 @@ def select_version(version):
     
     error('Version %s is now a known Unity version' % version)
 
-# ---- INSTALLATION ----
+# ---- DOWNLOAD ----
 
 def convertSize(size):
     size = size / 1024
@@ -299,14 +347,14 @@ def hashfile(path, blocksize=65536):
         return hasher.hexdigest()
 
 def load_ini(version):
-    baseurl = version_cache_get_baseurl(version)
+    baseurl = cache.get_baseurl(version)
     if not baseurl:
         error('Version %s is now a known Unity version' % version)
     
     ini_name = UNITY_INI_NAME % version
     ini_path = os.path.join(script_dir, ini_name)
     
-    if not os.path.isfile(ini_path) or args.update:
+    if not os.path.isfile(ini_path):
         url = baseurl + ini_name
         try:
             response = urllib2.urlopen(url)
@@ -326,6 +374,8 @@ def select_packages(config, packages):
     if len(packages) == 0:
         selected = available
     else:
+        # ConfigParser sections are case-sensitive, make sure
+        # we use the proper case regardless what the user entered
         lower_to_upper = {}
         for pkg in available:
             lower_to_upper[pkg.lower()] = pkg
@@ -337,6 +387,8 @@ def select_packages(config, packages):
             else:
                 print 'WARNING: Unity version %s has no package "%s"' % (version, select)
     
+    # If the main Unity editor package was selected, 
+    # make sure it's installed first
     if 'Unity' in selected:
         selected.remove('Unity')
         selected.insert(0, 'Unity')
@@ -347,7 +399,7 @@ def download(version, path, config, selected):
     print 'Downloading Unity %s...' % version
     
     for pkg in selected:
-        baseurl = version_cache_get_baseurl(version)
+        baseurl = cache.get_baseurl(version)
         fileurl = baseurl + config.get(pkg, 'url')
         filename = os.path.basename(fileurl)
         output = os.path.join(path, filename)
@@ -361,6 +413,8 @@ def download(version, path, config, selected):
             digest = hashfile(output)
             if not digest == config.get(pkg, 'md5'):
                 error('Downloaded file "%s" is corrupt, hash does not match.' % filename)
+
+# ---- INSTALL ----
 
 def find_unity_installs():
     installs = {}
@@ -391,10 +445,13 @@ def install(version, path, selected):
             error('Installing only components but no matching Unity %s installation found' % version)
     
     install_path = os.path.join(args.volume, 'Applications', 'Unity')
+    
     moved_unity_to = None
     if version in installs and installs[version] == 'Unity':
+        # The 'Unity' folder already contains the target version
         pass
     elif os.path.isdir(install_path):
+        # There's another version in the 'Unity' folder, move it to 'Unity VERSION'
         lookup = [vers for vers,name in installs.iteritems() if name == 'Unity']
         if len(lookup) != 1:
             error('Directory "%s" not recognized as Unity installation.' % install_path)
@@ -405,6 +462,7 @@ def install(version, path, selected):
         
         os.rename(install_path, moved_unity_to)
     
+    # If a matching version exists elsewhere, move it to 'Unity'
     moved_unity_from = None
     if version in installs and installs[version] != 'Unity':
         moved_unity_from = os.path.join(args.volume, 'Applications', installs[version])
@@ -422,16 +480,20 @@ def install(version, path, selected):
     except subprocess.CalledProcessError as e:
         error('Installation of package "%s" failed: %s' % (filename, e.output))
     finally:
+        # Revert moving around Unity installations
         if moved_unity_from:
             os.rename(install_path, moved_unity_from)
         
         if moved_unity_to:
             if os.path.isdir(install_path):
+                # If there previously was a 'Unity' folder, move the newly
+                # installed Unity to 'Unity VERSION'
                 new_install_path = os.path.join(args.volume, 'Applications', 'Unity %s' % version)
                 os.rename(install_path, new_install_path)
             os.rename(moved_unity_to, install_path)
 
 def clean_up(version, path):
+    # Prevent cleanup if there are unexpected files in the download directory
     for file in os.listdir(path):
         file_lower = file.lower()
         if not file_lower.endswith('.ini') and not file_lower.endswith('.pkg') and not file == '.DS_Store':
@@ -454,50 +516,50 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 operation = args.operation
 packages = [x.lower() for x in args.package] if args.package else []
 
-# Version cache
-version_cache = read_version_cache() or {}
+# When --update is set we also clear all ini files to force re-downloading them
+if args.update:
+    for file in os.listdir(script_dir):
+        if file.startswith("unity") and file.endswith(".ini"):
+            os.remove(os.path.join(script_dir, file))
 
-need_update = not 'lastupdate' in version_cache
-if not need_update:
-    lastupdate = dateutil.parser.parse(version_cache['lastupdate'])
-    if (datetime.datetime.utcnow() - lastupdate).total_seconds() > CACHE_LIFETIME:
-        need_update = True
-
-if args.update or not version_cache:
-    update_version_cache(version_cache)
+# Setup version cache, handle adding and removing of versions
+cache = version_cache(script_dir, args.update)
 
 if args.discover or args.forget:
     if args.forget:
         for version in args.forget:
-            version_cache_remove(version)
+            if cache.remove(version):
+                print 'Removed version %s from cache' % version
     if args.discover:
         for url in args.discover:
-            version_cache_add(url)
-    save_version_cache(version_cache)
-
-all_versions = version_cache['versions'].keys()
-if 'discovered' in version_cache:
-    all_versions += version_cache['discovered'].keys()
-sorted_versions = sorted(all_versions, compare_versions)
+            version = cache.add(url)
+            if version:
+                print 'Added version %s to cache' % version
+    cache.save()
 
 if args.list_versions or len(args.versions) == 0:
     operation = 'list-versions'
 
-# Start root shell if necessary
 if not operation or operation == 'install':
-    # Get root password for installation
+    # Get the root password early so we don't need to ask for it
+    # after the downloads potentially took a long time to finish.
+    # Also, just calling sudo might expire when the install takes
+    # long and the user would have to enter his password again 
+    # and again.
     pwd = getpass.getpass('Root password:')
+    
+    # Check the root password, so that the user won't only find out
+    # much later if the password is wrong
     command = 'sudo -k && echo "%s" | /usr/bin/sudo -S /usr/bin/whoami' % pwd
     result = subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result != 0:
         error('Root password invalid (%d)' % result)
     
-    # Find existing installations
     installs = find_unity_installs()
 
 # Main Operation
 if operation == 'list-versions':
-    list_versions(args.list_versions)
+    cache.list(args.list_versions)
 
 else:
     versions = set(map(select_version, args.versions))
