@@ -21,12 +21,9 @@ import time
 import urllib
 import urllib2
 
-# TODO: Select installed version for package
-# TODO: List installed versions
-
 # ---- CONFIGURATION ----
 
-VERSION = '0.0.1b'
+VERSION = '0.0.1'
 
 # URL to look for main Unity releases
 UNITY_DOWNLOADS = 'http://unity3d.com/get-unity/download/archive'
@@ -83,7 +80,7 @@ parser.add_argument('-p', '--package',
     help='add package to download or install, default is to install all available')
 parser.add_argument('-k', '--keep', 
     action='store_true',
-    help='don\'t remove installer files after installation')
+    help='don\'t remove installer files after installation (implied when using --install)')
 
 parser.add_argument('-u', '--update', 
     action='store_true',
@@ -236,8 +233,9 @@ class version_cache:
         if type:
             letter = RELEASE_LETTERS[type]
         
-        print 'Available Unity versions:'
-        for version in cache.get_sorted_versions():
+        print 'Known available Unity versions:'
+        print '(Use "--discover URL" to add versions not automatically discovered)'
+        for version in self.get_sorted_versions():
             if letter and not letter in version:
                 continue
             print '- %s' % version
@@ -272,10 +270,9 @@ def match_version(one, two):
             return False
     return True
 
-def select_version(version):
+def select_version(version, sorted_versions):
     one = parse_version(version)
     
-    sorted_versions = cache.get_sorted_versions()
     for i in reversed(range(len(sorted_versions))):
         two = parse_version(sorted_versions[i])
         if match_version(one, two):
@@ -379,7 +376,7 @@ def select_packages(config, packages):
     available = config.sections()
     
     if len(packages) == 0:
-        selected = available
+        selected = [x for x in available if config.getboolean(x, 'install')]
     else:
         # ConfigParser sections are case-sensitive, make sure
         # we use the proper case regardless what the user entered
@@ -403,23 +400,31 @@ def select_packages(config, packages):
     return selected
 
 def download(version, path, config, selected):
-    print 'Downloading Unity %s...' % version
+    print 'Will download %s in total' % convertSize(sum(map(lambda pkg: config.getint(pkg, 'size'), selected)))
     
     for pkg in selected:
+        if not config.has_option(pkg, 'md5'):
+            print 'WARNING: Cannot verify file "%s": No md5 hash found.' % filename
+            md5hash = None
+        else:
+            md5hash = config.get(pkg, 'md5')
+        
         baseurl = cache.get_baseurl(version)
         fileurl = baseurl + config.get(pkg, 'url')
         filename = os.path.basename(fileurl)
         output = os.path.join(path, filename)
         
-        print 'Downloading %s (%s)...' % (filename, convertSize(config.getint(pkg, 'size')))
-        download_url(fileurl, output)
-        
-        if not config.has_option(pkg, 'md5'):
-            print 'WARNING: Cannot verify file "%s": No md5 hash found.' % filename
+        if os.path.isfile(output) and md5hash and hashfile(output) == md5hash:
+            print 'File %s already downloaded' % filename
         else:
-            digest = hashfile(output)
-            if not digest == config.get(pkg, 'md5'):
-                error('Downloaded file "%s" is corrupt, hash does not match.' % filename)
+            print 'Downloading %s (%s)...' % (filename, convertSize(config.getint(pkg, 'size')))
+            download_url(fileurl, output)
+        
+        if md5hash and hashfile(output) != md5hash:
+            error('Downloaded file "%s" is corrupt, hash does not match.' % filename)
+    
+    print 'Download complete!'
+    print ''
 
 # ---- INSTALL ----
 
@@ -441,13 +446,17 @@ def find_unity_installs():
         
         installs[installed_version] = install_path
     
-    print 'Found %d existing Unity installations' % len(installs)
+    if len(installs) == 0:
+        print "No existing Unity installations found."
+    else:
+        print 'Found %d existing Unity installations:' % len(installs)
+        for install in installs:
+            print '- %s (%s)' % (install, os.path.join(app_dir, installs[install]))
+    print ''
     
     return installs
 
 def install(version, path, selected):
-    print 'Installing Unity %s...' % version
-    
     if not version in installs and not 'Unity' in selected:
             error('Installing only components but no matching Unity %s installation found' % version)
     
@@ -498,12 +507,15 @@ def install(version, path, selected):
                 new_install_path = os.path.join(args.volume, 'Applications', 'Unity %s' % version)
                 os.rename(install_path, new_install_path)
             os.rename(moved_unity_to, install_path)
+    
+    print 'Installation complete!'
+    print ''
 
 def clean_up(version, path):
     # Prevent cleanup if there are unexpected files in the download directory
     for file in os.listdir(path):
         file_lower = file.lower()
-        if not file_lower.endswith('.ini') and not file_lower.endswith('.pkg') and not file == '.DS_Store':
+        if not file_lower.endswith('.pkg') and not file == '.DS_Store':
             print 'WARNING: Cleanup aborted because of unkown file "%s" in "%s"' % (file, path)
             return
     
@@ -518,6 +530,8 @@ def clean_up(version, path):
     shutil.rmtree(downloads)
 
 # ---- MAIN ----
+
+print 'Unity Install Manager %s\n' % VERSION
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 operation = args.operation
@@ -543,6 +557,7 @@ if args.discover or args.forget:
             if version:
                 print 'Added version %s to cache' % version
     cache.save()
+    print ''
 
 if args.list_versions or len(args.versions) == 0:
     operation = 'list-versions'
@@ -553,23 +568,45 @@ if not operation or operation == 'install':
     # Also, just calling sudo might expire when the install takes
     # long and the user would have to enter his password again 
     # and again.
-    pwd = getpass.getpass('Root password:')
+    print 'Your admin password is required to install the packages'
+    pwd = getpass.getpass('User password:')
     
     # Check the root password, so that the user won't only find out
     # much later if the password is wrong
     command = 'sudo -k && echo "%s" | /usr/bin/sudo -S /usr/bin/whoami' % pwd
     result = subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result != 0:
-        error('Root password invalid (%d)' % result)
+        error('User password invalid or user not an admin')
     
-    installs = find_unity_installs()
+    print ''
 
 # Main Operation
 if operation == 'list-versions':
+    find_unity_installs()
+    
     cache.list(args.list_versions)
+    
+    print ''
+    print 'List available packages for a given version using "--list VERSION"'
 
 else:
-    versions = set(map(select_version, args.versions))
+    installs = find_unity_installs()
+    sorted_installs = sorted(installs.keys(), compare_versions)
+    
+    if operation == 'list' or len(packages) == 0 or 'unity' in packages:
+        print 'Trying to select most recent known Unity version'
+        version_list = cache.get_sorted_versions()
+    else:
+        print 'Installing additional packages ("Unity" editor package not selected)'
+        
+        if len(sorted_installs) == 0:
+            error('No Unity installation found, intall the "Unity" editor package first')
+        
+        print 'Trying to select the most recent installed version'
+        version_list = sorted_installs
+    
+    versions = set([select_version(v, version_list) for v in args.versions])
+    print ''
     
     for version in versions:
         config = load_ini(version)
@@ -577,13 +614,26 @@ else:
         if operation == 'list':
             print 'Available packages for Unity version %s:' % version
             for pkg in config.sections():
-                print '- %s (%s)' % (pkg, convertSize(config.getint(pkg, 'size')))
+                print '- %s%s (%s)' % (
+                    pkg, 
+                    '*' if config.getboolean(pkg, 'install') else '', 
+                    convertSize(config.getint(pkg, 'size'))
+                )
+            print ''
         else:
             path = os.path.expanduser(os.path.join(DOWNLOAD_PATH, version))
             if not os.path.isdir(path):
                 os.makedirs(path)
             
+            print 'Processing packages for Unity version %s:' % version
+            
             selected = select_packages(config, packages)
+            if len(selected) == 0:
+                print 'WARNING: No packages selected for version %s' % version
+                continue
+            
+            print 'Selected packages: %s' % ", ".join(selected)
+            print ''
         
             if operation == 'download' or not operation:
                 download(version, path, config, selected)
@@ -591,5 +641,9 @@ else:
             if operation == 'install' or not operation:
                 install(version, path, selected)
                 
-                if not args.keep:
+                if not args.keep or operation == 'install':
                     clean_up(version, path)
+    
+    if operation == 'list':
+        print 'Packages with a * are installed by default if no packages are selected'
+        print 'Select packages to install using "--package NAME"'
