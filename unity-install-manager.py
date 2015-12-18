@@ -77,7 +77,10 @@ parser.add_argument('--volume',
     help='set the target volume (must be a volume mountpoint)')
 parser.add_argument('-p', '--package', 
     action='append',
-    help='add package to download or install, default is to install all available')
+    help='add package to download or install, absent = install default packages')
+parser.add_argument('--all-packages', 
+    action='store_true',
+    help='install all packages instead of only the default ones when no packages are selected')
 parser.add_argument('-k', '--keep', 
     action='store_true',
     help='don\'t remove installer files after installation (implied when using --install)')
@@ -376,7 +379,10 @@ def select_packages(config, packages):
     available = config.sections()
     
     if len(packages) == 0:
-        selected = [x for x in available if config.getboolean(x, 'install')]
+        if args.all_packages:
+            selected = available
+        else:
+            selected = [x for x in available if config.getboolean(x, 'install')]
     else:
         # ConfigParser sections are case-sensitive, make sure
         # we use the proper case regardless what the user entered
