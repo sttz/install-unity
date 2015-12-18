@@ -72,12 +72,12 @@ RELEASE_LETTERS = { 'release': 'f', 'patch': 'p' }
 RELEASE_LETTER_STRENGTH = { 'f': 1, 'p': 2 }
 
 # Location where downloaded packages are temporarily stored
-# (Unless --download or --keep is used, in which case they are not removed)
-DOWNLOAD_PATH = '~/Downloads/Unity Install Manager/'
+# (Unless --download, --install or --keep is used, in which case they are not removed)
+DOWNLOAD_PATH = '~/Downloads/Install Unity Script/'
 
 # ---- ARGUMENTS ----
 
-parser = argparse.ArgumentParser(description='Unity Installation Manager ' + VERSION)
+parser = argparse.ArgumentParser(description='Install Unity Script ' + VERSION)
 parser.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
 
 parser.add_argument('versions', 
@@ -559,7 +559,7 @@ def clean_up(version, path):
 
 # ---- MAIN ----
 
-print 'Unity Install Manager %s\n' % VERSION
+print 'Install Unity Script %s\n' % VERSION
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 operation = args.operation
