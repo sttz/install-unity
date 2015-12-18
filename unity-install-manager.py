@@ -118,10 +118,17 @@ class version_cache:
         
         self.load()
         
-        need_update = force_update or not 'lastupdate' in self.cache
+        need_update = False
+        if not 'lastupdate' in self.cache:
+            print "No cache found, updating Unity versions list..."
+            need_update = True
+        if force_update:
+            print "Forcing an update of Unity versions list..."
+            need_update = True
         if not need_update:
             lastupdate = dateutil.parser.parse(self.cache['lastupdate'])
             if (datetime.datetime.utcnow() - lastupdate).total_seconds() > CACHE_LIFETIME:
+                print "Cache outdated, updating Unity versions list..."
                 need_update = True
         
         if need_update:
@@ -137,8 +144,8 @@ class version_cache:
             self.sorted_versions = None
     
     def update(self):
-        print 'Updating Unity versions list...'
         self.cache['versions'] = {}
+        self.cache['lastupdate'] = datetime.datetime.utcnow().isoformat()
         
         print 'Loading Unity releases...'
         count = self._load_and_parse(UNITY_DOWNLOADS, UNITY_DOWNLOADS_RE, self.cache['versions'])
