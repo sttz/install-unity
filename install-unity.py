@@ -488,6 +488,16 @@ def find_unity_installs():
     return installs
 
 def install(version, path, selected):
+    missing = False
+    for pkg in selected:
+        filename = os.path.basename(config.get(pkg, 'url'))
+        if not os.path.isfile(os.path.join(path, filename)):
+            print 'Package "%s" has not been downloaded' % filename
+            missing = True
+    
+    if missing:
+        error('Some packages to be installed have not been downloaded')
+    
     if not version in installs and not 'Unity' in selected:
             error('Installing only components but no matching Unity %s installation found' % version)
     
