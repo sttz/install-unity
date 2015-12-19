@@ -539,7 +539,7 @@ def install(version, path, selected):
     print 'Installation complete!'
     print ''
 
-def clean_up(version, path):
+def clean_up(path):
     # Prevent cleanup if there are unexpected files in the download directory
     for file in os.listdir(path):
         file_lower = file.lower()
@@ -676,8 +676,8 @@ else:
             if operation == 'install' or not operation:
                 install(version, path, selected)
                 
-                if not args.keep or operation == 'install':
-                    clean_up(version, path)
+                if not args.keep and not operation:
+                    clean_up(path)
     
     if operation == 'list':
         print 'Packages with a * are installed by default if no packages are selected'
