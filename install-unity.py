@@ -464,22 +464,22 @@ def find_unity_installs():
         error('Applications directory on target volume "%s" not found' % args.volume)
     
     install_paths = [x for x in os.listdir(app_dir) if x.startswith('Unity')]
-    for install_path in install_paths:
-        plist_path = os.path.join(app_dir, install_path, 'Unity.app', 'Contents', 'Info.plist')
+    for install_name in install_paths:
+        plist_path = os.path.join(app_dir, install_name, 'Unity.app', 'Contents', 'Info.plist')
         if not os.path.isfile(plist_path):
             print "WARNING: No Info.plist found at '%s'" % plist_path
             continue
         
         installed_version = subprocess.check_output(['defaults', 'read', plist_path, 'CFBundleVersion']).strip()
         
-        installs[installed_version] = install_path
+        installs[installed_version] = os.path.join(app_dir, install_name)
     
     if len(installs) == 0:
         print "No existing Unity installations found."
     else:
         print 'Found %d existing Unity installations:' % len(installs)
         for install in installs:
-            print '- %s (%s)' % (install, os.path.join(app_dir, installs[install]))
+            print '- %s (%s)' % (install, installs[install])
     print ''
     
     return installs
@@ -491,12 +491,12 @@ def install(version, path, selected):
     install_path = os.path.join(args.volume, 'Applications', 'Unity')
     
     moved_unity_to = None
-    if version in installs and installs[version] == 'Unity':
+    if version in installs and os.path.basename(installs[version]) == 'Unity':
         # The 'Unity' folder already contains the target version
         pass
     elif os.path.isdir(install_path):
         # There's another version in the 'Unity' folder, move it to 'Unity VERSION'
-        lookup = [vers for vers,name in installs.iteritems() if name == 'Unity']
+        lookup = [vers for vers,name in installs.iteritems() if os.path.basename(name) == 'Unity']
         if len(lookup) != 1:
             error('Directory "%s" not recognized as Unity installation.' % install_path)
         
@@ -508,8 +508,8 @@ def install(version, path, selected):
     
     # If a matching version exists elsewhere, move it to 'Unity'
     moved_unity_from = None
-    if version in installs and installs[version] != 'Unity':
-        moved_unity_from = os.path.join(args.volume, 'Applications', installs[version])
+    if version in installs and os.path.basename(installs[version]) != 'Unity':
+        moved_unity_from = installs[version]
         os.rename(moved_unity_from, install_path)
     
     try:
@@ -662,7 +662,14 @@ else:
             
             print 'Selected packages: %s' % ", ".join(selected)
             print ''
-        
+            
+            if not operation and 'Unity' in selected and version in installs:
+                print 'WARNING: Unity version %s already installed at "%s", skipping.' % (version, installs[version])
+                print 'Don\'t select the Unity editor packages to install additional packages'
+                print 'Remove to existing version to re-install the Unity version'
+                print 'Separate --download and --install calls will re-install the Unity version'
+                print ''
+                continue
             if operation == 'download' or not operation:
                 download(version, path, config, selected)
         
