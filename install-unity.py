@@ -177,6 +177,8 @@ class version_cache:
         count = self._load_and_parse(UNITY_PATCHES, UNITY_DOWNLOADS_RE, self.cache['versions'])
         if count > 0: print 'Found %i Unity patch releases.' % count
         
+        print ''
+        
         self.save()
         self.sorted_versions = None
     
@@ -681,9 +683,10 @@ else:
                 print 'Separate --download and --install calls will re-install the Unity version'
                 print ''
                 continue
+            
             if operation == 'download' or not operation:
                 download(version, path, config, selected)
-        
+            
             if operation == 'install' or not operation:
                 install(version, path, selected)
                 
