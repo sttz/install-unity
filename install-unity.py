@@ -430,6 +430,9 @@ def select_packages(config, packages):
 def download(version, path, config, selected):
     print 'Will download %s in total' % convertSize(sum(map(lambda pkg: config.getint(pkg, 'size'), selected)))
     
+    if not os.path.isdir(path):
+        os.makedirs(path)
+    
     for pkg in selected:
         if not config.has_option(pkg, 'md5'):
             print 'WARNING: Cannot verify file "%s": No md5 hash found.' % filename
@@ -650,8 +653,6 @@ else:
             print ''
         else:
             path = os.path.expanduser(os.path.join(DOWNLOAD_PATH, version))
-            if not os.path.isdir(path):
-                os.makedirs(path)
             
             print 'Processing packages for Unity version %s:' % version
             
