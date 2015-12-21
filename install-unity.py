@@ -136,7 +136,7 @@ def error(message):
 # ---- VERSIONS CACHE ----
 
 class version_cache:
-    def __init__(self, cache_path, force_update):
+    def __init__(self, cache_path, update = None):
         self.cache_path = cache_path
         self.cache_file = os.path.join(cache_path, CACHE_FILE)
         
@@ -146,17 +146,18 @@ class version_cache:
         self.load()
         
         need_update = False
-        if not 'lastupdate' in self.cache:
-            print "No cache found, updating Unity versions list..."
-            need_update = True
-        if force_update:
+        if update is True:
             print "Forcing an update of Unity versions list..."
             need_update = True
-        if not need_update:
-            lastupdate = dateutil.parser.parse(self.cache['lastupdate'])
-            if (datetime.datetime.utcnow() - lastupdate).total_seconds() > CACHE_LIFETIME:
-                print "Cache outdated, updating Unity versions list..."
+        elif update is None:
+            if not 'lastupdate' in self.cache:
+                print "No cache found, updating Unity versions list..."
                 need_update = True
+            else:
+                lastupdate = dateutil.parser.parse(self.cache['lastupdate'])
+                if (datetime.datetime.utcnow() - lastupdate).total_seconds() > CACHE_LIFETIME:
+                    print "Cache outdated, updating Unity versions list..."
+                    need_update = True
         
         if need_update:
             self.update()
@@ -592,7 +593,13 @@ if args.update:
             os.remove(os.path.join(script_dir, file))
 
 # Setup version cache, handle adding and removing of versions
-cache = version_cache(script_dir, args.update)
+update_cache = None
+if args.update:
+    update_cache = True
+elif operation == 'install':
+    update_cache = False
+
+cache = version_cache(script_dir, update_cache)
 
 if args.discover or args.forget:
     if args.forget:
