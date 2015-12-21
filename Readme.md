@@ -56,7 +56,7 @@ The Unity install script can download and install the packages separately, allow
 First, download the packages using the `--download` flag. By default, the packages are downloaded to `~/Downloads` but you can set a custom download path using `--package-store`. Execute the following command in the script directory to download all available packages into the script directory, so you only need to copy a single folder to the computer you want to install Unity on:<br>
 `./install-unity.py --download --all-packages --package-store . VERSION`
 
-This will create a `Unity Packages` folder inside the script directory that contains all downloaded packages, sorted by version. Copy the folder with the script, the ´unity_versions.json` and all `unity-*-osx.ini` files to the target computer and then call:
+This will create a `Unity Packages` folder inside the script directory that contains all downloaded packages, sorted by version. Copy the folder with the script, the `unity_versions.json` and all `unity-*-osx.ini` files to the target computer and then call:<br>
 `./install-unity.py --install --all-packages --package-store . VERSION`
 
 Instead of installing all packages, you can select which packages to install using mutliple `--package` flags. You can also specify multiple versions to install different Unity versions at once.
