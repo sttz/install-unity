@@ -25,16 +25,16 @@ Later, additional packages can be installed (platform packages only available wi
 
 # Available Versions
 
-Unity is packaged this way starting from Unity 5.0, the install manager doesn’t support earlier versions.
+Unity is packaged this way starting from Unity 5.0, the install script doesn’t support earlier versions.
 
-The install manager scans public Unity HTML pages and does not discover all versions available. Specifically, it only scans the newest page of patch and no beta releases.
+The install script scans public Unity HTML pages and does not discover all versions available. Specifically, it only scans the newest page of patch and no beta releases.
 
 Versions can be added manually by finding the URL to the Mac editor installer containing a 12-character hash code, e.g. `http://netstorage.unity3d.com/unity/2524e04062b4/MacEditorInstaller/Unity-5.3.0f4.pkg` and by calling:<br>
 `./install-unity.py --discover URL`
 
 # Selecting Versions
 
-Versions can be specified with arbitrary precision, the install manager will then select the latest available version that matches.
+Versions can be specified with arbitrary precision, the install script will then select the latest available version that matches.
 
 E.g. “5” will select the latest version of Unity 5, “5.3” the latest version of Unity 5.3 and “5.2.3” the latest version of Unity 5.2.3, including patch releases.
 
@@ -49,17 +49,30 @@ Use the following command to show all available packages for a given version:<br
 
 If no package is specified, the default packages (same as in the official Unity installer) will be installed. Otherwise, any number of `-p PACKAGE` or `--package PACKAGE` can be specified to select packages, selected packages that are not available for a given version will be ignored.
 
+# Offline Installation
+
+The Unity install script can download and install the packages separately, allowing you to install Unity on multiple computers while only downloading the packages once.
+
+First, download the packages using the `--download` flag. By default, the packages are downloaded to `~/Downloads` but you can set a custom download path using `--package-store`. Execute the following command in the script directory to download all available packages into the script directory, so you only need to copy a single folder to the computer you want to install Unity on:<br>
+`./install-unity.py --download --all-packages --package-store . VERSION`
+
+This will create a `Unity Packages` folder inside the script directory that contains all downloaded packages, sorted by version. Copy the folder with the script, the ´unity_versions.json` and all `unity-*-osx.ini` files to the target computer and then call:
+`./install-unity.py --install --all-packages --package-store . VERSION`
+
+Instead of installing all packages, you can select which packages to install using mutliple `--package` flags. You can also specify multiple versions to install different Unity versions at once.
+
 # Commands
 
 All available commands:
 ```
 usage: install-unity.py [-h] [--version] [--list] [--download] [--install]
-                        [--volume VOLUME] [-p PACKAGE] [--all-packages] [-k]
-                        [-u] [--list-versions {release,patch,all}]
+                        [--volume VOLUME] [-p PACKAGE] [--all-packages]
+                        [--package-store PACKAGE_STORE] [-k] [-u]
+                        [--list-versions {release,patch,all}]
                         [--discover DISCOVER] [--forget FORGET]
                         [VERSION [VERSION ...]]
 
-Install Unity Script 0.0.1
+Install Unity Script 0.0.2
 
 positional arguments:
   VERSION               unity version to install packages from (only >= 5.0.0)
@@ -77,6 +90,9 @@ optional arguments:
                         default packages
   --all-packages        install all packages instead of only the default ones
                         when no packages are selected
+  --package-store PACKAGE_STORE
+                        location where the downloaded packages are stored
+                        (temporarily, if not --download or --keep)
   -k, --keep            don't remove installer files after installation
                         (implied when using --install)
   -u, --update          force updating of cached version information
