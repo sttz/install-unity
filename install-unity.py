@@ -71,9 +71,11 @@ RELEASE_LETTERS = { 'release': 'f', 'patch': 'p' }
 # Sorting power of unity release types
 RELEASE_LETTER_STRENGTH = { 'f': 1, 'p': 2 }
 
-# Location where downloaded packages are temporarily stored
+# Default location where downloaded packages are temporarily stored
 # (Unless --download, --install or --keep is used, in which case they are not removed)
-DOWNLOAD_PATH = '~/Downloads/Install Unity Script/'
+DOWNLOAD_PATH = '~/Downloads/'
+# Name of top directory packages are stored (in subdirectories by version)
+DOWNLOAD_DIRECTORY = 'Unity Packages'
 
 # ---- ARGUMENTS ----
 
@@ -103,6 +105,9 @@ parser.add_argument('-p', '--package',
 parser.add_argument('--all-packages', 
     action='store_true',
     help='install all packages instead of only the default ones when no packages are selected')
+parser.add_argument('--package-store', 
+    action='store',
+    help='location where the downloaded packages are stored (temporarily, if not --download or --keep)')
 parser.add_argument('-k', '--keep', 
     action='store_true',
     help='don\'t remove installer files after installation (implied when using --install)')
@@ -564,7 +569,7 @@ def clean_up(path):
     
     shutil.rmtree(path)
     
-    downloads = os.path.expanduser(DOWNLOAD_PATH)
+    downloads = os.path.expanduser(download_to)
     
     for file in os.listdir(downloads):
         if not file == '.DS_Store':
@@ -623,6 +628,13 @@ if not operation or operation == 'install':
     
     print ''
 
+# Download path
+download_to = args.package_store
+if not download_to:
+    download_to = DOWNLOAD_PATH
+
+download_to = os.path.expanduser(os.path.join(download_to, DOWNLOAD_DIRECTORY))
+
 # Main Operation
 if operation == 'list-versions':
     find_unity_installs()
@@ -664,7 +676,7 @@ else:
                 )
             print ''
         else:
-            path = os.path.expanduser(os.path.join(DOWNLOAD_PATH, version))
+            path = os.path.expanduser(os.path.join(download_to, version))
             
             print 'Processing packages for Unity version %s:' % version
             
