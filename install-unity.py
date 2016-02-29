@@ -70,7 +70,7 @@ VERSION_RE = '^(\d+)(?:\.(\d+)(?:\.(\d+))?)?(?:(\w)(?:(\d+))?)?$'
 # Unity release types and corresponding letters in version string
 RELEASE_LETTERS = { 'release': 'f', 'patch': 'p' }
 # Sorting power of unity release types
-RELEASE_LETTER_STRENGTH = { 'f': 1, 'p': 2 }
+RELEASE_LETTER_STRENGTH = { 'f': 1, 'p': 2, 'b': 3, 'a': 4 }
 
 # Default location where downloaded packages are temporarily stored
 # (Unless --download, --install or --keep is used, in which case they are not removed)
@@ -291,7 +291,7 @@ def parse_version(version):
     
     if parts[3]:
         if not parts[3] in RELEASE_LETTER_STRENGTH:
-            error('Unknown release letter "%s"' % parts[3])
+            error('Unknown release letter "%s" from "%s"' % (parts[3], version))
         parts[3] = RELEASE_LETTER_STRENGTH[parts[3]]
     
     return parts
