@@ -40,6 +40,7 @@ import shutil
 import subprocess
 import sys
 import time
+import traceback
 import urllib
 import urllib2
 
@@ -131,6 +132,7 @@ args = parser.parse_args()
 
 def error(message):
     print 'ERROR: ' + message
+    traceback.print_stack()
     sys.exit(1)
 
 # ---- VERSIONS CACHE ----
