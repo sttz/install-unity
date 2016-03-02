@@ -316,6 +316,8 @@ def parse_version(version):
         if not parts[3] in RELEASE_LETTER_STRENGTH:
             error('Unknown release letter "%s" from "%s"' % (parts[3], version))
         parts[3] = RELEASE_LETTER_STRENGTH[parts[3]]
+    else:
+        parts[3] = RELEASE_LETTER_STRENGTH['f']
     
     return parts
 
