@@ -321,26 +321,52 @@ def parse_version(version):
     
     return parts
 
+def version_string(parts):
+    parts = list(parts)
+    
+    if parts[3] != None:
+        parts[3] = [letter for letter, strength in RELEASE_LETTER_STRENGTH.items() if strength == parts[3]][0]
+    else:
+        parts[3] = 'x'
+    
+    for i in range(len(parts)):
+        if i == 3:
+            continue
+        
+        if parts[i] == None:
+            parts[i] = 'x'
+        else:
+            parts[i] = str(parts[i])
+    
+    return '%s.%s.%s%s%s' % tuple(parts)
+
 def compare_versions(one, two):
     return cmp(parse_version(one), parse_version(two))
 
-def match_version(one, two):
+def input_matches_version(input_version, match_with):
     for i in range(5):
-        if one[i] and two[i] and one[i] != two[i]:
+        if input_version[i] == None or match_with[i] == None:
+            continue
+        
+        if i == 3:
+            if input_version[i] < match_with[i]:
+                return False
+        elif input_version[i] != match_with[i]:
             return False
+    
     return True
 
 def select_version(version, sorted_versions):
-    one = parse_version(version)
+    input_version = parse_version(version)
     
     for i in reversed(range(len(sorted_versions))):
-        two = parse_version(sorted_versions[i])
-        if match_version(one, two):
+        match_with = parse_version(sorted_versions[i])
+        if input_matches_version(input_version, match_with):
             if version != sorted_versions[i]:
                 print 'Selected version %s for input version %s' % (sorted_versions[i], version)
             return sorted_versions[i]
     
-    error('Version %s is now a known Unity version' % version)
+    error('Could not find a Unity version that matches "%s"' % version_string(input_version))
 
 # ---- DOWNLOAD ----
 
