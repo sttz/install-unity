@@ -18,7 +18,7 @@ The Install Unity Script taps into this infrastructure and allows to quickly dow
 e.g. installing multiple 5.x versions at once can be done using the following command:<br>
 `./install-unity.py --package Unity 5.0 5.1 5.2 5.3`
 
-This will install only the Unity editor, with no additional packages. The script will detect existing installations in folders starting with "Unity" in the Applications folder and will temporarily move them to install new versions or additional packages for existing versions.
+This will install only the Unity editor, with no additional packages. The script will detect existing installations in folders starting with «Unity» in the Applications folder and will temporarily move them to install new versions or additional packages for existing versions.
 
 Later, additional packages can be installed (platform packages only available with Unity 5.3+), e.g:<br>
 `./install-unity.py --package Mac --package Windows --package Linux 5.3`
@@ -36,11 +36,11 @@ Versions can be added manually by finding the URL to the Mac editor installer co
 
 Versions can be specified with arbitrary precision, the install script will then select the latest available version that matches.
 
-E.g. “5” will select the latest version of Unity 5, “5.3” the latest version of Unity 5.3 and “5.2.3” the latest version of Unity 5.2.3.
+E.g. «5» will select the latest version of Unity 5, «5.3» the latest version of Unity 5.3 and «5.2.3» the latest version of Unity 5.2.3.
 
 If no release type is specified, only regular (f) releases will be installed. Add p for patch, b for beta or a for alpha to any version to select another release type. If no releases of a specific type are known, other types will be checked in the following order: alpha —> beta —> patch —> release
 
-E.g. “5.3p” will install the latest patch or the latest regular release for Unity 5.3. “5.4a” will install the latest Unity 5.4 release, be it alpha, beta, patch or regular.
+E.g. «5.3p» will install the latest patch or the latest regular release for Unity 5.3. «5.4a» will install the latest Unity 5.4 release, be it alpha, beta, patch or regular.
 
 # Selecting Packages
 
@@ -104,3 +104,28 @@ optional arguments:
                         VERSION-osx.ini or MacEditorInstaller url)
   --forget FORGET       remove a manually discovered version
 ```
+
+# Version History
+
+## 0.0.3 (2016-03-02)
+* Only install regular releases if no release type is specified (append «a» to a version to install the latest release of any type)
+* Add fallback for release types, e.g. specifying a beta release will fall back to patch and regular releases if no beta release is available
+* Scanning for available beta releases (@lacostej)
+* Fix error when beta or alpha versions are installed (@lacostej)
+* Print stack trace on error (@lacostej)
+* Fix Unity 5.0 being erroneously matched in some cases
+
+## 0.0.2 (2015-12-21)
+* Don’t re-install a version that is already installed (except when using `--install`). This allows to call the script to install a new version or fail if no new version is available
+* Improve format of output and add hints on how to resolve errors
+* Only ask for permissions once at the beginning
+* Move existing installations automatically to not overwrite them or to install additional packages
+* Using `--install` doesn’t try to update the cache (for offline installs)
+* Specify custom package download directory with `--package-store`
+* Check if packages have been downloaded when using `--install`
+* Don’t create download directory when not downloading anything
+* Add `--all-packaged` to install all available packages
+* Fix cache update time not being updated
+
+## 0.0.1 (2015-12-16)
+* Initial release

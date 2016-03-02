@@ -46,7 +46,7 @@ import urllib2
 
 # ---- CONFIGURATION ----
 
-VERSION = '0.0.2'
+VERSION = '0.0.3'
 
 # URL to look for main Unity releases
 UNITY_DOWNLOADS = 'http://unity3d.com/get-unity/download/archive'
