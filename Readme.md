@@ -107,7 +107,7 @@ optional arguments:
 
 # Version History
 
-## 0.0.3 (2016-03-02)
+#### 0.0.3 (2016-03-02)
 * Only install regular releases if no release type is specified (append «a» to a version to install the latest release of any type)
 * Add fallback for release types, e.g. specifying a beta release will fall back to patch and regular releases if no beta release is available
 * Scanning for available beta releases (@lacostej)
@@ -115,7 +115,7 @@ optional arguments:
 * Print stack trace on error (@lacostej)
 * Fix Unity 5.0 being erroneously matched in some cases
 
-## 0.0.2 (2015-12-21)
+#### 0.0.2 (2015-12-21)
 * Don’t re-install a version that is already installed (except when using `--install`). This allows to call the script to install a new version or fail if no new version is available
 * Improve format of output and add hints on how to resolve errors
 * Only ask for permissions once at the beginning
@@ -127,5 +127,5 @@ optional arguments:
 * Add `--all-packaged` to install all available packages
 * Fix cache update time not being updated
 
-## 0.0.1 (2015-12-16)
+#### 0.0.1 (2015-12-16)
 * Initial release
