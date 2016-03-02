@@ -27,7 +27,7 @@ Later, additional packages can be installed (platform packages only available wi
 
 Unity is packaged this way starting from Unity 5.0, the install script doesn’t support earlier versions.
 
-The install script scans public Unity HTML pages and does not discover all versions available. Specifically, it only scans the newest page of patch and no beta releases.
+The install script scans public Unity HTML pages and does not discover all versions available. For regular releases, this includes all versions of Unity 5.x.x. For patch releases, this includes only the newest 5 and for beta releases only the ones for the upcoming Unity version (if any).
 
 Versions can be added manually by finding the URL to the Mac editor installer containing a 12-character hash code, e.g. `http://netstorage.unity3d.com/unity/2524e04062b4/MacEditorInstaller/Unity-5.3.0f4.pkg` and by calling:<br>
 `./install-unity.py --discover URL`
