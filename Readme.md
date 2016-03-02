@@ -36,9 +36,11 @@ Versions can be added manually by finding the URL to the Mac editor installer co
 
 Versions can be specified with arbitrary precision, the install script will then select the latest available version that matches.
 
-E.g. “5” will select the latest version of Unity 5, “5.3” the latest version of Unity 5.3 and “5.2.3” the latest version of Unity 5.2.3, including patch releases.
+E.g. “5” will select the latest version of Unity 5, “5.3” the latest version of Unity 5.3 and “5.2.3” the latest version of Unity 5.2.3.
 
-To ignore patch releases, an “f” can be appended to the version, e.g. “5.3f” will select the latest non-patch release of Unity 5.3.
+If no release type is specified, only regular (f) releases will be installed. Add p for patch, b for beta or a for alpha to any version to select another release type. If no releases of a specific type are known, other types will be checked in the following order: alpha —> beta —> patch —> release
+
+E.g. “5.3p” will install the latest patch or the latest regular release for Unity 5.3. “5.4a” will install the latest Unity 5.4 release, be it alpha, beta, patch or regular.
 
 # Selecting Packages
 
