@@ -681,8 +681,8 @@ if not operation or operation == 'install':
     # long and the user would have to enter his password again 
     # and again.
     print 'Your admin password is required to install the packages'
-    if parser.pwd is not None:
-        pwd = parser.pwd
+    if args.pwd is not None:
+        pwd = args.pwd
     else:
         pwd = getpass.getpass('User password:')
     
