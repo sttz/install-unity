@@ -586,6 +586,7 @@ def install(version, path, selected):
         moved_unity_from = installs[version]
         os.rename(moved_unity_from, install_path)
     
+    install_error = None
     for pkg in selected:
         filename = os.path.basename(config.get(pkg, 'url'))
         package = os.path.join(path, filename)
@@ -604,7 +605,8 @@ def install(version, path, selected):
             result = p.communicate(None)
         
         if p.returncode != 0:
-            error('Installation of package "%s" failed: %s' % (filename, result[0]))
+            install_error = (filename, result[0])
+            break
     
     # Revert moving around Unity installations
     if moved_unity_from:
@@ -617,6 +619,9 @@ def install(version, path, selected):
             new_install_path = os.path.join(args.volume, 'Applications', 'Unity %s' % version)
             os.rename(install_path, new_install_path)
         os.rename(moved_unity_to, install_path)
+    
+    if install_error:
+        error('Installation of package "%s" failed: %s' % install_error)
     
     print 'Installation complete!'
     print ''
