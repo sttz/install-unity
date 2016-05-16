@@ -586,31 +586,37 @@ def install(version, path, selected):
         moved_unity_from = installs[version]
         os.rename(moved_unity_from, install_path)
     
-    try:
-        for pkg in selected:
-            filename = os.path.basename(config.get(pkg, 'url'))
-            package = os.path.join(path, filename)
-            
-            print 'Installing %s...' % filename
-            
-            command = '/usr/sbin/installer -pkg %s -target %s -verbose' % (pipes.quote(package), pipes.quote(args.volume))
-            if not is_root:
-                command = 'echo "%s" | /usr/bin/sudo -S %s' % (pwd, command)
-            subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError as e:
-        error('Installation of package "%s" failed: %s' % (filename, e.output))
-    finally:
-        # Revert moving around Unity installations
-        if moved_unity_from:
-            os.rename(install_path, moved_unity_from)
+    for pkg in selected:
+        filename = os.path.basename(config.get(pkg, 'url'))
+        package = os.path.join(path, filename)
         
-        if moved_unity_to:
-            if os.path.isdir(install_path):
-                # If there previously was a 'Unity' folder, move the newly
-                # installed Unity to 'Unity VERSION'
-                new_install_path = os.path.join(args.volume, 'Applications', 'Unity %s' % version)
-                os.rename(install_path, new_install_path)
-            os.rename(moved_unity_to, install_path)
+        print 'Installing %s...' % filename
+        
+        command = ['/usr/sbin/installer', '-pkg', package, '-target', args.volume, '-verbose'];
+        if not is_root:
+            command = ['/usr/bin/sudo', '-S'] + command;
+        
+        p = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        
+        if not is_root:
+            result = p.communicate(pwd + "\n")
+        else:
+            result = p.communicate(None)
+        
+        if p.returncode != 0:
+            error('Installation of package "%s" failed: %s' % (filename, result[0]))
+    
+    # Revert moving around Unity installations
+    if moved_unity_from:
+        os.rename(install_path, moved_unity_from)
+    
+    if moved_unity_to:
+        if os.path.isdir(install_path):
+            # If there previously was a 'Unity' folder, move the newly
+            # installed Unity to 'Unity VERSION'
+            new_install_path = os.path.join(args.volume, 'Applications', 'Unity %s' % version)
+            os.rename(install_path, new_install_path)
+        os.rename(moved_unity_to, install_path)
     
     print 'Installation complete!'
     print ''
