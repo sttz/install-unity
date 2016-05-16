@@ -107,6 +107,10 @@ optional arguments:
 
 # Version History
 
+#### 0.0.4 (2016-05-16)
+* Detect if script is run as root and don't ask for password in that case
+* Improve password handling so it won't be leaked in the process info
+
 #### 0.0.3 (2016-03-02)
 * Only install regular releases if no release type is specified (append «a» to a version to install the latest release of any type)
 * Add fallback for release types, e.g. specifying a beta release will fall back to patch and regular releases if no beta release is available
