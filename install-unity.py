@@ -132,6 +132,10 @@ parser.add_argument('--forget',
     action='append',
     help='remove a manually discovered version')
 
+parser.add_argument('--pwd',
+    nargs='?',
+    help='set admin pwd to be used')
+
 args = parser.parse_args()
 
 # ---- GENERAL ----
@@ -691,7 +695,10 @@ if not is_root and (not operation or operation == 'install'):
     # long and the user would have to enter his password again 
     # and again.
     print 'Your admin password is required to install the packages'
-    pwd = getpass.getpass('User password:')
+    if args.pwd is not None:
+        pwd = args.pwd
+    else:
+        pwd = getpass.getpass('User password:')
     
     # Check the root password, so that the user won't only find out
     # much later if the password is wrong
