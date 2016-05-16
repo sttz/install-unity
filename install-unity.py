@@ -593,7 +593,9 @@ def install(version, path, selected):
             
             print 'Installing %s...' % filename
             
-            command = 'echo "%s" | /usr/bin/sudo -S /usr/sbin/installer -pkg %s -target %s -verbose' % (pwd, pipes.quote(package), pipes.quote(args.volume))
+            command = '/usr/sbin/installer -pkg %s -target %s -verbose' % (pipes.quote(package), pipes.quote(args.volume))
+            if not is_root:
+                command = 'echo "%s" | /usr/bin/sudo -S %s' % (pwd, command)
             subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         error('Installation of package "%s" failed: %s' % (filename, e.output))
@@ -670,7 +672,8 @@ if args.discover or args.forget:
 if args.list_versions or len(args.versions) == 0:
     operation = 'list-versions'
 
-if not operation or operation == 'install':
+is_root = (os.getuid() == 0)
+if not is_root and (not operation or operation == 'install'):
     # Get the root password early so we don't need to ask for it
     # after the downloads potentially took a long time to finish.
     # Also, just calling sudo might expire when the install takes
