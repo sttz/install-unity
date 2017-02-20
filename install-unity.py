@@ -293,9 +293,16 @@ class version_cache:
         
         print 'Known available Unity versions:'
         print '(Use "--discover URL" to add versions not automatically discovered)'
-        for version in self.get_sorted_versions():
+
+        last_major_minor = None
+        for version in reversed(self.get_sorted_versions()):
             if letter and not letter in version:
                 continue
+            parts = parse_version(version)
+            major_minor = '%s.%s' % (parts[0], parts[1])
+            if (major_minor != last_major_minor):
+                print '\n== %s ==' % major_minor
+                last_major_minor = major_minor
             print '- %s' % version
 
 # ---- VERSION HANDLING ----
