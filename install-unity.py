@@ -204,7 +204,7 @@ class version_cache:
         try:
             response = urllib2.urlopen(url)
         except Exception as e:
-            error('Could not load URL "%s": %s' % url, e.reason)
+            error('Could not load URL "%s": %s' % (url, e.reason))
 
         result = sorted(set(re.findall(UNITY_BETAVERSION_RE, response.read())))
         for betaversion in result:
@@ -217,7 +217,7 @@ class version_cache:
         try:
             response = urllib2.urlopen(url)
         except Exception as e:
-            error('Could not load URL "%s": %s' % url, e.reason)
+            error('Could not load URL "%s": %s' % (url, e.reason))
         
         result = re.findall(pattern, response.read())
         for match in result:
@@ -456,7 +456,7 @@ def load_ini(version):
         try:
             response = urllib2.urlopen(url)
         except Exception as e:
-            error('Could not load URL "%s": %s' % url, e.reason)
+            error('Could not load URL "%s": %s' % (url, e.reason))
     
         with open(ini_path, 'w') as file:
             file.write(response.read())
