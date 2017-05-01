@@ -48,9 +48,9 @@ import urllib2
 VERSION = '0.0.4'
 
 # URL to look for main Unity releases
-UNITY_DOWNLOADS = 'http://unity3d.com/get-unity/download/archive'
+UNITY_DOWNLOADS = 'https://unity3d.com/get-unity/download/archive'
 # URL to look for Unity patch releases
-UNITY_PATCHES = 'http://unity3d.com/unity/qa/patch-releases'
+UNITY_PATCHES = 'https://unity3d.com/unity/qa/patch-releases'
 # URL to look for beta releases
 UNITY_BETAS = 'https://unity3d.com/unity/beta/archive'
 # Regex to find relative beta page URI from HTML
