@@ -6,7 +6,7 @@ Unofficial Unity 3D installer for OS X.
 
 The install script requires Python 2 and OpenSSL 1.0.1. Unfortunately, the Python that is shipped with macOS is linked to an outdated version of OpenSSL and can no longer make connections to `unity3d.com`.
 
-Either download and install Python 2 from [the official Python website](https://www.python.org/downloads/) or install it using a package manager like Homebrew (`brew install python`).
+Either download and install Python 2 from [the official Python website](https://www.python.org/downloads/) or install it using a package manager like [Homebrew](http://brew.sh) (`brew install python`).
 
 Then download the script and run it from the command line:<br>
 `./install-unity.py --help`
