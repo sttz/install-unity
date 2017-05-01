@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # The MIT License (MIT)
@@ -42,6 +42,7 @@ import time
 import traceback
 import urllib
 import urllib2
+import ssl
 
 # ---- CONFIGURATION ----
 
@@ -657,6 +658,34 @@ print 'Install Unity Script %s\n' % VERSION
 script_dir = os.path.dirname(os.path.abspath(__file__))
 operation = args.operation
 packages = [x.lower() for x in args.package] if args.package else []
+
+# Check the installed OpenSSL version
+# unity3d.com only supports TLS1.2, which requires at least OpenSSL 1.0.1.
+# macOS has deprecated OpenSSL in favor of its own crypto libraries, which
+# means macOS will be stuck at OpenSSL 0.9.8, which doesn't support TLS1.2.
+match = re.match('OpenSSL (\d+).(\d+).(\d+)(\w+)', ssl.OPENSSL_VERSION)
+if not match:
+    print 'ERROR: Could not parse OpenSSL version: %s' % version
+    sys.exit(1)
+
+parts = match.groups()
+if (int(parts[0]) < 1 or int(parts[1]) < 0 or int(parts[2]) < 1):
+    print (
+        'ERROR: Your Python\'s OpenSSL library is outdated (%s).\n'
+        'At least OpenSSL version 1.0.1g is required.\n'
+        'You need to install a new version of Python 2 with an updated OpenSSL library.\n'
+        ) % (ssl.OPENSSL_VERSION)
+    
+    brew_check = os.system('brew help &> /dev/null')
+    if brew_check != 0:
+        print 'Either download it from www.python.org or install it using a package manager like Homebrew.'
+    else:
+        print (
+            'You can install python with Homebrew using the following command:\n'
+            'brew install python'
+        )
+
+    sys.exit(1)
 
 # When --update is set we also clear all ini files to force re-downloading them
 if args.update:
