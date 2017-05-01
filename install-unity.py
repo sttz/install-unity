@@ -27,7 +27,6 @@ import argparse
 import collections
 import ConfigParser
 import datetime
-import dateutil.parser
 import getpass
 import hashlib
 import io
@@ -162,7 +161,7 @@ class version_cache:
                 print "No cache found, updating Unity versions list..."
                 need_update = True
             else:
-                lastupdate = dateutil.parser.parse(self.cache['lastupdate'])
+                lastupdate = datetime.datetime.strptime(self.cache['lastupdate'], '%Y-%m-%dT%H:%M:%S.%f')
                 if (datetime.datetime.utcnow() - lastupdate).total_seconds() > CACHE_LIFETIME:
                     print "Cache outdated, updating Unity versions list..."
                     need_update = True
