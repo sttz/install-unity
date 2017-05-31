@@ -49,7 +49,7 @@ E.g. «5.3p» will install the latest patch or the latest regular release for Un
 Some of the packages are only available in later versions of Unity. Prior to Unity 5.3, the main Unity editor installer includes all supported platforms and they cannot be installed separately.
 
 Use the following command to show all available packages for a given version:<br>
-`./install-unity.py --list VERSION`
+`./install-unity.py --packages VERSION`
 
 If no package is specified, the default packages (same as in the official Unity installer) will be installed. Otherwise, any number of `-p PACKAGE` or `--package PACKAGE` can be specified to select packages, selected packages that are not available for a given version will be ignored.
 
@@ -69,14 +69,14 @@ Instead of installing all packages, you can select which packages to install usi
 
 All available commands:
 ```
-usage: install-unity.py [-h] [--version] [--list] [--download] [--install]
+usage: install-unity.py [-h] [--version] [--packages] [--download] [--install]
                         [--volume VOLUME] [-p PACKAGE] [--all-packages]
                         [--package-store PACKAGE_STORE] [-k] [-u]
-                        [--list-versions {release,patch,all}]
+                        [-l {release,patch,beta,alpha,all}]
                         [--discover DISCOVER] [--forget FORGET]
                         [VERSION [VERSION ...]]
 
-Install Unity Script 0.0.2
+Install Unity Script 0.0.6
 
 positional arguments:
   VERSION               unity version to install packages from (only >= 5.0.0)
@@ -84,7 +84,7 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   --version             show program's version number and exit
-  --list                only list available packages
+  --packages            list available packages for the versions(s)
   --download            only download the version(s), don't install them
   --install             only install the version(s), they must have been
                         downloaded previously
@@ -100,7 +100,7 @@ optional arguments:
   -k, --keep            don't remove installer files after installation
                         (implied when using --install)
   -u, --update          force updating of cached version information
-  --list-versions {release,patch,all}
+  -l {release,patch,beta,alpha,all}, --list {release,patch,beta,alpha,all}
                         list the cached unity versions
   --discover DISCOVER   manually discover a Unity packages url (link to unity-
                         VERSION-osx.ini or MacEditorInstaller url)
@@ -108,6 +108,14 @@ optional arguments:
 ```
 
 # Version History
+
+### 0.0.6 (2017-05-31)
+* Fix discovery of Unity 2017.1 versions
+* Renamed `--list` to `--packages`, renamed `--list-versions` to just `--list` and added shortcut `-l`
+* Only download list of patch and beta releases when necessary
+* By default, `install-unity` will only list release versions, use `-l patch|beta|all` to load and list patch/beta releases. Installing and listing packages still works as before, just use e.g. `2017.1b` to install the latest beta version of Unity 2017.1
+* A single release letter is now accepted as version string, e.g. just `b` for the latest beta
+* Only ask for password after version and packages have been selected, giving a chance to review those choices
 
 ### 0.0.5 (2017-05-01)
 * Fix connecting to unity3d.com now that it requries TLS1.2 (python upgrade may be needed)
