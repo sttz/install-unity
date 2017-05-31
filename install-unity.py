@@ -78,7 +78,7 @@ RELEASE_LETTERS = { 'all': None, 'release': 'f', 'patch': 'p', 'beta': 'b', 'alp
 # Sorting power of unity release types
 RELEASE_LETTER_STRENGTH = { 'f': 1, 'p': 2, 'b': 3, 'a': 4 }
 # Default release stage when not explicitly specified with --list-versions or in the given version string
-DEFAULT_STAGE = 'b'
+DEFAULT_STAGE = 'f'
 
 # Default location where downloaded packages are temporarily stored
 # (Unless --download, --install or --keep is used, in which case they are not removed)
@@ -126,7 +126,6 @@ parser.add_argument('-u', '--update',
     help='force updating of cached version information')
 parser.add_argument('-l', '--list-versions', 
     choices=['release', 'patch', 'beta', 'alpha', 'all'],
-    default='all',
     help='list the cached unity versions')
 parser.add_argument('--discover', 
     action='append',
@@ -174,6 +173,11 @@ class version_cache:
     
     def update(self, stage, force = False):
         strength = RELEASE_LETTER_STRENGTH[stage]
+
+        if force:
+            print 'Forced updating of unity versions cache'
+        else:
+            print 'Updating outdated unity versions caches'
 
         if strength >= 1 and (force or self.is_outdated(self.cache.get('release', None))):
             print 'Loading Unity releases...'
@@ -298,19 +302,19 @@ class version_cache:
         
         return self.sorted_versions
     
-    def list(self, type):
-        letter = None
-        if type:
-            letter = RELEASE_LETTERS[type]
-        
+    def list(self, stage = None):
         print 'Known available Unity versions:'
         print '(Use "--discover URL" to add versions not automatically discovered)'
 
+        strength = 1
+        if stage in RELEASE_LETTER_STRENGTH:
+            strength = RELEASE_LETTER_STRENGTH[stage]
+        
         last_major_minor = None
         for version in reversed(self.get_sorted_versions()):
-            if letter and not letter in version:
-                continue
             parts = parse_version(version)
+            if strength < parts[3]:
+                continue
             major_minor = '%s.%s' % (parts[0], parts[1])
             if (major_minor != last_major_minor):
                 print '\n== %s ==' % major_minor
@@ -711,9 +715,6 @@ if args.update:
 # Setup version cache, handle adding and removing of versions
 cache = version_cache(script_dir)
 
-if args.update or operation != 'install':
-    cache.update(stage, force = args.update)
-
 if args.discover or args.forget:
     if args.forget:
         for version in args.forget:
@@ -758,9 +759,15 @@ download_to = os.path.expanduser(os.path.join(download_to, DOWNLOAD_DIRECTORY))
 
 # Main Operation
 if operation == 'list-versions':
-    find_unity_installs()
+    find_unity_installs() # To show the user which installs we discovered
     
-    cache.list(args.list_versions)
+    if args.list_versions:
+        stage = RELEASE_LETTERS[args.list_versions]
+        if not stage:
+            stage = 'a'
+
+    cache.update(stage, force = args.update)
+    cache.list(stage)
     
     print ''
     print 'List available packages for a given version using "--list VERSION"'
@@ -769,6 +776,17 @@ else:
     installs = find_unity_installs()
     sorted_installs = sorted(installs.keys(), compare_versions)
     
+    # Determine the maximum release stage of all vesions
+    max_strength = RELEASE_LETTER_STRENGTH[stage]
+    for version in args.versions:
+        strength = parse_version(version)[3]
+        if strength > max_strength:
+            stage = RELEASE_LETTER_STRENGTH.keys()[RELEASE_LETTER_STRENGTH.values().index(strength)]
+            max_strength = strength
+    
+    if args.update or operation != 'install':
+        cache.update(stage, force = args.update)
+
     if operation == 'list' or len(packages) == 0 or 'unity' in packages:
         print 'Trying to select most recent known Unity version'
         version_list = cache.get_sorted_versions()
@@ -783,7 +801,7 @@ else:
     
     versions = set([select_version(v, version_list) for v in args.versions])
     print ''
-    
+
     for version in versions:
         config = load_ini(version)
         
