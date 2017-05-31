@@ -72,7 +72,7 @@ CACHE_FILE = 'unity_versions.json'
 CACHE_LIFETIME = 60*60*24
 
 # Regex to parse Unity versions in the format of e.g. '5.3.2p3'"
-VERSION_RE = '^(\d+)(?:\.(\d+)(?:\.(\d+))?)?(?:(\w)(?:(\d+))?)?$'
+VERSION_RE = '^(\d+)?(?:\.(\d+)(?:\.(\d+))?)?(?:(\w)(?:(\d+))?)?$'
 # Unity release types and corresponding letters in version string
 RELEASE_LETTERS = { 'all': None, 'release': 'f', 'patch': 'p', 'beta': 'b', 'alpha': 'a' }
 # Sorting power of unity release types
