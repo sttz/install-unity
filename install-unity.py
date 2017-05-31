@@ -573,6 +573,26 @@ def find_unity_installs():
     
     return installs
 
+def check_root():
+    global pwd
+    if not is_root and (not operation or operation == 'install'):
+        # Get the root password early so we don't need to ask for it
+        # after the downloads potentially took a long time to finish.
+        # Also, just calling sudo might expire when the install takes
+        # long and the user would have to enter his password again 
+        # and again.
+        print 'Your admin password is required to install the packages'
+        pwd = getpass.getpass('User password:')
+        
+        # Check the root password, so that the user won't only find out
+        # much later if the password is wrong
+        command = 'sudo -k && echo "%s" | /usr/bin/sudo -S /usr/bin/whoami' % pwd
+        result = subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if result != 0:
+            error('User password invalid or user not an admin')
+        
+        print ''
+
 def install(version, path, selected):
     missing = False
     for pkg in selected:
@@ -677,6 +697,8 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 operation = args.operation
 packages = [x.lower() for x in args.package] if args.package else []
 stage = DEFAULT_STAGE
+pwd = None
+is_root = (os.getuid() == 0)
 
 # Check the installed OpenSSL version
 # unity3d.com only supports TLS1.2, which requires at least OpenSSL 1.0.1.
@@ -730,25 +752,6 @@ if args.discover or args.forget:
 
 if args.list_versions or len(args.versions) == 0:
     operation = 'list-versions'
-
-is_root = (os.getuid() == 0)
-if not is_root and (not operation or operation == 'install'):
-    # Get the root password early so we don't need to ask for it
-    # after the downloads potentially took a long time to finish.
-    # Also, just calling sudo might expire when the install takes
-    # long and the user would have to enter his password again 
-    # and again.
-    print 'Your admin password is required to install the packages'
-    pwd = getpass.getpass('User password:')
-    
-    # Check the root password, so that the user won't only find out
-    # much later if the password is wrong
-    command = 'sudo -k && echo "%s" | /usr/bin/sudo -S /usr/bin/whoami' % pwd
-    result = subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if result != 0:
-        error('User password invalid or user not an admin')
-    
-    print ''
 
 # Download path
 download_to = args.package_store
@@ -835,6 +838,8 @@ else:
                 print ''
                 continue
             
+            check_root()
+
             if operation == 'download' or not operation:
                 download(version, path, config, selected)
             
