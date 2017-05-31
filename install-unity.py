@@ -371,6 +371,8 @@ def select_version(version, sorted_versions):
         if input_matches_version(input_version, match_with):
             if version != sorted_versions[i]:
                 print 'Selected version %s for input version %s' % (sorted_versions[i], version)
+            else:
+                print 'Selected version %s exactly matches input version' % (sorted_versions[i])
             return sorted_versions[i]
     
     error('Could not find a Unity version that matches "%s"' % version_string(input_version))
