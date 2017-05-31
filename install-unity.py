@@ -59,12 +59,12 @@ UNITY_BETAVERSION_RE = '"/unity/beta/unity(\d+\.\d+\.\d+\w\d+)"'
 # parametrized beta version URL, given its version
 UNITY_BETAVERSION_URL = "https://unity3d.com/unity/beta/unity%s"
 # Regex to parse package URLs from HTML
-UNITY_DOWNLOADS_RE = '"(https?:\/\/[\w\/.-]+\/[0-9a-f]{12}\/)MacEditorInstaller\/[\w\/.-]+(\d+\.\d+\.\d+\w\d+)[\w\/.-]+"'
+UNITY_DOWNLOADS_RE = '"(https?:\/\/[\w\/.-]+\/[0-9a-f]{12}\/)MacEditorInstaller\/[\w\/.-]+-(\d+\.\d+\.\d+\w\d+)[\w\/.-]+"'
 
 # Name of the ini file at the package URL that contains package information (%s = version)
 UNITY_INI_NAME = 'unity-%s-osx.ini'
 # Regex to parse URLs given to --discover
-UNITY_INI_RE = '(https?:\/\/[\w\/.-]+\/[0-9a-f]{12}\/)[\w\/.-]+(\d+\.\d+\.\d+\w\d+)[\w\/.-]+'
+UNITY_INI_RE = '(https?:\/\/[\w\/.-]+\/[0-9a-f]{12}\/)[\w\/.-]+-(\d+\.\d+\.\d+\w\d+)[\w\/.-]+'
 
 # Name of the Unity versions cache (created from above URLs)
 CACHE_FILE = 'unity_versions.json'
