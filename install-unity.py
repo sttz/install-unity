@@ -77,6 +77,8 @@ VERSION_RE = '^(\d+)(?:\.(\d+)(?:\.(\d+))?)?(?:(\w)(?:(\d+))?)?$'
 RELEASE_LETTERS = { 'all': None, 'release': 'f', 'patch': 'p', 'beta': 'b', 'alpha': 'a' }
 # Sorting power of unity release types
 RELEASE_LETTER_STRENGTH = { 'f': 1, 'p': 2, 'b': 3, 'a': 4 }
+# Default release stage when not explicitly specified with --list-versions or in the given version string
+DEFAULT_STAGE = 'b'
 
 # Default location where downloaded packages are temporarily stored
 # (Unless --download, --install or --keep is used, in which case they are not removed)
@@ -153,23 +155,6 @@ class version_cache:
         self.sorted_versions = None
         
         self.load()
-        
-        need_update = False
-        if update is True:
-            print "Forcing an update of Unity versions list..."
-            need_update = True
-        elif update is None:
-            if not 'lastupdate' in self.cache:
-                print "No cache found, updating Unity versions list..."
-                need_update = True
-            else:
-                lastupdate = datetime.datetime.strptime(self.cache['lastupdate'], '%Y-%m-%dT%H:%M:%S.%f')
-                if (datetime.datetime.utcnow() - lastupdate).total_seconds() > CACHE_LIFETIME:
-                    print "Cache outdated, updating Unity versions list..."
-                    need_update = True
-        
-        if need_update:
-            self.update()
     
     def load(self):
         if not os.path.isfile(self.cache_file):
@@ -180,21 +165,36 @@ class version_cache:
             self.cache = json.loads(data)
             self.sorted_versions = None
     
-    def update(self):
-        self.cache['versions'] = {}
-        self.cache['lastupdate'] = datetime.datetime.utcnow().isoformat()
-        
-        print 'Loading Unity releases...'
-        count = self._load_and_parse(UNITY_DOWNLOADS, UNITY_DOWNLOADS_RE, self.cache['versions'])
-        if count > 0: print 'Found %i Unity releases.' % count
-        
-        print 'Loading Unity patch releases...'
-        count = self._load_and_parse(UNITY_PATCHES, UNITY_DOWNLOADS_RE, self.cache['versions'])
-        if count > 0: print 'Found %i Unity patch releases.' % count
-        
-        print 'Loading Unity beta releases...'
-        count = self._load_and_parse_betas(UNITY_BETAS, UNITY_DOWNLOADS_RE, self.cache['versions'])
-        if count > 0: print 'Found %i Unity patch releases.' % count
+    def is_outdated(self, cache):
+        if not cache or not '_lastupdate' in cache:
+            return True
+
+        lastupdate = datetime.datetime.strptime(cache['_lastupdate'], '%Y-%m-%dT%H:%M:%S.%f')
+        return (datetime.datetime.utcnow() - lastupdate).total_seconds() > CACHE_LIFETIME
+    
+    def update(self, stage, force = False):
+        strength = RELEASE_LETTER_STRENGTH[stage]
+
+        if strength >= 1 and (force or self.is_outdated(self.cache.get('release', None))):
+            print 'Loading Unity releases...'
+            self.cache['release'] = {}
+            self.cache['release']['_lastupdate'] = datetime.datetime.utcnow().isoformat()
+            count = self._load_and_parse(UNITY_DOWNLOADS, UNITY_DOWNLOADS_RE, self.cache['release'])
+            if count > 0: print 'Found %i Unity releases.' % count
+
+        if strength >= 2 and (force or self.is_outdated(self.cache.get('patch', None))):
+            print 'Loading Unity patch releases...'
+            self.cache['patch'] = {}
+            self.cache['patch']['_lastupdate'] = datetime.datetime.utcnow().isoformat()
+            count = self._load_and_parse(UNITY_PATCHES, UNITY_DOWNLOADS_RE, self.cache['patch'])
+            if count > 0: print 'Found %i Unity patch releases.' % count
+
+        if strength >= 3 and (force or self.is_outdated(self.cache.get('beta', None))):
+            print 'Loading Unity beta releases...'
+            self.cache['beta'] = {}
+            self.cache['beta']['_lastupdate'] = datetime.datetime.utcnow().isoformat()
+            count = self._load_and_parse_betas(UNITY_BETAS, UNITY_DOWNLOADS_RE, self.cache['beta'])
+            if count > 0: print 'Found %i Unity patch releases.' % count
 
         print ''
         
@@ -273,16 +273,27 @@ class version_cache:
     def get_baseurl(self, version):
         if 'discovered' in self.cache and version in self.cache['discovered']:
             return self.cache['discovered'][version]
-        elif version in self.cache['versions']:
-            return self.cache['versions'][version]
+        elif version in self.cache['release']:
+            return self.cache['release'][version]
+        elif version in self.cache['patch']:
+            return self.cache['patch'][version]
+        elif version in self.cache['beta']:
+            return self.cache['beta'][version]
         else:
             return None
     
     def get_sorted_versions(self):
         if self.sorted_versions == None:
-            all_versions = self.cache['versions'].keys()
+            all_versions = []
             if 'discovered' in self.cache:
                 all_versions += self.cache['discovered'].keys()
+            if 'release' in self.cache:
+                all_versions += self.cache['release'].keys()
+            if 'patch' in self.cache:
+                all_versions += self.cache['patch'].keys()
+            if 'beta' in self.cache:
+                all_versions += self.cache['beta'].keys()
+            all_versions = [x for x in all_versions if not x.startswith('_')]
             self.sorted_versions = sorted(all_versions, compare_versions)
         
         return self.sorted_versions
@@ -661,6 +672,7 @@ print 'Install Unity Script %s\n' % VERSION
 script_dir = os.path.dirname(os.path.abspath(__file__))
 operation = args.operation
 packages = [x.lower() for x in args.package] if args.package else []
+stage = DEFAULT_STAGE
 
 # Check the installed OpenSSL version
 # unity3d.com only supports TLS1.2, which requires at least OpenSSL 1.0.1.
@@ -697,13 +709,10 @@ if args.update:
             os.remove(os.path.join(script_dir, file))
 
 # Setup version cache, handle adding and removing of versions
-update_cache = None
-if args.update:
-    update_cache = True
-elif operation == 'install':
-    update_cache = False
+cache = version_cache(script_dir)
 
-cache = version_cache(script_dir, update_cache)
+if args.update or operation != 'install':
+    cache.update(stage, force = args.update)
 
 if args.discover or args.forget:
     if args.forget:
