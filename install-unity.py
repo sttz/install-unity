@@ -74,7 +74,7 @@ CACHE_LIFETIME = 60*60*24
 # Regex to parse Unity versions in the format of e.g. '5.3.2p3'"
 VERSION_RE = '^(\d+)(?:\.(\d+)(?:\.(\d+))?)?(?:(\w)(?:(\d+))?)?$'
 # Unity release types and corresponding letters in version string
-RELEASE_LETTERS = { 'release': 'f', 'patch': 'p' }
+RELEASE_LETTERS = { 'all': None, 'release': 'f', 'patch': 'p', 'beta': 'b', 'alpha': 'a' }
 # Sorting power of unity release types
 RELEASE_LETTER_STRENGTH = { 'f': 1, 'p': 2, 'b': 3, 'a': 4 }
 
@@ -122,8 +122,9 @@ parser.add_argument('-k', '--keep',
 parser.add_argument('-u', '--update', 
     action='store_true',
     help='force updating of cached version information')
-parser.add_argument('--list-versions', 
-    choices=['release', 'patch', 'all'],
+parser.add_argument('-l', '--list-versions', 
+    choices=['release', 'patch', 'beta', 'alpha', 'all'],
+    default='all',
     help='list the cached unity versions')
 parser.add_argument('--discover', 
     action='append',
