@@ -773,6 +773,8 @@ if operation == 'list-versions':
     cache.list(stage)
     
     print ''
+    if not args.list_versions:
+        print 'Only listing release versions of Unity, use "-l patch|beta" to list patch or beta versions'
     print 'List available packages for a given version using "--list VERSION"'
 
 else:
