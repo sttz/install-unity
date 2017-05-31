@@ -77,7 +77,7 @@ VERSION_RE = '^(\d+)(?:\.(\d+)(?:\.(\d+))?)?(?:(\w)(?:(\d+))?)?$'
 RELEASE_LETTERS = { 'all': None, 'release': 'f', 'patch': 'p', 'beta': 'b', 'alpha': 'a' }
 # Sorting power of unity release types
 RELEASE_LETTER_STRENGTH = { 'f': 1, 'p': 2, 'b': 3, 'a': 4 }
-# Default release stage when not explicitly specified with --list-versions or in the given version string
+# Default release stage when not explicitly specified with --list or in the given version string
 DEFAULT_STAGE = 'f'
 
 # Default location where downloaded packages are temporarily stored
@@ -95,9 +95,9 @@ parser.add_argument('versions',
     metavar='VERSION', type=str, nargs='*',
     help='unity version to install packages from (only >= 5.0.0)')
 
-parser.add_argument('--list', 
+parser.add_argument('--packages', 
     action='store_const', const='list', dest='operation',
-    help='only list available packages')
+    help='list available packages for the versions(s)')
 parser.add_argument('--download', 
     action='store_const', const='download', dest='operation',
     help='only download the version(s), don\'t install them')
@@ -124,7 +124,7 @@ parser.add_argument('-k', '--keep',
 parser.add_argument('-u', '--update', 
     action='store_true',
     help='force updating of cached version information')
-parser.add_argument('-l', '--list-versions', 
+parser.add_argument('-l', '--list', 
     choices=['release', 'patch', 'beta', 'alpha', 'all'],
     help='list the cached unity versions')
 parser.add_argument('--discover', 
@@ -750,7 +750,7 @@ if args.discover or args.forget:
     cache.save()
     print ''
 
-if args.list_versions or len(args.versions) == 0:
+if args.list or len(args.versions) == 0:
     operation = 'list-versions'
 
 # Download path
@@ -764,8 +764,8 @@ download_to = os.path.expanduser(os.path.join(download_to, DOWNLOAD_DIRECTORY))
 if operation == 'list-versions':
     find_unity_installs() # To show the user which installs we discovered
     
-    if args.list_versions:
-        stage = RELEASE_LETTERS[args.list_versions]
+    if args.list:
+        stage = RELEASE_LETTERS[args.list]
         if not stage:
             stage = 'a'
 
@@ -773,9 +773,9 @@ if operation == 'list-versions':
     cache.list(stage)
     
     print ''
-    if not args.list_versions:
+    if not args.list:
         print 'Only listing release versions of Unity, use "-l patch|beta" to list patch or beta versions'
-    print 'List available packages for a given version using "--list VERSION"'
+    print 'List available packages for a given version using "--packages VERSION"'
 
 else:
     installs = find_unity_installs()
