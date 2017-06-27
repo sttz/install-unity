@@ -53,6 +53,8 @@ Use the following command to show all available packages for a given version:<br
 
 If no package is specified, the default packages (same as in the official Unity installer) will be installed. Otherwise, any number of `-p PACKAGE` or `--package PACKAGE` can be specified to select packages, selected packages that are not available for a given version will be ignored.
 
+It's possible to save your own set of default packages, which will override Unity's set in case no packages have been specified. Add `--save` to the command to save the current `-p PACKAGE` and `--package PACKAGE` arguments as your custom default set. Call `--save` without any `-p` or `--package` arguments to clear your set of default packages or use `--unity-defaults` to use Unity's default set over your saved one.
+
 # Offline Installation
 
 The Unity install script can download and install the packages separately, allowing you to install Unity on multiple computers while only downloading the packages once.
@@ -73,10 +75,11 @@ usage: install-unity.py [-h] [--version] [--packages] [--download] [--install]
                         [--volume VOLUME] [-p PACKAGE] [--all-packages]
                         [--package-store PACKAGE_STORE] [-k] [-u]
                         [-l {release,patch,beta,alpha,all}]
-                        [--discover DISCOVER] [--forget FORGET]
+                        [--discover DISCOVER] [--forget FORGET] [--save]
+                        [--unity-defaults]
                         [VERSION [VERSION ...]]
 
-Install Unity Script 0.0.6
+Install Unity Script 0.0.7
 
 positional arguments:
   VERSION               unity version to install packages from (only >= 5.0.0)
@@ -105,11 +108,20 @@ optional arguments:
   --discover DISCOVER   manually discover a Unity packages url (link to unity-
                         VERSION-osx.ini or MacEditorInstaller url)
   --forget FORGET       remove a manually discovered version
+  --save                save the current set of packages as defaults, used
+                        when no packages are given (use with no packages to
+                        reset)
+  --unity-defaults      use the unity default packages instead of the custom
+                        defaults that might have been saved
 ```
 
 # Version History
 
-### 0.0.6 (2017-05-31)
+#### 0.0.7 (2017-06-27)
+* Add option to save a custom set of default packages (see [Selecting Packages](#selecting-packages) for details)
+* Fix `--download` refusing to download additional packages if the given Unity version is not installed
+
+#### 0.0.6 (2017-05-31)
 * Fix discovery of Unity 2017.1 versions
 * Renamed `--list` to `--packages`, renamed `--list-versions` to just `--list` and added shortcut `-l`
 * Only download list of patch and beta releases when necessary
@@ -117,7 +129,7 @@ optional arguments:
 * A single release letter is now accepted as version string, e.g. just `b` for the latest beta
 * Only ask for password after version and packages have been selected, giving a chance to review those choices
 
-### 0.0.5 (2017-05-01)
+#### 0.0.5 (2017-05-01)
 * Fix connecting to unity3d.com now that it requries TLS1.2 (python upgrade may be needed)
 * Script now runs with Homebrew Python 2 when installed
 * Improve display of Unity versions list
