@@ -134,6 +134,13 @@ parser.add_argument('--forget',
     action='append',
     help='remove a manually discovered version')
 
+parser.add_argument('--save', 
+    action='store_true',
+    help='save the current set of packages as defaults, used when no packages are given (use with no packages to reset)')
+parser.add_argument('--unity-defaults', 
+    action='store_true',
+    help='use the unity default packages instead of the custom defaults that might have been saved')
+
 args = parser.parse_args()
 
 # ---- GENERAL ----
@@ -146,7 +153,7 @@ def error(message):
 # ---- VERSIONS CACHE ----
 
 class version_cache:
-    def __init__(self, cache_path, update = None):
+    def __init__(self, cache_path):
         self.cache_path = cache_path
         self.cache_file = os.path.join(cache_path, CACHE_FILE)
         
@@ -320,6 +327,19 @@ class version_cache:
                 print '\n== %s ==' % major_minor
                 last_major_minor = major_minor
             print '- %s' % version
+    
+    def set_default_packages(self, list):
+        if list and len(list) > 0:
+            self.cache["default_packages"] = list
+        else:
+            del self.cache["default_packages"]
+        self.save()
+    
+    def default_packages(self):
+        if "default_packages" in self.cache:
+            return self.cache["default_packages"]
+        else:
+            return []
 
 # ---- VERSION HANDLING ----
 
@@ -490,6 +510,7 @@ def select_packages(config, packages):
         if args.all_packages:
             selected = available
         else:
+            print 'Using the default packages as defined by Unity'
             selected = [x for x in available if config.getboolean(x, 'install')]
     else:
         # ConfigParser sections are case-sensitive, make sure
@@ -760,6 +781,16 @@ if not download_to:
 
 download_to = os.path.expanduser(os.path.join(download_to, DOWNLOAD_DIRECTORY))
 
+# Save default packages
+if args.save:
+    if len(packages) > 0:
+        print 'Saving packages %s as defaults' % ', '.join(packages)
+        print ''
+    else:
+        print 'Clearing saved default packages'
+        print ''
+    cache.set_default_packages(packages)
+
 # Main Operation
 if operation == 'list-versions':
     find_unity_installs() # To show the user which installs we discovered
@@ -823,6 +854,11 @@ else:
             path = os.path.expanduser(os.path.join(download_to, version))
             
             print 'Processing packages for Unity version %s:' % version
+            
+            if len(packages) == 0 and not args.unity_defaults:
+                packages = cache.default_packages()
+                if len(packages) > 0:
+                    print 'Using saved default packages'
             
             selected = select_packages(config, packages)
             if len(selected) == 0:
