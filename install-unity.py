@@ -792,10 +792,7 @@ else:
     if args.update or operation != 'install':
         cache.update(stage, force = args.update)
 
-    if operation == 'list' or len(packages) == 0 or 'unity' in packages:
-        print 'Trying to select most recent known Unity version'
-        version_list = cache.get_sorted_versions()
-    else:
+    if (not operation or operation == 'install') and len(packages) > 0 and not 'unity' in packages:
         print 'Installing additional packages ("Unity" editor package not selected)'
         
         if len(sorted_installs) == 0:
@@ -803,6 +800,9 @@ else:
         
         print 'Trying to select the most recent installed version'
         version_list = sorted_installs
+    else:
+        print 'Trying to select most recent known Unity version'
+        version_list = cache.get_sorted_versions()
     
     versions = set([select_version(v, version_list) for v in args.versions])
     print ''
