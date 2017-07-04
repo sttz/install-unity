@@ -598,8 +598,6 @@ def select_packages(config, packages):
     return selected
 
 def download(version, path, config, selected):
-    print 'Will download %s in total' % convertSize(sum(map(lambda pkg: config.getint(pkg, 'size'), selected)))
-    
     if not os.path.isdir(path):
         os.makedirs(path)
     
@@ -928,9 +926,15 @@ else:
                 print 'WARNING: No packages selected for version %s' % version
                 continue
             
-            print 'Selected packages: %s' % ", ".join(selected)
             print ''
+            print 'Selected packages: %s' % ", ".join(selected)
+            if operation == 'download' or not operation:
+                print 'Download size: %s' % convertSize(sum(map(lambda pkg: config.getint(pkg, 'size'), selected)))
+            if operation == 'install' or not operation:
+                print 'Install size: %s' % convertSize(sum(map(lambda pkg: config.getint(pkg, 'installedsize'), selected)))
             
+            print ''
+
             if not operation and 'Unity' in selected and version in installs:
                 print 'WARNING: Unity version %s already installed at "%s", skipping.' % (version, installs[version])
                 print 'Don\'t select the Unity editor packages to install additional packages'
