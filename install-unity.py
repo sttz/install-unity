@@ -149,13 +149,18 @@ parser.add_argument('--unity-defaults',
     action='store_true',
     help='use the unity default packages instead of the custom defaults that might have been saved')
 
+parser.add_argument('-v', '--verbose', 
+    action='store_true',
+    help='show stacktrace when an error occurs')
+
 args = parser.parse_args()
 
 # ---- GENERAL ----
 
 def error(message):
     print 'ERROR: ' + message
-    traceback.print_stack()
+    if args.verbose:
+        traceback.print_stack()
     sys.exit(1)
 
 # ---- VERSIONS CACHE ----
@@ -657,7 +662,7 @@ def find_unity_installs():
 
 def check_root():
     global pwd
-    if not is_root and (not operation or operation == 'install'):
+    if not is_root and (not args.operation or args.operation == 'install'):
         # Get the root password early so we don't need to ask for it
         # after the downloads potentially took a long time to finish.
         # Also, just calling sudo might expire when the install takes
@@ -773,187 +778,200 @@ def clean_up(path):
 
 # ---- MAIN ----
 
-print 'Install Unity Script %s\n' % VERSION
-
 script_dir = os.path.dirname(os.path.abspath(__file__))
-operation = args.operation
-packages = [x.lower() for x in args.package] if args.package else []
-stage = DEFAULT_STAGE
+cache = version_cache(script_dir)
 pwd = None
 is_root = (os.getuid() == 0)
 
-# Check the installed OpenSSL version
-# unity3d.com only supports TLS1.2, which requires at least OpenSSL 1.0.1.
-# macOS has deprecated OpenSSL in favor of its own crypto libraries, which
-# means macOS will be stuck at OpenSSL 0.9.8, which doesn't support TLS1.2.
-match = re.match('OpenSSL (\d+).(\d+).(\d+)(\w+)', ssl.OPENSSL_VERSION)
-if not match:
-    print 'ERROR: Could not parse OpenSSL version: %s' % version
-    sys.exit(1)
+def main():
+    print 'Install Unity Script %s\n' % VERSION
 
-parts = match.groups()
-if (int(parts[0]) < 1 or int(parts[1]) < 0 or int(parts[2]) < 1):
-    print (
-        'ERROR: Your Python\'s OpenSSL library is outdated (%s).\n'
-        'At least OpenSSL version 1.0.1g is required.\n'
-        'You need to install a new version of Python 2 with an updated OpenSSL library.\n'
-        ) % (ssl.OPENSSL_VERSION)
-    
-    brew_check = os.system('brew help &> /dev/null')
-    if brew_check != 0:
-        print 'Either download it from www.python.org or install it using a package manager like Homebrew.'
-    else:
+    operation = args.operation
+    packages = [x.lower() for x in args.package] if args.package else []
+    stage = DEFAULT_STAGE
+
+    # Check the installed OpenSSL version
+    # unity3d.com only supports TLS1.2, which requires at least OpenSSL 1.0.1.
+    # macOS has deprecated OpenSSL in favor of its own crypto libraries, which
+    # means macOS will be stuck at OpenSSL 0.9.8, which doesn't support TLS1.2.
+    match = re.match('OpenSSL (\d+).(\d+).(\d+)(\w+)', ssl.OPENSSL_VERSION)
+    if not match:
+        print 'ERROR: Could not parse OpenSSL version: %s' % version
+        sys.exit(1)
+
+    parts = match.groups()
+    if (int(parts[0]) < 1 or int(parts[1]) < 0 or int(parts[2]) < 1):
         print (
-            'You can install python with Homebrew using the following command:\n'
-            'brew install python'
-        )
+            'ERROR: Your Python\'s OpenSSL library is outdated (%s).\n'
+            'At least OpenSSL version 1.0.1g is required.\n'
+            'You need to install a new version of Python 2 with an updated OpenSSL library.\n'
+            ) % (ssl.OPENSSL_VERSION)
+        
+        brew_check = os.system('brew help &> /dev/null')
+        if brew_check != 0:
+            print 'Either download it from www.python.org or install it using a package manager like Homebrew.'
+        else:
+            print (
+                'You can install python with Homebrew using the following command:\n'
+                'brew install python'
+            )
 
-    sys.exit(1)
+        sys.exit(1)
 
-# When --update is set we also clear all ini files to force re-downloading them
-if args.update:
-    for file in os.listdir(script_dir):
-        if file.startswith("unity") and file.endswith(".ini"):
-            os.remove(os.path.join(script_dir, file))
+    # When --update is set we also clear all ini files to force re-downloading them
+    if args.update:
+        for file in os.listdir(script_dir):
+            if file.startswith("unity") and file.endswith(".ini"):
+                os.remove(os.path.join(script_dir, file))
 
-# Setup version cache, handle adding and removing of versions
-cache = version_cache(script_dir)
-
-if args.discover or args.forget:
-    if args.forget:
-        for version in args.forget:
-            if cache.remove(version):
-                print 'Removed version %s from cache' % version
-    if args.discover:
-        for url in args.discover:
-            version = cache.add(url)
-            if version:
-                print 'Added version %s to cache' % version
-    cache.save()
-    print ''
-
-if args.list or len(args.versions) == 0:
-    operation = 'list-versions'
-
-# Download path
-download_to = args.package_store
-if not download_to:
-    download_to = DOWNLOAD_PATH
-
-download_to = os.path.expanduser(os.path.join(download_to, DOWNLOAD_DIRECTORY))
-
-# Save default packages
-if args.save:
-    if len(packages) > 0:
-        print 'Saving packages %s as defaults' % ', '.join(packages)
+    # Handle adding and removing of versions
+    if args.discover or args.forget:
+        if args.forget:
+            for version in args.forget:
+                if cache.remove(version):
+                    print 'Removed version %s from cache' % version
+        if args.discover:
+            for url in args.discover:
+                version = cache.add(url)
+                if version:
+                    print 'Added version %s to cache' % version
+        cache.save()
         print ''
-    else:
-        print 'Clearing saved default packages'
-        print ''
-    cache.set_default_packages(packages)
 
-# Main Operation
-if operation == 'list-versions':
-    find_unity_installs() # To show the user which installs we discovered
-    
-    if args.list:
-        stage = RELEASE_LETTERS[args.list]
-        if not stage:
-            stage = 'a'
+    if args.list or len(args.versions) == 0:
+        operation = 'list-versions'
 
-    cache.update(stage, force = args.update)
-    cache.list(stage)
-    
-    print ''
-    if not args.list:
-        print 'Only listing release versions of Unity, use "-l patch|beta" to list patch or beta versions'
-    print 'List available packages for a given version using "--packages VERSION"'
+    # Download path
+    download_to = args.package_store
+    if not download_to:
+        download_to = DOWNLOAD_PATH
 
-else:
-    installs = find_unity_installs()
-    sorted_installs = sorted(installs.keys(), compare_versions)
-    
-    # Determine the maximum release stage of all vesions
-    max_strength = RELEASE_LETTER_STRENGTH[stage]
-    for version in args.versions:
-        strength = parse_version(version)[3]
-        if strength > max_strength:
-            stage = RELEASE_LETTER_STRENGTH.keys()[RELEASE_LETTER_STRENGTH.values().index(strength)]
-            max_strength = strength
-    
-    if args.update or operation != 'install':
-        cache.update(stage, force = args.update)
+    download_to = os.path.expanduser(os.path.join(download_to, DOWNLOAD_DIRECTORY))
 
-    if (not operation or operation == 'install') and len(packages) > 0 and not 'unity' in packages:
-        print 'Installing additional packages ("Unity" editor package not selected)'
-        
-        if len(sorted_installs) == 0:
-            error('No Unity installation found, intall the "Unity" editor package first')
-        
-        print 'Trying to select the most recent installed version'
-        version_list = sorted_installs
-    else:
-        print 'Trying to select most recent known Unity version'
-        version_list = cache.get_sorted_versions()
-    
-    versions = set([select_version(v, version_list) for v in args.versions])
-    print ''
-
-    for version in versions:
-        config = load_ini(version)
-        
-        if operation == 'list':
-            print 'Available packages for Unity version %s:' % version
-            for pkg in config.sections():
-                print '- %s%s (%s)' % (
-                    pkg, 
-                    '*' if config.getboolean(pkg, 'install') else '', 
-                    convertSize(config.getint(pkg, 'size'))
-                )
+    # Save default packages
+    if args.save:
+        if len(packages) > 0:
+            print 'Saving packages %s as defaults' % ', '.join(packages)
             print ''
         else:
-            path = os.path.expanduser(os.path.join(download_to, version))
-            
-            print 'Processing packages for Unity version %s:' % version
-            
-            if len(packages) == 0 and not args.unity_defaults:
-                packages = cache.default_packages()
-                if len(packages) > 0:
-                    print 'Using saved default packages'
-            
-            selected = select_packages(config, packages)
-            if len(selected) == 0:
-                print 'WARNING: No packages selected for version %s' % version
-                continue
-            
+            print 'Clearing saved default packages'
             print ''
-            print 'Selected packages: %s' % ", ".join(selected)
-            if operation == 'download' or not operation:
-                print 'Download size: %s' % convertSize(sum(map(lambda pkg: config.getint(pkg, 'size'), selected)))
-            if operation == 'install' or not operation:
-                print 'Install size: %s' % convertSize(sum(map(lambda pkg: config.getint(pkg, 'installedsize'), selected)))
-            
-            print ''
+        cache.set_default_packages(packages)
 
-            if not operation and 'Unity' in selected and version in installs:
-                print 'WARNING: Unity version %s already installed at "%s", skipping.' % (version, installs[version])
-                print 'Don\'t select the Unity editor packages to install additional packages'
-                print 'Remove to existing version to re-install the Unity version'
-                print 'Separate --download and --install calls will re-install the Unity version'
+    # Main Operation
+    if operation == 'list-versions':
+        find_unity_installs() # To show the user which installs we discovered
+        
+        if args.list:
+            stage = RELEASE_LETTERS[args.list]
+            if not stage:
+                stage = 'a'
+
+        cache.update(stage, force = args.update)
+        cache.list(stage)
+        
+        print ''
+        if not args.list:
+            print 'Only listing release versions of Unity, use "-l patch|beta" to list patch or beta versions'
+        print 'List available packages for a given version using "--packages VERSION"'
+
+    else:
+        installs = find_unity_installs()
+        sorted_installs = sorted(installs.keys(), compare_versions)
+        
+        # Determine the maximum release stage of all vesions
+        max_strength = RELEASE_LETTER_STRENGTH[stage]
+        for version in args.versions:
+            strength = parse_version(version)[3]
+            if strength > max_strength:
+                stage = RELEASE_LETTER_STRENGTH.keys()[RELEASE_LETTER_STRENGTH.values().index(strength)]
+                max_strength = strength
+        
+        if args.update or operation != 'install':
+            cache.update(stage, force = args.update)
+
+        if (not operation or operation == 'install') and len(packages) > 0 and not 'unity' in packages:
+            print 'Installing additional packages ("Unity" editor package not selected)'
+            
+            if len(sorted_installs) == 0:
+                error('No Unity installation found, intall the "Unity" editor package first')
+            
+            print 'Trying to select the most recent installed version'
+            version_list = sorted_installs
+        else:
+            print 'Trying to select most recent known Unity version'
+            version_list = cache.get_sorted_versions()
+        
+        versions = set([select_version(v, version_list) for v in args.versions])
+        print ''
+
+        for version in versions:
+            config = load_ini(version)
+            
+            if operation == 'list':
+                print 'Available packages for Unity version %s:' % version
+                for pkg in config.sections():
+                    print '- %s%s (%s)' % (
+                        pkg, 
+                        '*' if config.getboolean(pkg, 'install') else '', 
+                        convertSize(config.getint(pkg, 'size'))
+                    )
                 print ''
-                continue
-            
-            check_root()
-
-            if operation == 'download' or not operation:
-                download(version, path, config, selected)
-            
-            if operation == 'install' or not operation:
-                install(version, path, selected)
+            else:
+                path = os.path.expanduser(os.path.join(download_to, version))
                 
-                if not args.keep and not operation:
-                    clean_up(path)
-    
-    if operation == 'list':
-        print 'Packages with a * are installed by default if no packages are selected'
-        print 'Select packages to install using "--package NAME"'
+                print 'Processing packages for Unity version %s:' % version
+                
+                if len(packages) == 0 and not args.unity_defaults:
+                    packages = cache.default_packages()
+                    if len(packages) > 0:
+                        print 'Using saved default packages'
+                
+                selected = select_packages(config, packages)
+                if len(selected) == 0:
+                    print 'WARNING: No packages selected for version %s' % version
+                    continue
+                
+                print ''
+                print 'Selected packages: %s' % ", ".join(selected)
+                if operation == 'download' or not operation:
+                    print 'Download size: %s' % convertSize(sum(map(lambda pkg: config.getint(pkg, 'size'), selected)))
+                if operation == 'install' or not operation:
+                    print 'Install size: %s' % convertSize(sum(map(lambda pkg: config.getint(pkg, 'installedsize'), selected)))
+                
+                print ''
+
+                if not operation and 'Unity' in selected and version in installs:
+                    print 'WARNING: Unity version %s already installed at "%s", skipping.' % (version, installs[version])
+                    print 'Don\'t select the Unity editor packages to install additional packages'
+                    print 'Remove to existing version to re-install the Unity version'
+                    print 'Separate --download and --install calls will re-install the Unity version'
+                    print ''
+                    continue
+                
+                check_root()
+
+                if operation == 'download' or not operation:
+                    download(version, path, config, selected)
+                
+                if operation == 'install' or not operation:
+                    install(version, path, selected)
+                    
+                    if not args.keep and not operation:
+                        clean_up(path)
+        
+        if operation == 'list':
+            print 'Packages with a * are installed by default if no packages are selected'
+            print 'Select packages to install using "--package NAME"'
+
+try:
+    main()
+except KeyboardInterrupt:
+    pass
+except SystemExit:
+    pass
+except BaseException, e:
+    if args.verbose:
+        traceback.print_exc()
+    else:
+        print 'ERROR: ' + str(e)
