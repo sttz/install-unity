@@ -85,6 +85,14 @@ DEFAULT_STAGE = 'f'
 DOWNLOAD_PATH = '~/Downloads/'
 # Name of top directory packages are stored (in subdirectories by version)
 DOWNLOAD_DIRECTORY = 'Unity Packages'
+# Timeout of download requests in seconds
+DOWNLOAD_TIMEOUT = 60
+# How often downloads are retried when errors occur before giving up
+DOWNLOAD_MAX_RETRIES = 3
+# Time in seconds to wait between retrying the download
+DOWNLOAD_RETRY_WAIT = 10
+# Size of blocks of data processed while downloading
+DOWNLOAD_BLOCKSIZE = 8192
 
 # ---- ARGUMENTS ----
 
@@ -427,25 +435,71 @@ def convertSize(size):
     s = round(size/p,2)
     return '%s %s' % (s,size_name[i])
 
-def download_url(url, output):
-    print ""
-    
-    urllib.urlretrieve(url, output, progress)
-    
-    sys.stdout.write("\033[F")
-    sys.stdout.write("\033[K")
+def download_url(url, output, expected_size):
+    retries = 0
+    while True:
+        try:
+            existing_size = 0
+            if os.path.isfile(output):
+                existing_size = os.path.getsize(output)
+                if existing_size == expected_size:
+                    print 'File already exists and matches expected size, skipping'
+                    return
+                elif existing_size > expected_size:
+                    print 'Existing file "%s" is bigger than expected (%s > %s)' % (output, convertSize(existing_size), convertSize(expected_size))
+                    return
+                else:
+                    print 'Resuming download of existing file "%s" (%s already downloaded)' % (output, convertSize(existing_size))
+            
+            req = urllib2.Request(url)
+            if existing_size > 0:
+                req.add_header('Range', 'bytes=%s-' % existing_size)
+
+            res = urllib2.urlopen(req, None, DOWNLOAD_TIMEOUT)
+            file = open(output, 'ab')
+
+            print ''
+            init_progress()
+
+            blocknr = math.floor(existing_size / DOWNLOAD_BLOCKSIZE)
+            while True:
+                chunk = res.read(DOWNLOAD_BLOCKSIZE)
+                progress(blocknr, DOWNLOAD_BLOCKSIZE, expected_size)
+                blocknr += 1
+                if len(chunk) == 0:
+                    break
+                file.write(chunk)
+            
+            progress_cleanup()
+            file.close()
+            res.close()
+
+            if os.path.getsize(output) < expected_size:
+                raise Exception('Connection dropped')
+
+            break
+
+        except Exception, e:
+            print 'Error downloading file: %s' % str(e)
+            retries += 1
+            if retries > DOWNLOAD_MAX_RETRIES:
+                error('Failed to download file, max number of retries exceeded')
+            else:
+                print 'Will try to resume download in a few seconds...'
+                time.sleep(DOWNLOAD_RETRY_WAIT)
 
 block_times = None
 last_update = None
 
+def init_progress():
+    global block_times, last_update
+
+    block_times = collections.deque()
+    block_times.append(time.time())
+    last_update = 0
+
 def progress(blocknr, blocksize, size):
     global block_times, last_update
-    
-    if blocknr == 0:
-        block_times = collections.deque()
-        block_times.append(time.time())
-        last_update = 0
-        return
     
     if time.time() - last_update > 0.5:
         last_update = time.time()
@@ -472,6 +526,14 @@ def progress(blocknr, blocksize, size):
     block_times.append(time.time())
     if (len(block_times) > 100):
         block_times.popleft()
+
+def progress_cleanup():
+    global block_times, last_update
+
+    if not block_times is None:
+        sys.stdout.write("\033[F")
+        sys.stdout.write("\033[K")
+        block_times = None
 
 def hashfile(path, blocksize=65536):
     with open(path, 'rb') as file:
@@ -557,7 +619,7 @@ def download(version, path, config, selected):
             print 'File %s already downloaded' % filename
         else:
             print 'Downloading %s (%s)...' % (filename, convertSize(config.getint(pkg, 'size')))
-            download_url(fileurl, output)
+            download_url(fileurl, output, config.getint(pkg, 'size'))
         
         if md5hash and hashfile(output) != md5hash:
             error('Downloaded file "%s" is corrupt, hash does not match.' % filename)
