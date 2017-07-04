@@ -416,15 +416,16 @@ def select_version(version, sorted_versions):
 # ---- DOWNLOAD ----
 
 def convertSize(size):
-    size = size / 1024
+    if size == 0:
+        return '0 B'
+    elif size < 1024:
+        return '%s B' % size
     size_name = ("KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+    size = size / 1024.0
     i = int(math.floor(math.log(size,1024)))
     p = math.pow(1024,i)
     s = round(size/p,2)
-    if (s > 0):
-        return '%s %s' % (s,size_name[i])
-    else:
-        return '0B'
+    return '%s %s' % (s,size_name[i])
 
 def download_url(url, output):
     print ""
