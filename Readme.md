@@ -76,10 +76,10 @@ usage: install-unity.py [-h] [--version] [--packages] [--download] [--install]
                         [--package-store PACKAGE_STORE] [-k] [-u]
                         [-l {release,patch,beta,alpha,all}]
                         [--discover DISCOVER] [--forget FORGET] [--save]
-                        [--unity-defaults]
+                        [--unity-defaults] [-v]
                         [VERSION [VERSION ...]]
 
-Install Unity Script 0.0.7
+Install Unity Script 0.0.8
 
 positional arguments:
   VERSION               unity version to install packages from (only >= 5.0.0)
@@ -113,9 +113,15 @@ optional arguments:
                         reset)
   --unity-defaults      use the unity default packages instead of the custom
                         defaults that might have been saved
+  -v, --verbose         show stacktrace when an error occurs
 ```
 
 # Version History
+
+#### 0.0.8 (2017-07-04)
+* Resume and retry downloads
+* Show download size before entering password, also show install size
+* Only show stacktrace with `-v` or `--verbose`
 
 #### 0.0.7 (2017-06-27)
 * Add option to save a custom set of default packages (see [Selecting Packages](#selecting-packages) for details)
