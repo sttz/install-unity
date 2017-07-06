@@ -680,7 +680,7 @@ def check_root():
         
         print ''
 
-def install(version, path, selected):
+def install(version, path, config, selected, installs):
     missing = False
     for pkg in selected:
         filename = os.path.basename(config.get(pkg, 'url'))
@@ -955,7 +955,7 @@ def main():
                     download(version, path, config, selected)
                 
                 if operation == 'install' or not operation:
-                    install(version, path, selected)
+                    install(version, path, config, selected, installs)
                     
                     if not args.keep and not operation:
                         clean_up(path)
