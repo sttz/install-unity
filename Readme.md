@@ -40,7 +40,7 @@ Versions can be specified with arbitrary precision, the install script will then
 
 E.g. «5» will select the latest version of Unity 5, «5.3» the latest version of Unity 5.3 and «5.2.3» the latest version of Unity 5.2.3.
 
-If no release type is specified, only regular (f) releases will be installed. Add p for patch, b for beta or a for alpha to any version to select another release type. If no releases of a specific type are known, other types will be checked in the following order: alpha —> beta —> patch —> release
+If no release type is specified, only regular (f) releases will be installed. Add a release letter to include more release types, p will include regular and patch releases, b will include regular, patch and beta releases. Amongst the releases of all selected types, the newest release will be installed.
 
 E.g. «5.3p» will install the latest patch or the latest regular release for Unity 5.3. «5.4a» will install the latest Unity 5.4 release, be it alpha, beta, patch or regular.
 
@@ -79,7 +79,7 @@ usage: install-unity.py [-h] [--version] [--packages] [--download] [--install]
                         [--unity-defaults] [-v]
                         [VERSION [VERSION ...]]
 
-Install Unity Script 0.0.8
+Install Unity Script 0.0.9
 
 positional arguments:
   VERSION               unity version to install packages from (only >= 5.0.0)
@@ -117,6 +117,12 @@ optional arguments:
 ```
 
 # Version History
+
+#### 0.0.9 (2017-07-06)
+* Improved version selection (see [Selecting Versions](#selecting-versions))
+* Fixed an exception occuring before installing
+* Fixed an exception while cleaning up after install
+* Fixed an exception in the --forget command
 
 #### 0.0.8 (2017-07-04)
 * Resume and retry downloads
