@@ -287,7 +287,7 @@ class version_cache:
     
     def remove(self, version):
         if not 'discovered' in self.cache or not version in self.cache['discovered']:
-            print "WARNING: Version %s not found in manually discovered versions" % versions
+            print "WARNING: Version %s not found in manually discovered versions" % version
             return False
         
         del self.cache['discovered'][version]
