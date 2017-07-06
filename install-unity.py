@@ -776,7 +776,7 @@ def clean_up(path):
     
     shutil.rmtree(path)
     
-    downloads = os.path.expanduser(download_to)
+    downloads = os.path.dirname(path)
     
     for file in os.listdir(downloads):
         if not file == '.DS_Store':
