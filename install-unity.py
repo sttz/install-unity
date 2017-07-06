@@ -75,8 +75,10 @@ CACHE_LIFETIME = 60*60*24
 VERSION_RE = '^(\d+)?(?:\.(\d+)(?:\.(\d+))?)?(?:(\w)(?:(\d+))?)?$'
 # Unity release types and corresponding letters in version string
 RELEASE_LETTERS = { 'all': None, 'release': 'f', 'patch': 'p', 'beta': 'b', 'alpha': 'a' }
-# Sorting power of unity release types
-RELEASE_LETTER_STRENGTH = { 'f': 1, 'p': 2, 'b': 3, 'a': 4 }
+# How release types are included in the search, higher values include all lower release types
+RELEASE_LETTER_STRENGTH = { None: 1, 'f': 1, 'p': 2, 'b': 3, 'a': 4 }
+# How release types are sorted, bigger value means the release is newer
+RELEASE_LETTER_SORT = { 'p': 4, 'f': 3, 'b': 2, 'a': 1 }
 # Default release stage when not explicitly specified with --list or in the given version string
 DEFAULT_STAGE = 'f'
 
@@ -306,34 +308,49 @@ class version_cache:
         else:
             return None
     
-    def get_sorted_versions(self):
+    def get_sorted_versions(self, stage = DEFAULT_STAGE):
         if self.sorted_versions == None:
             all_versions = []
-            if 'discovered' in self.cache:
-                all_versions += self.cache['discovered'].keys()
-            if 'release' in self.cache:
+            
+            strength = RELEASE_LETTER_STRENGTH[stage]
+
+            # Release versions are always considered
+            if 'release' in self.cache and strength >= 1:
                 all_versions += self.cache['release'].keys()
-            if 'patch' in self.cache:
+            
+            # Patch versions are only considered when explicitly selected patch, beta or alpha
+            if 'patch' in self.cache and strength >= 2:
                 all_versions += self.cache['patch'].keys()
-            if 'beta' in self.cache:
+            
+            # Beta releases are only considered when explicitly selecting beta or alpha
+            if 'beta' in self.cache and strength >= 3:
                 all_versions += self.cache['beta'].keys()
+            
+            # Same rules as above are applied to manually discovered versions
+            if 'discovered' in self.cache:
+                for version in self.cache['discovered'].keys():
+                    parsed = parse_version(version)
+                    if ((parsed[3] == 'f' and strength >= 1)
+                            or (parsed[3] == 'p' and strength >= 2)
+                            or (parsed[3] == 'b' and strength >= 3)
+                            or (parsed[3] == 'a' and strength >= 4)):
+                        all_versions.append(version)
+
             all_versions = [x for x in all_versions if not x.startswith('_')]
             self.sorted_versions = sorted(all_versions, compare_versions)
         
         return self.sorted_versions
     
-    def list(self, stage = None):
+    def list(self, stage = DEFAULT_STAGE):
         print 'Known available Unity versions:'
         print '(Use "--discover URL" to add versions not automatically discovered)'
 
-        strength = 1
-        if stage in RELEASE_LETTER_STRENGTH:
-            strength = RELEASE_LETTER_STRENGTH[stage]
+        strength = RELEASE_LETTER_STRENGTH[stage]
         
         last_major_minor = None
-        for version in reversed(self.get_sorted_versions()):
+        for version in reversed(self.get_sorted_versions(stage)):
             parts = parse_version(version)
-            if strength < parts[3]:
+            if strength < RELEASE_LETTER_STRENGTH[parts[3]]:
                 continue
             major_minor = '%s.%s' % (parts[0], parts[1])
             if (major_minor != last_major_minor):
@@ -368,45 +385,36 @@ def parse_version(version):
         if not parts[i] or i == 3: continue
         parts[i] = int(parts[i])
     
-    if parts[3]:
-        if not parts[3] in RELEASE_LETTER_STRENGTH:
-            error('Unknown release letter "%s" from "%s"' % (parts[3], version))
-        parts[3] = RELEASE_LETTER_STRENGTH[parts[3]]
-    else:
-        parts[3] = RELEASE_LETTER_STRENGTH['f']
-    
     return parts
 
 def version_string(parts):
     parts = list(parts)
     
-    if parts[3] != None:
-        parts[3] = [letter for letter, strength in RELEASE_LETTER_STRENGTH.items() if strength == parts[3]][0]
-    else:
-        parts[3] = 'x'
-    
     for i in range(len(parts)):
-        if i == 3:
-            continue
-        
         if parts[i] == None:
             parts[i] = 'x'
-        else:
+        elif i != 3:
             parts[i] = str(parts[i])
     
     return '%s.%s.%s%s%s' % tuple(parts)
 
 def compare_versions(one, two):
-    return cmp(parse_version(one), parse_version(two))
+    first = parse_version(one)
+    first[3] = RELEASE_LETTER_SORT[first[3]]
+    second = parse_version(two)
+    second[3] = RELEASE_LETTER_SORT[second[3]]
+    return cmp(first, second)
 
 def input_matches_version(input_version, match_with):
     for i in range(5):
         if input_version[i] == None or match_with[i] == None:
             continue
         
-        if i == 3:
-            if input_version[i] < match_with[i]:
-                return False
+        # If a specific build number is given (e.g. 5.6p3), we match the release type as well.
+        # Otherwise we ignore it, as release type selection is done when the list
+        # of versions is being compiled.
+        if i == 3 and input_version[4] is None:
+            continue
         elif input_version[i] != match_with[i]:
             return False
     
@@ -882,9 +890,9 @@ def main():
         # Determine the maximum release stage of all vesions
         max_strength = RELEASE_LETTER_STRENGTH[stage]
         for version in args.versions:
-            strength = parse_version(version)[3]
+            strength = RELEASE_LETTER_STRENGTH[parse_version(version)[3]]
             if strength > max_strength:
-                stage = RELEASE_LETTER_STRENGTH.keys()[RELEASE_LETTER_STRENGTH.values().index(strength)]
+                stage = parse_version(version)[3]
                 max_strength = strength
         
         if args.update or operation != 'install':
@@ -900,7 +908,7 @@ def main():
             version_list = sorted_installs
         else:
             print 'Trying to select most recent known Unity version'
-            version_list = cache.get_sorted_versions()
+            version_list = cache.get_sorted_versions(stage)
         
         versions = set([select_version(v, version_list) for v in args.versions])
         print ''
