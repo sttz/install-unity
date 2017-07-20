@@ -567,7 +567,7 @@ def load_ini(version):
         error('Version %s is now a known Unity version' % version)
     
     ini_name = UNITY_INI_NAME % version
-    ini_path = os.path.join(script_dir, ini_name)
+    ini_path = os.path.join(cache_path, ini_name)
     
     if not os.path.isfile(ini_path):
         url = baseurl + ini_name
