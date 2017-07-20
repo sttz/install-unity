@@ -155,6 +155,10 @@ parser.add_argument('-v', '--verbose',
     action='store_true',
     help='show stacktrace when an error occurs')
 
+parser.add_argument('--cache-path',
+    action='store',
+    help='override the version cache path')
+
 args = parser.parse_args()
 
 # ---- GENERAL ----
@@ -786,8 +790,10 @@ def clean_up(path):
 
 # ---- MAIN ----
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-cache = version_cache(script_dir)
+cache_path = os.path.expanduser(args.cache_path)
+if not cache_path:
+    cache_path = os.path.dirname(os.path.abspath(__file__))
+cache = version_cache(cache_path)
 pwd = None
 is_root = (os.getuid() == 0)
 
