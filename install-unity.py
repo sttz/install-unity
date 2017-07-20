@@ -790,9 +790,8 @@ def clean_up(path):
 
 # ---- MAIN ----
 
-cache_path = os.path.expanduser(args.cache_path)
-if not cache_path:
-    cache_path = os.path.dirname(os.path.abspath(__file__))
+script_dir = os.path.dirname(os.path.abspath(__file__))
+cache_path = os.path.expanduser(args.cache_path) if args.cache_path else script_dir
 cache = version_cache(cache_path)
 pwd = None
 is_root = (os.getuid() == 0)
