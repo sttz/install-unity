@@ -54,6 +54,10 @@ UNITY_DOWNLOADS = 'https://unity3d.com/get-unity/download/archive'
 UNITY_PATCHES = 'https://unity3d.com/unity/qa/patch-releases'
 # URL to look for beta releases
 UNITY_BETAS = 'https://unity3d.com/unity/beta/archive'
+# URL for Unity patch release notes
+UNITY_PATCH_RELEASE_NOTES = 'https://unity3d.com/unity/qa/patch-releases/%s'
+# URL for Unity beta release notes
+UNITY_BETA_RELEASE_NOTES = 'https://unity3d.com/unity/beta/unity%s'
 # Regex to find relative beta page URI from HTML
 UNITY_BETAVERSION_RE = '"/unity/beta/unity(\d+\.\d+\.\d+\w\d+)"'
 # parametrized beta version URL, given its version
@@ -240,11 +244,14 @@ class version_cache:
 
         return len(result)
 
-    def _load_and_parse(self, url, pattern, unity_versions):
+    def _load_and_parse(self, url, pattern, unity_versions, fail = True):
         try:
             response = urllib2.urlopen(url)
         except Exception as e:
-            error('Could not load URL "%s": %s' % (url, e.reason))
+            if fail:
+                error('Could not load URL "%s": %s' % (url, e.reason))
+            else:
+                return 0
         
         result = re.findall(pattern, response.read())
         for match in result:
@@ -256,6 +263,33 @@ class version_cache:
             data = json.dumps(self.cache)
             file.write(data)
     
+    def autoadd(self, version):
+        parsed = parse_version(version)
+
+        # We need a full version to look up the release notes
+        if None in parsed:
+            return False
+
+        url = None
+        cache = None
+        if parsed[3] == 'p':
+            url = UNITY_PATCH_RELEASE_NOTES % version_string(parsed)
+            cache = 'patch'
+        elif parsed[3] == 'b':
+            url = UNITY_BETA_RELEASE_NOTES % version_string(parsed)
+            cache = 'beta'
+        else:
+            return False
+
+        print 'Unity version %s not known, trying to guess release notes URL to find it...' % version
+        
+        count = self._load_and_parse(url, UNITY_DOWNLOADS_RE, self.cache[cache], False)
+        if count > 0:
+            self.save()
+            self.sorted_versions = None
+
+        return count > 0
+
     def add(self, url):
         result = re.search(UNITY_INI_RE, url)
         if result is None:
@@ -431,8 +465,8 @@ def select_version(version, sorted_versions):
             else:
                 print 'Selected version %s exactly matches input version' % (sorted_versions[i])
             return sorted_versions[i]
-    
-    error('Could not find a Unity version that matches "%s"' % version_string(input_version))
+
+    return None
 
 # ---- DOWNLOAD ----
 
@@ -898,7 +932,8 @@ def main():
         if args.update or operation != 'install':
             cache.update(stage, force = args.update)
 
-        if (not operation or operation == 'install') and len(packages) > 0 and not 'unity' in packages:
+        adding_packages = (not operation or operation == 'install') and len(packages) > 0 and not 'unity' in packages
+        if adding_packages:
             print 'Installing additional packages ("Unity" editor package not selected)'
             
             if len(sorted_installs) == 0:
@@ -910,7 +945,19 @@ def main():
             print 'Trying to select most recent known Unity version'
             version_list = cache.get_sorted_versions(stage)
         
-        versions = set([select_version(v, version_list) for v in args.versions])
+        versions = set()
+        for input_version in args.versions:
+            selected = select_version(input_version, version_list)
+            if not selected:
+                # Try to find version by guessing the release notes url
+                if not adding_packages and cache.autoadd(input_version):
+                    # Try to re-select version with the updated cache
+                    version_list = cache.get_sorted_versions(stage)
+                    selected = select_version(input_version, version_list)
+                if not selected:
+                    error('Could not find a Unity version that matches "%s"' % input_version)
+            versions.add(selected)
+        
         print ''
 
         for version in versions:
