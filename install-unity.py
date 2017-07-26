@@ -579,7 +579,7 @@ def load_ini(version):
     config.read(ini_path)
     return config
 
-def select_packages(config, packages):
+def select_packages(version, config, packages):
     available = config.sections()
     
     if len(packages) == 0:
@@ -935,7 +935,7 @@ def main():
                     if len(packages) > 0:
                         print 'Using saved default packages'
                 
-                selected = select_packages(config, packages)
+                selected = select_packages(version, config, packages)
                 if len(selected) == 0:
                     print 'WARNING: No packages selected for version %s' % version
                     continue
