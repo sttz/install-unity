@@ -70,11 +70,6 @@ UNITY_INI_NAME = 'unity-%s-osx.ini'
 # Regex to parse URLs given to --discover
 UNITY_INI_RE = '(https?:\/\/[\w\/.-]+\/[0-9a-f]{12}\/)[\w\/.-]+-(\d+\.\d+\.\d+\w\d+)[\w\/.-]+'
 
-# Name of the Unity versions cache (created from above URLs)
-CACHE_FILE = 'unity_versions.json'
-# Lifetime of the cache, use --update to force an update
-CACHE_LIFETIME = 60*60*24
-
 # Regex to parse Unity versions in the format of e.g. '5.3.2p3'"
 VERSION_RE = '^(\d+)?(?:\.(\d+)(?:\.(\d+))?)?(?:(\w)(?:(\d+))?)?$'
 # Unity release types and corresponding letters in version string
@@ -86,11 +81,14 @@ RELEASE_LETTER_SORT = { 'p': 4, 'f': 3, 'b': 2, 'a': 1 }
 # Default release stage when not explicitly specified with --list or in the given version string
 DEFAULT_STAGE = 'f'
 
-# Default location where downloaded packages are temporarily stored
-# (Unless --download, --install or --keep is used, in which case they are not removed)
-DOWNLOAD_PATH = '~/Downloads/'
-# Name of top directory packages are stored (in subdirectories by version)
-DOWNLOAD_DIRECTORY = 'Unity Packages'
+# Default location where script data is being stored
+# (install packages, unity ini files, cache and settings)
+DATA_DIR = '~/Library/Application Support/install-unity/'
+# Name of the Unity versions cache (created from above URLs)
+CACHE_FILE = 'cache.json'
+# Lifetime of the cache, use --update to force an update
+CACHE_LIFETIME = 60*60*24
+
 # Timeout of download requests in seconds
 DOWNLOAD_TIMEOUT = 60
 # How often downloads are retried when errors occur before giving up
@@ -128,12 +126,13 @@ parser.add_argument('-p', '--package',
 parser.add_argument('--all-packages', 
     action='store_true',
     help='install all packages instead of only the default ones when no packages are selected')
-parser.add_argument('--package-store', 
-    action='store',
-    help='location where the downloaded packages are stored (temporarily, if not --download or --keep)')
 parser.add_argument('-k', '--keep', 
     action='store_true',
-    help='don\'t remove installer files after installation (implied when using --install)')
+    help='don\'t remove downloaded packages after installation (implied when using --install)')
+parser.add_argument('--data-dir', 
+    action='store',
+    default=DATA_DIR,
+    help='directory to store packages, unity ini files, cache and settings (default is in Application Support)')
 
 parser.add_argument('-u', '--update', 
     action='store_true',
@@ -172,9 +171,8 @@ def error(message):
 # ---- VERSIONS CACHE ----
 
 class version_cache:
-    def __init__(self, cache_path):
-        self.cache_path = cache_path
-        self.cache_file = os.path.join(cache_path, CACHE_FILE)
+    def __init__(self, cache_file):
+        self.cache_file = cache_file
         
         self.cache = {}
         self.sorted_versions = None
@@ -596,16 +594,20 @@ def load_ini(version):
     if not baseurl:
         error('Version %s is now a known Unity version' % version)
     
+    ini_dir = os.path.join(data_path, version)
     ini_name = UNITY_INI_NAME % version
-    ini_path = os.path.join(script_dir, ini_name)
+    ini_path = os.path.join(ini_dir, ini_name)
     
-    if not os.path.isfile(ini_path):
+    if args.update or not os.path.isfile(ini_path):
         url = baseurl + ini_name
         try:
             response = urllib2.urlopen(url)
         except Exception as e:
             error('Could not load URL "%s": %s' % (url, e.reason))
     
+        if not os.path.isdir(ini_dir):
+            os.makedirs(ini_dir)
+
         with open(ini_path, 'w') as file:
             file.write(response.read())
     
@@ -803,8 +805,7 @@ def install(version, path, config, selected, installs):
 def clean_up(path):
     # Prevent cleanup if there are unexpected files in the download directory
     for file in os.listdir(path):
-        file_lower = file.lower()
-        if not file_lower.endswith('.pkg') and not file == '.DS_Store':
+        if not os.path.splitext(file)[1].lower() in ['.pkg', '.ini'] and not file == '.DS_Store':
             print 'WARNING: Cleanup aborted because of unkown file "%s" in "%s"' % (file, path)
             return
     
@@ -820,13 +821,13 @@ def clean_up(path):
 
 # ---- MAIN ----
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-cache = version_cache(script_dir)
+data_path = os.path.abspath(os.path.expanduser(args.data_dir))
+cache = version_cache(os.path.join(data_path, CACHE_FILE))
 pwd = None
 is_root = (os.getuid() == 0)
 
 def main():
-    print 'Install Unity Script %s\n' % VERSION
+    print 'Install Unity Script %s' % VERSION
 
     operation = args.operation
     packages = [x.lower() for x in args.package] if args.package else []
@@ -860,11 +861,12 @@ def main():
 
         sys.exit(1)
 
-    # When --update is set we also clear all ini files to force re-downloading them
-    if args.update:
-        for file in os.listdir(script_dir):
-            if file.startswith("unity") and file.endswith(".ini"):
-                os.remove(os.path.join(script_dir, file))
+    # Make sure data_dir exists
+    if not os.path.isdir(data_path):
+        os.makedirs(data_path)
+
+    print 'Writing data to %s (use --data-dir to change)' % data_path
+    print ''
 
     # Handle adding and removing of versions
     if args.discover or args.forget:
@@ -882,13 +884,6 @@ def main():
 
     if args.list or len(args.versions) == 0:
         operation = 'list-versions'
-
-    # Download path
-    download_to = args.package_store
-    if not download_to:
-        download_to = DOWNLOAD_PATH
-
-    download_to = os.path.expanduser(os.path.join(download_to, DOWNLOAD_DIRECTORY))
 
     # Save default packages
     if args.save:
@@ -973,7 +968,7 @@ def main():
                     )
                 print ''
             else:
-                path = os.path.expanduser(os.path.join(download_to, version))
+                path = os.path.expanduser(os.path.join(data_path, version))
                 
                 print 'Processing packages for Unity version %s:' % version
                 
