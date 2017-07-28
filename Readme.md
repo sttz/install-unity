@@ -31,7 +31,9 @@ Unity is packaged this way starting from Unity 5.0, the install script doesn’t
 
 The install script scans public Unity HTML pages and does not discover all versions available. For regular releases, this includes all versions of Unity 5.x.x. For patch releases, this includes only the newest 5 and for beta releases only the ones for the upcoming Unity version (if any).
 
-Versions can be added manually by finding the URL to the Mac editor installer containing a 12-character hash code, e.g. `http://netstorage.unity3d.com/unity/2524e04062b4/MacEditorInstaller/Unity-5.3.0f4.pkg` and by calling:<br>
+For older patch and beta releases, specify the exact version number (e.g. 5.6.2p2) and the script will attempt to find it.
+
+If that doesn't work, versions can be added manually by finding the URL to the Mac editor installer containing a 12-character hash code, e.g. `http://netstorage.unity3d.com/unity/2524e04062b4/MacEditorInstaller/Unity-5.3.0f4.pkg` and by calling:<br>
 `./install-unity.py --discover URL`
 
 # Selecting Versions
@@ -59,27 +61,29 @@ It's possible to save your own set of default packages, which will override Unit
 
 The Unity install script can download and install the packages separately, allowing you to install Unity on multiple computers while only downloading the packages once.
 
-First, download the packages using the `--download` flag. By default, the packages are downloaded to `~/Downloads` but you can set a custom download path using `--package-store`. Execute the following command in the script directory to download all available packages into the script directory, so you only need to copy a single folder to the computer you want to install Unity on:<br>
-`./install-unity.py --download --all-packages --package-store . VERSION`
+By default, packages and all other required files are stored in `~/Library/Application Support/install-unity`. You can use `--data-dir` to change where those files are stored so you can more easily copy them.
 
-This will create a `Unity Packages` folder inside the script directory that contains all downloaded packages, sorted by version. Copy the folder with the script, the `unity_versions.json` and all `unity-*-osx.ini` files to the target computer and then call:<br>
-`./install-unity.py --install --all-packages --package-store . VERSION`
+First, download the packages using the `--download` flag. Execute the following command to download all required files to the `Unity_Data` folder on your Desktop:<br>
+`./install-unity.py --download --all-packages --data-dir "~/Desktop/Unity_Data" VERSION`
 
-Instead of installing all packages, you can select which packages to install using mutliple `--package` flags. You can also specify multiple versions to install different Unity versions at once.
+Copy the script and Unity_Data folder to the target computer and then call:<br>
+`./install-unity.py --install --all-packages --data-dir "~/Desktop/Unity_Data" VERSION`
+
+Instead of installing all packages, you can select which packages to install using multiple `--package` flags. You can also specify multiple versions to download or install many Unity versions at once.
 
 # Commands
 
 All available commands:
 ```
 usage: install-unity.py [-h] [--version] [--packages] [--download] [--install]
-                        [--volume VOLUME] [-p PACKAGE] [--all-packages]
-                        [--package-store PACKAGE_STORE] [-k] [-u]
+                        [--volume VOLUME] [-p PACKAGE] [--all-packages] [-k]
+                        [--data-dir DATA_DIR] [-u]
                         [-l {release,patch,beta,alpha,all}]
                         [--discover DISCOVER] [--forget FORGET] [--save]
                         [--unity-defaults] [-v]
                         [VERSION [VERSION ...]]
 
-Install Unity Script 0.0.9
+Install Unity Script 0.1.0
 
 positional arguments:
   VERSION               unity version to install packages from (only >= 5.0.0)
@@ -97,11 +101,10 @@ optional arguments:
                         default packages
   --all-packages        install all packages instead of only the default ones
                         when no packages are selected
-  --package-store PACKAGE_STORE
-                        location where the downloaded packages are stored
-                        (temporarily, if not --download or --keep)
-  -k, --keep            don't remove installer files after installation
+  -k, --keep            don't remove downloaded packages after installation
                         (implied when using --install)
+  --data-dir DATA_DIR   directory to store packages, unity ini files, cache
+                        and settings (default is in Application Support)
   -u, --update          force updating of cached version information
   -l {release,patch,beta,alpha,all}, --list {release,patch,beta,alpha,all}
                         list the cached unity versions
@@ -118,9 +121,18 @@ optional arguments:
 
 # Version History
 
+#### 0.1.0 (2017-07-28)
+* Files are now stored in `~/Library/Application Support/install-unity` by default
+* Added `--data-dir` to override where files are stored (packages, installer ini files, cache and settings)
+* Removed `--package-store` in favor of new `--data-dir`
+* Unity installer ini files are stored together with the downloaded packages and cleaned up with them
+* Guess the release notes URL of patch and beta releases to discover them automatically (only works if the full version number is given, e.g. 5.6.2p2)
+* Store settings in a separate `settings.json` file (old settings in cache file will be migrated)
+* Fixed an exception when a package is not found (@samizzo)
+
 #### 0.0.9 (2017-07-06)
 * Improved version selection (see [Selecting Versions](#selecting-versions))
-* Fixed an exception occuring before installing
+* Fixed an exception occurring before installing
 * Fixed an exception while cleaning up after install
 * Fixed an exception in the --forget command
 
@@ -142,7 +154,7 @@ optional arguments:
 * Only ask for password after version and packages have been selected, giving a chance to review those choices
 
 #### 0.0.5 (2017-05-01)
-* Fix connecting to unity3d.com now that it requries TLS1.2 (python upgrade may be needed)
+* Fix connecting to unity3d.com now that it requires TLS1.2 (python upgrade may be needed)
 * Script now runs with Homebrew Python 2 when installed
 * Improve display of Unity versions list
 * Fix error reporting when catching exceptions (thanks to Sam Izzo)

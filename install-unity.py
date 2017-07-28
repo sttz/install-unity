@@ -46,7 +46,7 @@ import ssl
 
 # ---- CONFIGURATION ----
 
-VERSION = '0.0.9'
+VERSION = '0.1.0'
 
 # URL to look for main Unity releases
 UNITY_DOWNLOADS = 'https://unity3d.com/get-unity/download/archive'
