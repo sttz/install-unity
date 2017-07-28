@@ -84,10 +84,12 @@ DEFAULT_STAGE = 'f'
 # Default location where script data is being stored
 # (install packages, unity ini files, cache and settings)
 DATA_DIR = '~/Library/Application Support/install-unity/'
-# Name of the Unity versions cache (created from above URLs)
+# Name of the Unity versions cache in DATA_DIR (created from above URLs)
 CACHE_FILE = 'cache.json'
 # Lifetime of the cache, use --update to force an update
 CACHE_LIFETIME = 60*60*24
+# File where script settings are stored in DATA_DIR
+SETTINGS_FILE = 'settings.json'
 
 # Timeout of download requests in seconds
 DOWNLOAD_TIMEOUT = 60
@@ -390,16 +392,45 @@ class version_cache:
                 last_major_minor = major_minor
             print '- %s' % version
     
+    def migrate_default_packages(self):
+        if "default_packages" in self.cache:
+            packages = self.cache["default_packages"]
+            del self.cache["default_packages"]
+            return packages
+        else:
+            return None
+
+# ---- SETTINGS ----
+
+class script_settings:
+    def __init__(self, settings_file):
+        self.settings_file = settings_file
+        self.settings = {}
+        self.load()
+    
+    def load(self):
+        if not os.path.isfile(self.settings_file):
+            return
+        
+        with open(self.settings_file, 'r') as file:
+            data = file.read()
+            self.settings = json.loads(data)
+    
+    def save(self):
+        with open(self.settings_file, 'w') as file:
+            data = json.dumps(self.settings)
+            file.write(data)
+    
     def set_default_packages(self, list):
         if list and len(list) > 0:
-            self.cache["default_packages"] = list
+            self.settings["default_packages"] = list
         else:
-            del self.cache["default_packages"]
+            del self.settings["default_packages"]
         self.save()
     
-    def default_packages(self):
-        if "default_packages" in self.cache:
-            return self.cache["default_packages"]
+    def get_default_packages(self):
+        if "default_packages" in self.settings:
+            return self.settings["default_packages"]
         else:
             return []
 
@@ -823,6 +854,7 @@ def clean_up(path):
 
 data_path = os.path.abspath(os.path.expanduser(args.data_dir))
 cache = version_cache(os.path.join(data_path, CACHE_FILE))
+settings = script_settings(os.path.join(data_path, SETTINGS_FILE))
 pwd = None
 is_root = (os.getuid() == 0)
 
@@ -885,6 +917,11 @@ def main():
     if args.list or len(args.versions) == 0:
         operation = 'list-versions'
 
+    # Legacy: Migrate default packages from cache to settings
+    legacy_default_packages = cache.migrate_default_packages()
+    if legacy_default_packages and len(settings.get_default_packages()) == 0:
+        settings.set_default_packages(legacy_default_packages)
+
     # Save default packages
     if args.save:
         if len(packages) > 0:
@@ -893,7 +930,7 @@ def main():
         else:
             print 'Clearing saved default packages'
             print ''
-        cache.set_default_packages(packages)
+        settings.set_default_packages(packages)
 
     # Main Operation
     if operation == 'list-versions':
@@ -973,7 +1010,7 @@ def main():
                 print 'Processing packages for Unity version %s:' % version
                 
                 if len(packages) == 0 and not args.unity_defaults:
-                    packages = cache.default_packages()
+                    packages = settings.get_default_packages()
                     if len(packages) > 0:
                         print 'Using saved default packages'
                 
