@@ -870,28 +870,25 @@ def main():
     # macOS has deprecated OpenSSL in favor of its own crypto libraries, which
     # means macOS will be stuck at OpenSSL 0.9.8, which doesn't support TLS1.2.
     match = re.match('OpenSSL (\d+).(\d+).(\d+)(\w+)', ssl.OPENSSL_VERSION)
-    if not match:
-        print 'ERROR: Could not parse OpenSSL version: %s' % version
-        sys.exit(1)
-
-    parts = match.groups()
-    if (int(parts[0]) < 1 or int(parts[1]) < 0 or int(parts[2]) < 1):
-        print (
-            'ERROR: Your Python\'s OpenSSL library is outdated (%s).\n'
-            'At least OpenSSL version 1.0.1g is required.\n'
-            'You need to install a new version of Python 2 with an updated OpenSSL library.\n'
-            ) % (ssl.OPENSSL_VERSION)
-        
-        brew_check = os.system('brew help &> /dev/null')
-        if brew_check != 0:
-            print 'Either download it from www.python.org or install it using a package manager like Homebrew.'
-        else:
+    if match:
+        parts = match.groups()
+        if (int(parts[0]) < 1 or int(parts[1]) < 0 or int(parts[2]) < 1):
             print (
-                'You can install python with Homebrew using the following command:\n'
-                'brew install python'
-            )
+                'ERROR: Your Python\'s OpenSSL library is outdated (%s).\n'
+                'At least OpenSSL version 1.0.1g is required.\n'
+                'You need to install a new version of Python 2 with an updated OpenSSL library.\n'
+                ) % (ssl.OPENSSL_VERSION)
+            
+            brew_check = os.system('brew help &> /dev/null')
+            if brew_check != 0:
+                print 'Either download it from www.python.org or install it using a package manager like Homebrew.'
+            else:
+                print (
+                    'You can install python with Homebrew using the following command:\n'
+                    'brew install python'
+                )
 
-        sys.exit(1)
+            sys.exit(1)
 
     # Make sure data_dir exists
     if not os.path.isdir(data_path):
