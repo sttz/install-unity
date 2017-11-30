@@ -83,7 +83,7 @@ usage: install-unity.py [-h] [--version] [--packages] [--download] [--install]
                         [--unity-defaults] [-v]
                         [VERSION [VERSION ...]]
 
-Install Unity Script 0.1.0
+Install Unity Script 0.1.1
 
 positional arguments:
   VERSION               unity version to install packages from (only >= 5.0.0)
@@ -120,6 +120,11 @@ optional arguments:
 ```
 
 # Version History
+
+#### 0.1.1 (2017-11-30)
+* Fix OpenSSL version check being too picky (now allows unmatched versions like LibreSSL)
+* Fix being asked for password more than once when installing multiple versions
+* Fix error when installing multiple versions
 
 #### 0.1.0 (2017-07-28)
 * Files are now stored in `~/Library/Application Support/install-unity` by default
