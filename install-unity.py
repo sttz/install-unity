@@ -737,7 +737,7 @@ def find_unity_installs():
 
 def check_root():
     global pwd
-    if not is_root and (not args.operation or args.operation == 'install'):
+    if not pwd and not is_root and (not args.operation or args.operation == 'install'):
         # Get the root password early so we don't need to ask for it
         # after the downloads potentially took a long time to finish.
         # Also, just calling sudo might expire when the install takes
