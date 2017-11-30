@@ -707,7 +707,7 @@ def download(version, path, config, selected):
 
 # ---- INSTALL ----
 
-def find_unity_installs():
+def find_unity_installs(silent = False):
     installs = {}
     
     app_dir = os.path.join(args.volume, 'Applications')
@@ -725,13 +725,14 @@ def find_unity_installs():
         
         installs[installed_version] = os.path.join(app_dir, install_name)
     
-    if len(installs) == 0:
-        print "No existing Unity installations found."
-    else:
-        print 'Found %d existing Unity installations:' % len(installs)
-        for install in installs:
-            print '- %s (%s)' % (install, installs[install])
-    print ''
+    if not silent:
+        if len(installs) == 0:
+            print "No existing Unity installations found."
+        else:
+            print 'Found %d existing Unity installations:' % len(installs)
+            for install in installs:
+                print '- %s (%s)' % (install, installs[install])
+        print ''
     
     return installs
 
@@ -1040,6 +1041,7 @@ def main():
                 
                 if operation == 'install' or not operation:
                     install(version, path, config, selected, installs)
+                    installs = find_unity_installs(True)
                     
                     if not args.keep and not operation:
                         clean_up(path)
