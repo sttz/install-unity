@@ -27,6 +27,7 @@ import argparse
 import collections
 import ConfigParser
 import datetime
+import fnmatch
 import getpass
 import hashlib
 import io
@@ -776,7 +777,7 @@ def install(version, path, config, selected, installs):
     if version in installs and os.path.basename(installs[version]) == 'Unity':
         # The 'Unity' folder already contains the target version
         pass
-    elif os.path.isdir(install_path):
+    elif os.path.isdir(install_path) and not is_dir_actually_empty(install_path):
         # There's another version in the 'Unity' folder, move it to 'Unity VERSION'
         lookup = [vers for vers,name in installs.iteritems() if os.path.basename(name) == 'Unity']
         if len(lookup) != 1:
@@ -836,12 +837,30 @@ def install(version, path, config, selected, installs):
 
 def clean_up(path):
     # Prevent cleanup if there are unexpected files in the download directory
-    for file in os.listdir(path):
-        if not os.path.splitext(file)[1].lower() in ['.pkg', '.ini'] and not file == '.DS_Store':
-            print 'WARNING: Cleanup aborted because of unkown file "%s" in "%s"' % (file, path)
-            return
-    
+    if not is_dir_actually_empty(path, ['*.pkg', '*.ini', '.DS_Store']):
+        print 'WARNING: Cleanup aborted because of unkown files in "%s"' % (path)
+        return
+
     shutil.rmtree(path)
+
+def is_dir_actually_empty(path, ignore = ['.DS_Store']):
+    if not os.path.isdir(path):
+        return False
+
+    files = os.listdir(path)
+    if len(files) == 0:
+        return True
+
+    for file in files:
+        ignored = False
+        for pattern in ignore:
+            if fnmatch.fnmatch(file, pattern):
+                ignored = True
+                break
+        if not ignored:
+            return False
+
+    return True
 
 # ---- MAIN ----
 
