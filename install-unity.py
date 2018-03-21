@@ -51,6 +51,8 @@ VERSION = '0.1.1'
 
 # URL to look for main Unity releases
 UNITY_DOWNLOADS = 'https://unity3d.com/get-unity/download/archive'
+# URL to look for LTS Unity releases
+UNITY_LTS_DOWNLOADS = 'https://unity3d.com/unity/qa/lts-releases'
 # URL to look for Unity patch releases
 UNITY_PATCHES = 'https://unity3d.com/unity/qa/patch-releases'
 # URL to look for beta releases
@@ -212,6 +214,8 @@ class version_cache:
             self.cache['release']['_lastupdate'] = datetime.datetime.utcnow().isoformat()
             count = self._load_and_parse(UNITY_DOWNLOADS, UNITY_DOWNLOADS_RE, self.cache['release'])
             if count > 0: print 'Found %i Unity releases.' % count
+            count = self._load_and_parse(UNITY_LTS_DOWNLOADS, UNITY_DOWNLOADS_RE, self.cache['release'])
+            if count > 0: print 'Found %i Unity LTS releases.' % count
 
         if strength >= 2 and (force or self.is_outdated(self.cache.get('patch', None))):
             print 'Loading Unity patch releases...'
