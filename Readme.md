@@ -81,7 +81,7 @@ usage: install-unity.py [-h] [--version] [--packages] [--download] [--install]
                         [--unity-defaults] [-v]
                         [VERSION [VERSION ...]]
 
-Install Unity Script 0.1.1
+Install Unity Script 0.1.2
 
 positional arguments:
   VERSION               unity version to install packages from (only >= 5.0.0)
@@ -118,6 +118,10 @@ optional arguments:
 ```
 
 # Version History
+
+### 0.1.2 (2018-03-21)
+* Support for discovering new Unity LTS releases
+* Don't abort installation if target Unity directory is empty
 
 #### 0.1.1 (2017-11-30)
 * Fix OpenSSL version check being too picky (now allows unmatched versions like LibreSSL)
