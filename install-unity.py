@@ -719,7 +719,7 @@ def find_unity_installs(silent = False):
     if not os.path.isdir(app_dir):
         error('Applications directory on target volume "%s" not found' % args.volume)
     
-    install_paths = [x for x in os.listdir(app_dir) if x.startswith('Unity')]
+    install_paths = [x for x in os.listdir(app_dir) if x.startswith('Unity') and not x.startswith('Unity Hub')]
     for install_name in install_paths:
         plist_path = os.path.join(app_dir, install_name, 'Unity.app', 'Contents', 'Info.plist')
         if not os.path.isfile(plist_path):
