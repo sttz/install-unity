@@ -56,7 +56,7 @@ UNITY_LTS_DOWNLOADS = 'https://unity3d.com/unity/qa/lts-releases'
 # URL to look for Unity patch releases
 UNITY_PATCHES = 'https://unity3d.com/unity/qa/patch-releases'
 # URL to look for beta releases
-UNITY_BETAS = 'https://unity3d.com/unity/beta/archive'
+UNITY_BETAS = 'https://unity3d.com/unity/beta-download'
 # URL for Unity patch release notes
 UNITY_PATCH_RELEASE_NOTES = 'https://unity3d.com/unity/qa/patch-releases/%s'
 # URL for Unity beta release notes
@@ -66,7 +66,7 @@ UNITY_BETAVERSION_RE = '"/unity/beta/unity(\d+\.\d+\.\d+\w\d+)"'
 # parametrized beta version URL, given its version
 UNITY_BETAVERSION_URL = "https://unity3d.com/unity/beta/unity%s"
 # Regex to parse package URLs from HTML
-UNITY_DOWNLOADS_RE = '"(https?:\/\/[\w\/.-]+\/[0-9a-f]{12}\/)MacEditorInstaller\/[\w\/.-]+-(\d+\.\d+\.\d+\w\d+)[\w\/.-]+"'
+UNITY_DOWNLOADS_RE = '"(https?:\/\/[\w\/.-]+\/[0-9a-f]{12}\/)MacEditor(?:Target)?Installer\/[\w\/.-]+-(\d+\.\d+\.\d+\w\d+)[\w\/.-]+"'
 
 # Name of the ini file at the package URL that contains package information (%s = version)
 UNITY_INI_NAME = 'unity-%s-osx.ini'
@@ -229,7 +229,7 @@ class version_cache:
             self.cache['beta'] = {}
             self.cache['beta']['_lastupdate'] = datetime.datetime.utcnow().isoformat()
             count = self._load_and_parse_betas(UNITY_BETAS, UNITY_DOWNLOADS_RE, self.cache['beta'])
-            if count > 0: print 'Found %i Unity patch releases.' % count
+            if count > 0: print 'Found %i Unity beta releases.' % count
 
         print ''
         
@@ -259,9 +259,11 @@ class version_cache:
                 return 0
         
         result = re.findall(pattern, response.read())
+        versions = {}
         for match in result:
             unity_versions[match[1]] = match[0]
-        return len(result)
+            versions[match[1]] = True
+        return len(versions)
     
     def save(self):
         with open(self.cache_file, 'w') as file:
