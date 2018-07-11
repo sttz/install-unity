@@ -81,7 +81,7 @@ usage: install-unity.py [-h] [--version] [--packages] [--download] [--install]
                         [--unity-defaults] [-v]
                         [VERSION [VERSION ...]]
 
-Install Unity Script 0.1.3
+Install Unity Script 0.1.4
 
 positional arguments:
   VERSION               unity version to install packages from (only >= 5.0.0)
@@ -118,6 +118,9 @@ optional arguments:
 ```
 
 # Version History
+
+#### 0.1.4 (2018-07-11)
+* Fix discovery of Unity 2018.2 final release
 
 #### 0.1.3 (2018-07-05)
 * Fix discovery of Unity 2018.2 beta releases
