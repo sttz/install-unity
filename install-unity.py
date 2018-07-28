@@ -777,9 +777,10 @@ def check_root():
         
         # Check the root password, so that the user won't only find out
         # much later if the password is wrong
-        command = 'sudo -k && echo "%s" | /usr/bin/sudo -S /usr/bin/whoami' % pwd
-        result = subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if result != 0:
+        subprocess.call(['sudo', '-k'])
+        sub = subprocess.Popen(['sudo', '-S', '/usr/bin/true'], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+        sub.communicate(pwd + '\n')
+        if sub.returncode != 0:
             error('User password invalid or user not an admin')
         
         print ''
@@ -833,7 +834,7 @@ def install(version, path, config, selected, installs):
         if not is_root:
             command = ['/usr/bin/sudo', '-S'] + command;
         
-        p = subprocess.call(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        p = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         
         if not is_root:
             result = p.communicate(pwd + "\n")
