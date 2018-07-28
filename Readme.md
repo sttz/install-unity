@@ -69,16 +69,37 @@ Copy the script and Unity_Data folder to the target computer and then call:<br>
 
 Instead of installing all packages, you can select which packages to install using multiple `--package` flags. You can also specify multiple versions to download or install many Unity versions at once.
 
+# Activation
+
+The Unity install script can perform headless activation of Unity Personal. This is useful, for example, in continuous integration environments where a virtual machine must be provisioned from scratch before each build. Please read on for caveats.
+
+**Important:** You should complete the regular activation process at least once on some system, in order to complete extra steps such as the user survey, which the install script does not answer. Afterwards, headless activation can be used with the same account.
+
+```
+./install-unity --activate --email foobar@example.com --password xyzzy VERSION
+```
+
+If either `--email` or `--password` is not provided, you will be prompted to enter them interactively.
+
+The install script attempts to emulate the activation behavior of Unity 2018.2.0f2. Activation may not succeed with other versions, or if the activation server changes in the future. Please let Unity know that headless activation is important, so that we can have a more reliable solution.
+
+You are responsible for following all applicable licensing requirements.
+
+**Security note:** Be sure to obfuscate your password appropriately in your CI configuration (e.g., [instructions for Travis CI][travis-crypto]) and confirm that it does not appear in build logs. The password will be passed on the command line to Unity, where it may be accessible to other users on the same system. It would be wise to use a Unity account dedicated to this purpose.
+
+[travis-crypto]: https://docs.travis-ci.com/user/environment-variables/#defining-encrypted-variables-in-travisyml
+
 # Commands
 
 All available commands:
 ```
 usage: install-unity.py [-h] [--version] [--packages] [--download] [--install]
-                        [--volume VOLUME] [-p PACKAGE] [--all-packages] [-k]
-                        [--data-dir DATA_DIR] [-u]
+                        [--activate] [--volume VOLUME] [-p PACKAGE]
+                        [--all-packages] [-k] [--data-dir DATA_DIR] [-u]
                         [-l {release,patch,beta,alpha,all}]
                         [--discover DISCOVER] [--forget FORGET] [--save]
-                        [--unity-defaults] [-v]
+                        [--unity-defaults] [--email EMAIL]
+                        [--password PASSWORD] [-v]
                         [VERSION [VERSION ...]]
 
 Install Unity Script 0.1.4
@@ -93,6 +114,7 @@ optional arguments:
   --download            only download the version(s), don't install them
   --install             only install the version(s), they must have been
                         downloaded previously
+  --activate            activate a Unity Personal license
   --volume VOLUME       set the target volume (must be a volume mountpoint)
   -p PACKAGE, --package PACKAGE
                         add package to download or install, absent = install
@@ -114,10 +136,15 @@ optional arguments:
                         reset)
   --unity-defaults      use the unity default packages instead of the custom
                         defaults that might have been saved
+  --email EMAIL         e-mail address used for activation
+  --password PASSWORD   password used for activation
   -v, --verbose         show stacktrace when an error occurs
 ```
 
 # Version History
+
+#### Future
+* Added `--activate` to activate Unity Personal (@rgov)
 
 #### 0.1.4 (2018-07-11)
 * Fix discovery of Unity 2018.2 final release
