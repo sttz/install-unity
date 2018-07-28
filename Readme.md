@@ -81,6 +81,8 @@ The Unity install script can perform headless activation of Unity Personal. This
 
 If either `--email` or `--password` is not provided, you will be prompted to enter them interactively.
 
+You probably do *not* want to activate using `sudo`, as this will create root-owned cache directories in ~/Library/Unity that will cause problems later on.
+
 The install script attempts to emulate the activation behavior of Unity 2018.2.0f2. Activation may not succeed with other versions, or if the activation server changes in the future. Please let Unity know that headless activation is important, so that we can have a more reliable solution.
 
 You are responsible for following all applicable licensing requirements.
