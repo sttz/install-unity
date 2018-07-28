@@ -35,10 +35,12 @@ import json
 import math
 import os
 import pipes
+import random
 import re
 import shutil
 import subprocess
 import sys
+import textwrap
 import time
 import traceback
 import urllib
@@ -103,6 +105,17 @@ DOWNLOAD_RETRY_WAIT = 10
 # Size of blocks of data processed while downloading
 DOWNLOAD_BLOCKSIZE = 8192
 
+# URL for logging in
+ACTIVATION_LOGIN_URL = 'https://core.cloud.unity3d.com/api/login'
+# URL for submitting the activation request
+ACTIVATION_REQUEST_URL = 'https://license.unity3d.com/update/poll?cmd=9&tx_id={TX_ID}'
+# URL for posting activation transactions
+ACTIVATION_TRANSACTION_URL = 'https://license.unity3d.com/api/transactions/{TX_ID}'
+# URL for obtaining the license
+ACTIVATION_LICENSE_URL = 'https://activation.unity3d.com/license.fcgi?CMD=9&TX={TX_ID}&RX={RX_ID}'
+# Path to the license file
+LICENSE_FILE = '/Library/Application Support/Unity/Unity_lic.ulf'
+
 # ---- ARGUMENTS ----
 
 parser = argparse.ArgumentParser(description='Install Unity Script ' + VERSION)
@@ -121,6 +134,9 @@ parser.add_argument('--download',
 parser.add_argument('--install', 
     action='store_const', const='install', dest='operation',
     help='only install the version(s), they must have been downloaded previously')
+parser.add_argument('--activate', 
+    action='store_const', const='activate', dest='operation',
+    help='activate a Unity Personal license')
 
 parser.add_argument('--volume', 
     default='/',
@@ -158,6 +174,11 @@ parser.add_argument('--save',
 parser.add_argument('--unity-defaults', 
     action='store_true',
     help='use the unity default packages instead of the custom defaults that might have been saved')
+
+parser.add_argument('--email', 
+    help='e-mail address used for activation')
+parser.add_argument('--password', 
+    help='password used for activation')
 
 parser.add_argument('-v', '--verbose', 
     action='store_true',
@@ -812,7 +833,7 @@ def install(version, path, config, selected, installs):
         if not is_root:
             command = ['/usr/bin/sudo', '-S'] + command;
         
-        p = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        p = subprocess.call(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         
         if not is_root:
             result = p.communicate(pwd + "\n")
@@ -867,6 +888,148 @@ def is_dir_actually_empty(path, ignore = ['.DS_Store']):
             return False
 
     return True
+
+# ---- ACTIVATION ----
+
+# While paid tiers of Unity can be activated from the command line,
+# Unity Personal cannot be. This attempts to mimic the activation process,
+# based on observed traffic from Unity 2018.2.0f2.
+
+sslctx = ssl.create_default_context()
+# Uncomment these lines to disable SSL verification ONLY FOR DEBUGGING
+# sslctx.check_hostname = False
+# sslctx.verify_mode = ssl.CERT_NONE
+
+def get_access_token(email, password):
+    data = json.dumps({
+        "grant_type": "password",
+        "username": email,
+        "password": password,
+    })
+    headers = {'Content-Type': 'application/json'}
+    req = urllib2.Request(ACTIVATION_LOGIN_URL, data, headers)
+    f = urllib2.urlopen(req, context=sslctx)
+    response = json.load(f)
+    f.close()
+    return response['access_token']
+
+def get_activation_request(unity, email, password):
+    '''
+    This is pretty gnarly. Unity starts the activation in batch mode, but cannot
+    complete it without user interaction. But it helpfully spits out the
+    activation request to the log for us, so we can grab it.
+    '''
+    cmd = [
+        unity,
+        '-quit', '-batchmode',
+        # cannot use -nographics or the activation process does not start
+        '-logfile', '-',
+        '-username', email,
+        '-password', password,
+    ]
+    env = os.environ.copy()
+    # FOR DEBUGGING ONLY:
+    # We need to tell Unity to bypass our web proxy, because it will reject our
+    # proxy's fake certificate. Uncomment the following line:
+    # env['UNITY_NOPROXY'] = 'unity3d.com'
+    pattern = re.compile(r'^LICENSE SYSTEM \[[^\]]+\] Posting (.*?)\s*$')
+    devnull = open(os.devnull, 'w')
+    sub = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=devnull, env=env)
+    for line in iter(sub.stdout.readline, ''):
+        m = pattern.match(line)
+        if m:
+            sub.kill()
+            return m.group(1)
+    error('Did not find activation request in Unity output')
+
+def generate_tx_id():
+    return ''.join(random.choice('abcdef012345678') for _ in xrange(32))
+
+def submit_request(reqxml, token, tx_id):
+    url = ACTIVATION_REQUEST_URL.replace('{TX_ID}', tx_id)
+    headers = {
+        # 'X-UNITY_VERSION': '2018.2.0f2',
+        'AUTHORIZATION': 'Bearer ' + token,
+        'Content-Type': 'text/xml',
+    }
+    req = urllib2.Request(url, reqxml, headers)
+    f = urllib2.urlopen(req, context=sslctx)
+    response = f.read()
+    f.close()
+
+    expected = textwrap.dedent('''
+    <?xml version="1.0" encoding="UTF-8"?>
+    <Transaction>
+      <Survey>
+        <Answered>false</Answered>
+      </Survey>
+    </Transaction>
+    ''')
+    if response.strip() != expected.strip():
+        print 'Warning: unexpected response from activation server:'
+        print response.strip()
+        print ''
+
+def complete_transaction(token, tx_id):
+    url = ACTIVATION_TRANSACTION_URL.replace('{TX_ID}', tx_id)
+    data = json.dumps({
+        "transaction": {
+            "serial": {
+                "type":"personal"
+            }
+        }
+    })
+    headers = {
+        'AUTHORIZATION': 'Bearer ' + token,
+        'Content-Type': 'application/json',
+    }
+    req = urllib2.Request(url, data, headers)
+    req.get_method = lambda: 'PUT'
+    f = urllib2.urlopen(req, context=sslctx)
+    response = json.load(f)
+    f.close()
+    # TODO: Do we want to validate anything? If there's an incomplete survey,
+    # then we might not be ready yet.
+    return response['transaction']['rx']
+
+def request_license(reqxml, token, tx_id, rx_id):
+    url = ACTIVATION_LICENSE_URL.replace('{TX_ID}', tx_id).replace('{RX_ID}', rx_id)
+    headers = {
+        'AUTHORIZATION': 'Bearer ' + token,
+        'Content-Type': 'text/xml',
+    }
+    req = urllib2.Request(url, reqxml, headers)
+    f = urllib2.urlopen(req, context=sslctx)
+    response = f.read()
+    f.close()
+    return response
+
+def activate(unity, email, password):
+    if os.path.exists(LICENSE_FILE):
+        print 'License file already exists, removing it'
+        os.unlink(LICENSE_FILE)
+
+    print 'Obtaining access token for', email
+    token = get_access_token(email, password)
+
+    print 'Asking Unity to generate activation request'
+    reqxml = get_activation_request(unity, email, password)
+
+    print 'Submitting activation request'
+    tx_id = generate_tx_id()
+    submit_request(reqxml, token, tx_id)
+
+    print 'Completing activation transaction'
+    rx_id = complete_transaction(token, tx_id)
+
+    print 'Requesting license file'
+    license = request_license(reqxml, token, tx_id, rx_id)
+
+    print 'Writing license file to', LICENSE_FILE
+    if not os.path.isdir(os.path.dirname(LICENSE_FILE)):
+        os.makedirs(os.path.dirname(LICENSE_FILE))
+    with open(LICENSE_FILE, 'w') as f:
+        f.write(license)
 
 # ---- MAIN ----
 
@@ -1019,6 +1182,14 @@ def main():
                         convertSize(config.getint(pkg, 'size'))
                     )
                 print ''
+            elif operation == 'activate':
+                print 'Activating Unity Free license for Unity version %s:' % version
+                if not args.email:
+                    args.email = input('E-mail address: ')
+                if not args.password:
+                    args.password = getpass.getpass('Password: ')
+                unity = os.path.join(installs[version], 'Unity.app', 'Contents', 'MacOS', 'Unity')
+                activate(unity, args.email, args.password)
             else:
                 path = os.path.expanduser(os.path.join(data_path, version))
                 
