@@ -1046,6 +1046,12 @@ def main():
     packages = [x.lower() for x in args.package] if args.package else []
     stage = DEFAULT_STAGE
 
+    # Fix mysterious Unicode errors
+    # urllib2 is garbage and breaks unpredictably when trying to send non-ASCII
+    # bytes to the server, and nothing else worked
+    reload(sys)  # actually needed for some reason for `setdefaultencoding`
+    sys.setdefaultencoding('utf-8')
+
     # Check the installed OpenSSL version
     # unity3d.com only supports TLS1.2, which requires at least OpenSSL 1.0.1.
     # macOS has deprecated OpenSSL in favor of its own crypto libraries, which
