@@ -178,36 +178,44 @@ public class MacPlatform : IInstallerPlatform
         }
     }
 
-    public async Task<Installation> CompleteInstall(CancellationToken cancellation = default)
+    public async Task<Installation> CompleteInstall(bool aborted, CancellationToken cancellation = default)
     {
         if (!installing.version.IsValid)
             throw new InvalidOperationException("Not installing any version to complete");
 
-        string destination;
+        string destination = null;
         if (upgradeOriginalPath != null) {
             // Move back installation
             destination = upgradeOriginalPath;
-        } else {
+            await Move(INSTALL_PATH, destination, cancellation);
+        } else if (!aborted) {
             // Move new installations to "Unity VERSION"
             destination = Helpers.GenerateUniqueFileName(INSTALL_PATH + " " + installing.version);
+            await Move(INSTALL_PATH, destination, cancellation);
+        } else if (aborted) {
+            // Clean up partial installation
+            await Delete(INSTALL_PATH, cancellation);
         }
-        await Move(INSTALL_PATH, destination, cancellation);
 
         // Move back original Unity folder
         if (movedExisting) {
             await Move(INSTALL_PATH_TMP, INSTALL_PATH, cancellation);
         }
 
-        var installation = new Installation() {
-            version = installing.version,
-            path = Path.Combine(destination, "Unity.app")
-        };
+        if (!aborted) {
+            var installation = new Installation() {
+                version = installing.version,
+                path = Path.Combine(destination, "Unity.app")
+            };
 
-        installing = default;
-        movedExisting = false;
-        upgradeOriginalPath = null;
+            installing = default;
+            movedExisting = false;
+            upgradeOriginalPath = null;
 
-        return installation;
+            return installation;
+        } else {
+            return default;
+        }
     }
 
     public Task MoveInstallation(Installation installation, string newPath, CancellationToken cancellation = default)
@@ -289,7 +297,7 @@ public class MacPlatform : IInstallerPlatform
             // Unmount dmg
             result = await Command.Run("/usr/bin/hdiutil", $"detach \"{mountPoint}\"", cancellation: cancellation);
             if (result.exitCode != 0) {
-                throw new Exception($"ERROR: failed to run hdiutil: {result.error}");
+                Logger.LogError($"Failed to run hdiutil: {result.error}");
             }
         }
     }

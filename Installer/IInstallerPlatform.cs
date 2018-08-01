@@ -77,7 +77,7 @@ public interface IInstallerPlatform
     /// Complete an installation after all packages have been installed.
     /// </summary>
     /// <param name="cancellation">Cancellation token</param>
-    Task<Installation> CompleteInstall(CancellationToken cancellation = default); 
+    Task<Installation> CompleteInstall(bool aborted, CancellationToken cancellation = default); 
 
     /// <summary>
     /// Uninstall a Unity installation.

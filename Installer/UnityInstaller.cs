@@ -505,10 +505,15 @@ public class UnityInstaller
 
                 await Task.Delay(100);
             }
-        } finally {
+        } catch {
             if (install) {
-                await Platform.CompleteInstall(cancellation);
+                await Platform.CompleteInstall(true, cancellation);
             }
+            throw;
+        }
+
+        if (install) {
+            await Platform.CompleteInstall(false, cancellation);
         }
     }
 
