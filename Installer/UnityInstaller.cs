@@ -231,7 +231,6 @@ public class UnityInstaller
         }
 
         // Initialize components
-        Platform.AdminPassword = new Passworder();
         Versions = new VersionsCache(GetCacheFilePath());
         Scraper = new Scraper();
     }

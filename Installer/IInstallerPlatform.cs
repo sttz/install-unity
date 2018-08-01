@@ -42,14 +42,10 @@ public interface IInstallerPlatform
     string GetDownloadDirectory();
 
     /// <summary>
-    /// Object that can be used to request admin password from user.
+    /// Prompt for the admin password if it's necessary to install Unity.
     /// </summary>
-    Passworder AdminPassword { get; set; }
-
-    /// <summary>
-    /// Returns wether the installer requires admin privileges for the installation.
-    /// </summary>
-    Task<bool> RequiresPasswordForInstall(CancellationToken cancellation = default);
+    /// <returns>If the password was acquired successfully</returns>
+    Task<bool> PromptForPasswordIfNecessary(CancellationToken cancellation = default);
 
     /// <summary>
     /// Find all existing Unity installations.

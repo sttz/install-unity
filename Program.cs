@@ -390,9 +390,8 @@ public class InstallUnityProgram
         }
 
         // Request password before downoad so the download & installation can go on uninterrupted
-        if ((op & UnityInstaller.InstallStep.Install) > 0 && await installer.Platform.RequiresPasswordForInstall()) {
-            Console.WriteLine();
-            installer.Platform.AdminPassword.GetPassword("Enter your admin password to install Unity: ");
+        if ((op & UnityInstaller.InstallStep.Install) > 0 && !await installer.Platform.PromptForPasswordIfNecessary()) {
+            Environment.Exit(1);
         }
 
         // Do the magic

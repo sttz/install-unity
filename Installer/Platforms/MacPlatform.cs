@@ -65,11 +65,29 @@ public class MacPlatform : IInstallerPlatform
         return Path.Combine(Path.GetTempPath(), UnityInstaller.PRODUCT_NAME);
     }
 
-    public Passworder AdminPassword { get; set; }
-
-    public async Task<bool> RequiresPasswordForInstall(CancellationToken cancellation = default)
+    public async Task<bool> PromptForPasswordIfNecessary(CancellationToken cancellation = default)
     {
-        return !await CheckIsRoot(cancellation);
+        if (await CheckIsRoot(false, cancellation)) return true;
+
+        Console.WriteLine();
+
+        var attempts = 3;
+        while (true) {
+            if (pwd == null) {
+                Console.Write($"{UnityInstaller.PRODUCT_NAME} requires your admin password: ");
+                pwd = Helpers.ReadPassword();
+            }
+
+            if (await CheckIsRoot(true, cancellation)) {
+                return true;
+            } else if (--attempts > 0) {
+                Console.WriteLine("Sorry, try again.");
+                pwd = null;
+            } else {
+                pwd = null;
+                return false;
+            }
+        }
     }
 
     public async Task<IEnumerable<Installation>> FindInstallations(CancellationToken cancellation = default)
@@ -212,6 +230,7 @@ public class MacPlatform : IInstallerPlatform
     ILogger Logger = UnityInstaller.CreateLogger<MacPlatform>();
 
     bool? isRoot;
+    string pwd;
     VersionMetadata installing;
     string upgradeOriginalPath;
     bool movedExisting;
@@ -222,8 +241,7 @@ public class MacPlatform : IInstallerPlatform
     /// </summary>
     async Task InstallPkg(string packageId, string packagePath, string target, CancellationToken cancellation = default)
     {
-        var prompt = $"Enter your admin password to install {packageId}: ";
-        var result = await Sudo(prompt, "/usr/sbin/installer", $"-pkg \"{packagePath}\" -target \"{target}\" -verbose", cancellation);
+        var result = await Sudo("/usr/sbin/installer", $"-pkg \"{packagePath}\" -target \"{target}\" -verbose", cancellation);
         if (result.exitCode != 0) {
             throw new Exception($"ERROR: failed to run installer: {result.error}");
         }
@@ -294,12 +312,12 @@ public class MacPlatform : IInstallerPlatform
         }
 
         // Try again with admin privileges
-        var result = await Sudo("Enter your admin password to move Unity: ", "/bin/mkdir", $"-p \"{baseDst}\"", cancellation);
+        var result = await Sudo("/bin/mkdir", $"-p \"{baseDst}\"", cancellation);
         if (result.exitCode != 0) {
             throw new Exception($"ERROR: failed to run mkdir: {result.error}");
         }
 
-        result = await Sudo("Enter your admin password to move Unity: ", "/bin/mv", $"\"{sourcePath}\" \"{newPath}\"", cancellation);
+        result = await Sudo("/bin/mv", $"\"{sourcePath}\" \"{newPath}\"", cancellation);
         if (result.exitCode != 0) {
             throw new Exception($"ERROR: failed to run mv: {result.error}");
         }
@@ -330,12 +348,12 @@ public class MacPlatform : IInstallerPlatform
         }
 
         // Try again with admin privileges
-        result = await Sudo("Enter your admin password to copy package: ", "/bin/mkdir", $"-p \"{baseDst}\"", cancellation);
+        result = await Sudo("/bin/mkdir", $"-p \"{baseDst}\"", cancellation);
         if (result.exitCode != 0) {
             throw new Exception($"ERROR: failed to run mkdir: {result.error}");
         }
 
-        result = await Sudo("Enter your admin password to copy package: ", "/bin/mv", $"\"{sourcePath}\" \"{newPath}\"", cancellation);
+        result = await Sudo("/bin/mv", $"\"{sourcePath}\" \"{newPath}\"", cancellation);
         if (result.exitCode != 0) {
             throw new Exception($"ERROR: failed to run mv: {result.error}");
         }
@@ -355,8 +373,7 @@ public class MacPlatform : IInstallerPlatform
         }
 
         // Try again with admin privileges
-        var prompt = $"Enter your admin password to delete '{deletePath}': ";
-        var result = await Sudo(prompt, "/bin/rm", $"-rf \"{deletePath}\"", cancellation);
+        var result = await Sudo("/bin/rm", $"-rf \"{deletePath}\"", cancellation);
         if (result.exitCode != 0) {
             throw new Exception($"ERROR: failed to run rm: {result.error}");
         }
@@ -386,11 +403,25 @@ public class MacPlatform : IInstallerPlatform
     /// <summary>
     /// Check if the program is running as root.
     /// </summary>
-    async Task<bool> CheckIsRoot(CancellationToken cancellation)
+    async Task<bool> CheckIsRoot(bool withSudo, CancellationToken cancellation)
     {
-        var result = await Command.Run("/usr/bin/id", "-u", cancellation: cancellation);
-        if (result.exitCode != 0) {
-            throw new Exception($"ERROR: failed to run id: {result.error}");
+        var command = "/usr/bin/id";
+        var arguments = "-u";
+        (int exitCode, string output, string error) result;
+        if (withSudo) {
+            result = await Sudo(command, arguments, cancellation: cancellation);
+            if (result.exitCode != 0) {
+                if (result.exitCode == 1 && result.error.Contains("Sorry, try again.")) {
+                    return false;
+                } else {
+                    throw new Exception($"ERROR: failed to run id: {result.error}");
+                }
+            }
+        } else {
+            result = await Command.Run(command, arguments, cancellation: cancellation);
+            if (result.exitCode != 0) {
+                throw new Exception($"ERROR: failed to run id: {result.error}");
+            }
         }
 
         int id;
@@ -406,10 +437,10 @@ public class MacPlatform : IInstallerPlatform
     /// This will prompt the user for the password the first time it's run.
     /// If the user is already root, this is equivalent to calling the command directly.
     /// </summary>
-    async Task<(int exitCode, string output, string error)> Sudo(string prompt, string command, string arguments, CancellationToken cancellation)
+    async Task<(int exitCode, string output, string error)> Sudo(string command, string arguments, CancellationToken cancellation)
     {
         if (isRoot == null) {
-            isRoot = await CheckIsRoot(cancellation);
+            isRoot = await CheckIsRoot(false, cancellation);
         }
 
         if (isRoot == true) {
@@ -417,9 +448,12 @@ public class MacPlatform : IInstallerPlatform
             return await Command.Run(command, arguments, cancellation: cancellation);
         
         } else {
-            // Ask for password and run command using sudo
-            var pwd = AdminPassword.GetPassword(prompt);
-            return await Command.Run("sudo", "-S " + command + " " + arguments, pwd + "\n", cancellation);
+            if (pwd == null) {
+                await PromptForPasswordIfNecessary(cancellation);
+            }
+
+            // Run command using sudo
+            return await Command.Run("sudo", "-Sk " + command + " " + arguments, pwd + "\n", cancellation);
         }
     }
 }

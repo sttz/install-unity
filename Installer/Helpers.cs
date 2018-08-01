@@ -67,6 +67,29 @@ public static class Helpers
 
         return uniquePath;
     }
+
+    /// <summary>
+    /// Read a password from the console.
+    /// The mask character will be used to provide feedback while the user is
+    /// entering the password.
+    /// </summary>
+    public static string ReadPassword(char mask = '*')
+    {
+        var builder = new StringBuilder();
+        while (true) {
+            var info = Console.ReadKey(true);
+            if (info.Key == ConsoleKey.Enter) {
+                Console.WriteLine();
+                return builder.ToString();
+            } else if (!char.IsControl(info.KeyChar)) {
+                builder.Append(info.KeyChar);
+                Console.Write(mask);
+            } else if (info.Key == ConsoleKey.Backspace && builder.Length > 0) {
+                builder.Remove(builder.Length - 1, 1);
+                Console.Write("\b \b");
+            }
+        }
+    }
 }
 
 }
