@@ -64,6 +64,7 @@ public class Downloader
 
     /// <summary>
     /// Time out used for requests (in seconds).
+    /// Can only be set before a Downloader instance's first request is made.
     /// </summary>
     public int Timeout = 30;
 
@@ -130,7 +131,7 @@ public class Downloader
     /// </summary>
     public event Action<Downloader> OnProgress;
 
-    static HttpClient client = new HttpClient();
+    HttpClient client = new HttpClient();
 
     ILogger Logger = UnityInstaller.CreateLogger<Downloader>();
 
@@ -250,7 +251,8 @@ public class Downloader
             request.Headers.Range = new RangeHeaderValue(startOffset, null);
         }
 
-        client.Timeout = TimeSpan.FromSeconds(Timeout);
+        if (client.Timeout != TimeSpan.FromSeconds(Timeout))
+            client.Timeout = TimeSpan.FromSeconds(Timeout);
         var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellation);
         response.EnsureSuccessStatusCode();
 
