@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <LangVersion>7.1</LangVersion>
     <RootNamespace>sttz.InstallUnity</RootNamespace>
@@ -9,14 +8,9 @@
 
   <ItemGroup>
     <PackageReference Include="ini-parser" Version="3.4.0" />
-    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="1.0.0-alpha-*" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="2.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="2.1.1" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
-    <PackageReference Include="PowerArgs" Version="3.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <RdXmlFile Include="rd.xml" />
   </ItemGroup>
 
 </Project>

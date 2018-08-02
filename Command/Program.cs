@@ -4,47 +4,88 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using PowerArgs;
 using sttz.ConsoleLogger;
-using sttz.InstallUnity;
 
 namespace sttz.InstallUnity
 {
 
-/// <summary>
-/// Main command line program definition.
-/// </summary>
-public class InstallUnityProgram
+public class CLIProgram
 {
-    // -------- Global Arguments --------
+    // Command action
+    public string action;
 
-    [HelpHook, ArgShortcut("?"), ArgShortcut("--help")]
-    [ArgDescription("Show this help")]
-    public bool Help { get; set; }
+    // General options
+    public bool help;
+    public bool version;
+    public int verbose;
+    public bool update;
+    public string dataPath;
+    public List<string> options = new List<string>();
 
-    [ArgShortcut("v"), ArgShortcut("--verbose")]
-    [ArgDescription("Enable verbose mode")]
-    public bool Verbose { get; set; }
+    // General arguments
+    public string matchVersion;
 
-    [ArgShortcut("--log-level")]
-    [ArgDescription("Set the log level")]
-    public string LogLevel { get; set; }
+    // List options
+    public bool installed;
 
-    [ArgPosition(1)]
-    [ArgDescription("Pattern to select Unity version(s)")]
-    public string MatchVersion { get; set; }
+    // Install options
+    public List<string> packages = new List<string>();
+    public bool download;
+    public bool install;
 
-    [ArgShortcut("--data-path")]
-    [ArgDescription("Store packages and their metadata in the given directory and don't delete them after installation")]
-    public string DataPath { get; set; }
+    public override string ToString()
+    {
+        var cmd = action ?? "";
+        if (help) cmd += " --help";
+        if (verbose > 0) cmd += string.Concat(Enumerable.Repeat(" --verbose", verbose));
+        if (update) cmd += " --update";
+        if (dataPath != null) cmd += " --data-path " + dataPath;
+        if (options.Count > 0) cmd += " --opt " + string.Join(" ", options);
+        
+        if (matchVersion != null) cmd += " " + matchVersion;
 
-    [ArgShortcut("u"), ArgShortcut("--update")]
-    [ArgDescription("Force an update of the versions cache")]
-    public bool Update { get; set; }
+        if (installed) cmd += " --installed";
 
-    [ArgShortcut("--opt")]
-    [ArgDescription("Set additional options (show them with '--options list')")]
-    public string[] Options { get; set; }
+        if (packages.Count > 0) cmd += " --packages " + string.Join(" ", packages);
+        if (download) cmd += " --download";
+        if (install) cmd += " --install";
+
+        return cmd;
+    }
+
+    public static CLIProgram Parse(string[] args)
+    {
+        var parsed = new CLIProgram();
+        var def = new Arguments()
+            .Option((bool v) => parsed.help = v, "h", "?", "help")
+            .Option((bool v) => parsed.version = v, "v", "version")
+            .Option((bool v) => parsed.verbose++, "v", "verbose").Repeatable()
+            .Option((bool v) => parsed.update = v, "u", "update")
+            .Option((string v) => parsed.dataPath = v, "d", "data-path", "datapath")
+            .Option((IList<string> v) => parsed.options.AddRange(v), "opt").Repeatable()
+
+            .Action("list")
+            .Option((string v) => parsed.matchVersion = v, 0)
+            .Option((bool v) => parsed.installed = v, "i", "installed")
+            
+            .Action("details")
+            .Option((string v) => parsed.matchVersion = v, 0)
+            
+            .Action("install")
+            .Option((string v) => parsed.matchVersion = v, 0)
+            .Option((IList<string> v) => parsed.packages.AddRange(v), "p", "packages").Repeatable()
+            .Option((bool v) => parsed.download = v, "download")
+            .Option((bool v) => parsed.install = v, "install");
+        parsed.action = def.Parse(args);
+        return parsed;
+    }
+
+    public void Help()
+    {
+        Console.WriteLine("Help!!");
+    }
+
+    // -------- Global --------
 
     UnityInstaller installer;
 
@@ -52,33 +93,31 @@ public class InstallUnityProgram
     {
         enableColors = Environment.GetEnvironmentVariable("CLICOLORS") != "0";
 
-        var level = Microsoft.Extensions.Logging.LogLevel.Warning;
-        if (LogLevel != null) {
-            try {
-                level = (LogLevel)Enum.Parse(typeof(LogLevel), LogLevel, true);
-            } catch {
-                throw new Exception("Invalid log level: " + LogLevel);
-            }
-        } else if (Verbose) {
-            level = Microsoft.Extensions.Logging.LogLevel.Information;
+        var level = LogLevel.Warning;
+        if (verbose >= 3) {
+            level = LogLevel.Trace;
+        } else if (verbose == 2) {
+            level = LogLevel.Debug;
+        } else if (verbose == 1) {
+            level = LogLevel.Information;
         }
 
         // Create installer instance
-        installer = new UnityInstaller(dataPath: DataPath, loggerFactory: new LoggerFactory().AddConsole(level, false));
+        installer = new UnityInstaller(dataPath: dataPath, loggerFactory: new LoggerFactory().AddNiceConsole(level, false));
 
         // Re-set colors based on loaded configuration
         enableColors = enableColors && installer.Configuration.enableColoredOutput;
 
         // Parse version argument (--unity-version or positional argument)
-        var version = new UnityVersion(MatchVersion);
+        var version = new UnityVersion(matchVersion);
         if (version.type == UnityVersion.Type.Undefined) version.type = UnityVersion.Type.Final;
 
         // Set additional configuration (--opt NAME=VALUE)
-        if (Options != null) {
-            if (Options.Contains("list", StringComparer.OrdinalIgnoreCase)) {
+        if (options != null) {
+            if (options.Contains("list", StringComparer.OrdinalIgnoreCase)) {
                 ListOptions(installer.Configuration);
                 Environment.Exit(0);
-            } else if (Options.Contains("save")) {
+            } else if (options.Contains("save")) {
                 var configPath = installer.DataPath ?? installer.Platform.GetConfigurationDirectory();
                 configPath = Path.Combine(configPath, UnityInstaller.CONFIG_FILENAME);
                 installer.Configuration.Save(configPath);
@@ -87,7 +126,7 @@ public class InstallUnityProgram
                 Environment.Exit(0);
             }
 
-            foreach (var option in Options) {
+            foreach (var option in options) {
                 var parts = option.Split('=');
                 if (parts.Length != 2) {
                     throw new Exception($"Option needs to be in the format 'NAME=VALUE' (got '{option}')");
@@ -99,7 +138,7 @@ public class InstallUnityProgram
 
         // Update cache if needed or requested (--update)
         IEnumerable<VersionMetadata> newVersions;
-        if (Update || installer.IsCacheOutdated(version.type)) {
+        if (update || installer.IsCacheOutdated(version.type)) {
             WriteTitle("Updating Cache...");
             newVersions = await installer.UpdateCache(version.type);
 
@@ -172,13 +211,27 @@ public class InstallUnityProgram
 
     // -------- List Versions --------
 
-    const int ListVersionsColumnWidth = 15;
+   const int ListVersionsColumnWidth = 15;
 
-    [ArgActionMethod, ArgDescription("List available Unity versions")]
     public async Task List()
     {
         var version = await Setup();
-        VersionsTable(installer, version);
+
+        if (installed) {
+            var installs = await installer.Platform.FindInstallations();
+            // Re-parse given version to get default undefined for type
+            InstalledList(installer, new UnityVersion(matchVersion), installs);
+        } else {
+            VersionsTable(installer, version);
+        }
+    }
+
+    public void InstalledList(UnityInstaller installer, UnityVersion version, IEnumerable<Installation> installations)
+    {
+        foreach (var install in installations) {
+            if (!version.FuzzyMatches(install.version)) continue;
+            Console.WriteLine($"{install.version}\t{install.path}");
+        }
     }
 
     public void VersionsTable(UnityInstaller installer, UnityVersion version)
@@ -258,7 +311,6 @@ public class InstallUnityProgram
 
     // -------- Version Details --------
 
-    [ArgActionMethod, ArgDescription("Show information about a Unity version")]
     public async Task Details()
     {
         var version = await Setup();
@@ -313,58 +365,42 @@ public class InstallUnityProgram
 
     // -------- Install --------
 
-    public class InstallArguments
-    {
-        [ArgShortcut("p"), ArgShortcut("--packages")]
-        [ArgDescription("Select packages to install ('--packages all' installs all available packages)")]
-        public string[] Packages { get; set; }
-
-        [ArgShortcut("d"), ArgShortcut("--download")]
-        [ArgDescription("Only download the packages (requires '--data-path')")]
-        public bool Download { get; set; }
-
-        [ArgShortcut("i"), ArgShortcut("--install")]
-        [ArgDescription("Only install the packages (requires '--data-path')")]
-        public bool Install { get; set; }
-    }
-
-    [ArgActionMethod, ArgDescription("Manage Unity installations")]
-    public async Task Install(InstallArguments args)
+    public async Task Install()
     {
         var version = await Setup();
 
         // Determine operation (based on --download and --install)
         var op = UnityInstaller.InstallStep.None;
-        if (args.Download) op |= UnityInstaller.InstallStep.Download;
-        if (args.Install)  op |= UnityInstaller.InstallStep.Install;
+        if (download) op |= UnityInstaller.InstallStep.Download;
+        if (install)  op |= UnityInstaller.InstallStep.Install;
 
         if (op == UnityInstaller.InstallStep.None) {
             op = UnityInstaller.InstallStep.DownloadAndInstall;
         }
 
-        if (op != UnityInstaller.InstallStep.DownloadAndInstall && DataPath != null) {
+        if (op != UnityInstaller.InstallStep.DownloadAndInstall && dataPath != null) {
             throw new Exception("'--download' and '--install' require '--data-path' to be set.");
         }
 
         var metadata = await SelectAndLoad(version);
 
         // Determine packages to install (-p / --packages or defaultPackages option)
-        IEnumerable<string> packages = args.Packages;
-        if (packages != null && string.Equals(packages.FirstOrDefault(), "all", StringComparison.OrdinalIgnoreCase)) {
-            packages = metadata.packages.Select(p => p.name);
-        } else if (packages == null) {
+        IEnumerable<string> selection = packages;
+        if (string.Equals(selection.FirstOrDefault(), "all", StringComparison.OrdinalIgnoreCase)) {
+            selection = metadata.packages.Select(p => p.name);
+        } else if (!selection.Any()) {
             Console.WriteLine();
             if (installer.Configuration.defaultPackages != null) {
                 Console.WriteLine("Installing configured packages (select packages with --packages, see available packages with --details)");
-                packages = installer.Configuration.defaultPackages;
+                selection = installer.Configuration.defaultPackages;
             } else {
                 Console.WriteLine("Installing default packages (select packages with --packages, see available packages with --details)");
-                packages = installer.GetDefaultPackages(metadata);
+                selection = installer.GetDefaultPackages(metadata);
             }
         }
 
         var notFound = new List<string>();
-        var resolved = installer.ResolvePackages(metadata, packages, notFound: notFound);
+        var resolved = installer.ResolvePackages(metadata, selection, notFound: notFound);
         
         WriteTitle("Selected packages:");
         long totalSpace = 0, totalDownload = 0;
@@ -415,7 +451,7 @@ public class InstallUnityProgram
             await installer.Process(op, queue);
         }
 
-        if (DataPath != null) {
+        if (dataPath != null) {
             installer.CleanUpDownloads(metadata, downloadPath, resolved);
         }
 
@@ -493,9 +529,9 @@ public class InstallUnityProgram
 
     // -------- Console --------
 
-    bool enableColors;
+    public static bool enableColors;
 
-    void WriteBigTitle(string title)
+    public static void WriteBigTitle(string title)
     {
         var padding = (Console.BufferWidth - title.Length - 4) / 2;
         var paddingStr = new string('—', Math.Max(padding, 0));
@@ -516,7 +552,7 @@ public class InstallUnityProgram
         Console.WriteLine();
     }
 
-    void WriteTitle(string title)
+    public static void WriteTitle(string title)
     {
         Console.WriteLine();
 
@@ -527,9 +563,9 @@ public class InstallUnityProgram
         Console.WriteLine();
     }
 
-    int fieldWidth = -1;
+    public static int fieldWidth = -1;
 
-    void WriteField(string title, string value, bool writeEmpty = false)
+    public static void WriteField(string title, string value, bool writeEmpty = false)
     {
         if (!writeEmpty && string.IsNullOrEmpty(value)) return;
 
@@ -549,21 +585,21 @@ public class InstallUnityProgram
         Console.WriteLine();
     }
 
-    void SetForeground(ConsoleColor color)
+    public static void SetForeground(ConsoleColor color)
     {
         if (enableColors) {
             Console.ForegroundColor = color;
         }
     }
 
-    void SetBackground(ConsoleColor color)
+    public static void SetBackground(ConsoleColor color)
     {
         if (enableColors) {
             Console.BackgroundColor = color;
         }
     }
 
-    void SetColors(ConsoleColor fg, ConsoleColor? bg = null)
+    public static void SetColors(ConsoleColor fg, ConsoleColor? bg = null)
     {
         if (enableColors) {
             Console.ForegroundColor = fg;
@@ -571,7 +607,7 @@ public class InstallUnityProgram
         }
     }
 
-    void ResetColor()
+    public static void ResetColor()
     {
         if (enableColors) {
             Console.ResetColor();
@@ -584,11 +620,29 @@ class Program
     static async Task<int> Main(string[] args)
     {
         try {
-            await Args.InvokeActionAsync<InstallUnityProgram>(args);
+            var parsed = CLIProgram.Parse(args);
+            switch (parsed.action) {
+                case null:
+                    parsed.Help();
+                    break;
+                case "list":
+                    await parsed.List();
+                    break;
+                case "details":
+                    await parsed.Details();
+                    break;
+                case "install":
+                    await parsed.Install();
+                    break;
+                default:
+                    throw new Exception("Unknown action: " + parsed.action);
+            }
             return 0;
-        } catch (ArgException e) {
-            e.Message.ToRed().WriteLine();
-            ArgUsage.GenerateUsageFromTemplate(Args.GetAmbientDefinition()).Write();
+        } catch (ArgumentsException e) {
+            CLIProgram.SetForeground(ConsoleColor.Red);
+            Console.WriteLine(e.Message);
+            CLIProgram.ResetColor();
+            //ArgUsage.GenerateUsageFromTemplate(Args.GetAmbientDefinition()).Write();
             return 1;
         } catch (Exception e) {
             WriteException(e, true);
@@ -610,10 +664,13 @@ class Program
             }
 
         } else {
-            e.Message.ToRed().WriteLine();
+            CLIProgram.SetForeground(ConsoleColor.Red);
+            Console.WriteLine(e.Message);
             if (stackTrace) {
-                e.StackTrace.ToGray().WriteLine();
+                CLIProgram.SetForeground(ConsoleColor.Gray);
+                Console.WriteLine(e.StackTrace);
             }
+            CLIProgram.ResetColor();
         }
     }
 }

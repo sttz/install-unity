@@ -8,14 +8,12 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using sttz.ConsoleLogger;
 
 namespace sttz.InstallUnity
 {
 
 // TODO
 // - Offline installation flow
-// - Test admin password
 
 /// <summary>
 /// Main Unity installer class.
@@ -200,7 +198,7 @@ public class UnityInstaller
             LoggerFactory = loggerFactory;
         } else {
             LoggerFactory = new LoggerFactory()
-                .AddConsole(LogLevel.Warning, false);
+                .AddConsole(LogLevel.Information);
         }
         Logger = CreateLogger<UnityInstaller>();
         GlobalLogger = CreateLogger("Global");

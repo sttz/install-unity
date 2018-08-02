@@ -37,41 +37,41 @@ public class ConsoleLoggerProvider : ILoggerProvider, ISupportExternalScope
 
 public static class ConsoleLoggerExtensions
 {
-    public static ILoggerFactory AddConsole(this ILoggerFactory factory)
+    public static ILoggerFactory AddNiceConsole(this ILoggerFactory factory)
     {
-        return factory.AddConsole(includeScopes: false);
+        return factory.AddNiceConsole(includeScopes: false);
     }
 
-    public static ILoggerFactory AddConsole(this ILoggerFactory factory, bool includeScopes)
+    public static ILoggerFactory AddNiceConsole(this ILoggerFactory factory, bool includeScopes)
     {
-        factory.AddConsole((n, l) => l >= LogLevel.Information, includeScopes);
+        factory.AddNiceConsole((n, l) => l >= LogLevel.Information, includeScopes);
         return factory;
     }
 
-    public static ILoggerFactory AddConsole(this ILoggerFactory factory, LogLevel minLevel)
+    public static ILoggerFactory AddNiceConsole(this ILoggerFactory factory, LogLevel minLevel)
     {
-        factory.AddConsole(minLevel, includeScopes: false);
+        factory.AddNiceConsole(minLevel, includeScopes: false);
         return factory;
     }
 
-    public static ILoggerFactory AddConsole(
+    public static ILoggerFactory AddNiceConsole(
         this ILoggerFactory factory,
         LogLevel minLevel,
         bool includeScopes)
     {
-        factory.AddConsole((category, logLevel) => logLevel >= minLevel, includeScopes);
+        factory.AddNiceConsole((category, logLevel) => logLevel >= minLevel, includeScopes);
         return factory;
     }
 
-    public static ILoggerFactory AddConsole(
+    public static ILoggerFactory AddNiceConsole(
         this ILoggerFactory factory,
         Func<string, LogLevel, bool> filter)
     {
-        factory.AddConsole(filter, includeScopes: false);
+        factory.AddNiceConsole(filter, includeScopes: false);
         return factory;
     }
 
-    public static ILoggerFactory AddConsole(
+    public static ILoggerFactory AddNiceConsole(
         this ILoggerFactory factory,
         Func<string, LogLevel, bool> filter,
         bool includeScopes)
