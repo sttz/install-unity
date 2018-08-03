@@ -10,6 +10,35 @@ namespace sttz.ConsoleLogger
 
 public class ConsoleLogger : ILogger
 {
+    public static void ColorTest()
+    {
+        for (int i = -1; i < 16; i++) {
+            ConsoleColor? bg = null, fg = null;
+            if (i >= 0) {
+                bg = (ConsoleColor)i;
+                Console.WriteLine($"BackgroundColor = {bg}");
+            }
+
+            for (int j = -1; j < 16; j++) {
+                if (j >= 0) {
+                    fg = (ConsoleColor)j;
+                }
+
+                if (bg != null) Console.BackgroundColor = bg.Value;
+                if (fg != null) Console.ForegroundColor = fg.Value;
+
+                var name = "None";
+                if (fg != null) name = fg.Value.ToString("G");
+
+                Console.Write(" ");
+                Console.Write(name);
+                Console.Write(new string(' ', Console.BufferWidth - name.Length - 1));
+
+                Console.ResetColor();
+            }
+        }
+    }
+
     public Func<string, LogLevel, bool> Filter
     {
         get { return _filter; }
