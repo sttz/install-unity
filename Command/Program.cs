@@ -74,7 +74,8 @@ public class CLIProgram
                 .Description("Store all data at the given path, also don't delete packages after install")
             .Option((IList<string> v) => parsed.options.AddRange(v), "opt").Repeatable()
                 .ArgumentName("<name>=<value>")
-                .Description("Set additional options. Use 'list' to show all options and their default value")
+                .Description("Set additional options. Use 'list' to show all options and their default value"
+                + " and 'save' to create an editable JSON config file.")
 
             .Action("list")
                 .Description("List Unity versions available to install or already installed")
@@ -122,8 +123,9 @@ public class CLIProgram
     // -------- Global --------
 
     UnityInstaller installer;
+    ILogger Logger;
 
-    async Task<UnityVersion> Setup()
+    public async Task<UnityVersion> Setup()
     {
         enableColors = Environment.GetEnvironmentVariable("CLICOLORS") != "0";
 
@@ -136,8 +138,12 @@ public class CLIProgram
             level = LogLevel.Information;
         }
 
+        var factory = new LoggerFactory()
+            .AddNiceConsole(level, false);
+        Logger = factory.CreateLogger<CLIProgram>();
+
         // Create installer instance
-        installer = new UnityInstaller(dataPath: dataPath, loggerFactory: new LoggerFactory().AddNiceConsole(level, false));
+        installer = new UnityInstaller(dataPath: dataPath, loggerFactory: factory);
 
         // Re-set colors based on loaded configuration
         enableColors = enableColors && installer.Configuration.enableColoredOutput;
@@ -154,9 +160,12 @@ public class CLIProgram
             } else if (options.Contains("save")) {
                 var configPath = installer.DataPath ?? installer.Platform.GetConfigurationDirectory();
                 configPath = Path.Combine(configPath, UnityInstaller.CONFIG_FILENAME);
-                installer.Configuration.Save(configPath);
-                Console.WriteLine("Configuration file saved to:");
-                Console.WriteLine(configPath);
+                if (File.Exists(configPath)) {
+                    Console.WriteLine($"Configuration file already exists:\n{configPath}");
+                } else {
+                    installer.Configuration.Save(configPath);
+                    Console.WriteLine($"Configuration file saved to:\n{configPath}");
+                }
                 Environment.Exit(0);
             }
 
@@ -212,11 +221,7 @@ public class CLIProgram
 
         if (metadata.version != version) {
             Console.WriteLine();
-            Console.Write("Selected ");
-            SetColors(ConsoleColor.White, ConsoleColor.DarkGray);
-            Console.Write(metadata.version);
-            ResetColor();
-            Console.WriteLine($" for input {version}");
+            ConsoleLogger.WriteLine($"Selected <white bg=darkgray>{metadata.version}</white> for input {version}");
         }
 
         // Load packages ini if needed
