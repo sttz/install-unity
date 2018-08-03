@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions.Internal;
 
-namespace sttz.ConsoleLogger
+namespace sttz.NiceConsoleLogger
 {
 
 public class ConsoleLogger : ILogger
@@ -37,6 +37,16 @@ public class ConsoleLogger : ILogger
                 Console.ResetColor();
             }
         }
+    }
+
+    public static void Write(string input)
+    {
+        WriteColorString(ParseColorString(input));
+    }
+
+    public static void WriteLine(string input)
+    {
+        WriteColorLine(ParseColorString(input));
     }
 
     public Func<string, LogLevel, bool> Filter
@@ -175,15 +185,20 @@ public class ConsoleLogger : ILogger
         }
     }
 
-    static void WriteColorLine(IEnumerable<ColorString> input)
+    static void WriteColorString(IEnumerable<ColorString> input)
     {
         foreach (var fragment in input) {
             if (fragment.fgColor != null) Console.ForegroundColor = fragment.fgColor.Value;
             if (fragment.bgColor != null) Console.BackgroundColor = fragment.bgColor.Value;
             Console.Write(fragment.text);
+            Console.ResetColor();
         }
+    }
+
+    static void WriteColorLine(IEnumerable<ColorString> input)
+    {
+        WriteColorString(input);
         Console.WriteLine();
-        Console.ResetColor();
     }
 
     struct ColorString

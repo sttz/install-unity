@@ -1,7 +1,7 @@
 using System;
 using Microsoft.Extensions.Logging;
 
-namespace sttz.ConsoleLogger
+namespace sttz.NiceConsoleLogger
 {
 
 [ProviderAlias("Console")]
