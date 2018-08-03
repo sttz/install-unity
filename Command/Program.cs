@@ -668,6 +668,7 @@ class Program
 
             switch (parsed.action) {
                 case null:
+                    await parsed.Setup();
                     parsed.PrintHelp();
                     break;
                 case "list":
