@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -89,6 +90,62 @@ public static class Helpers
                 Console.Write("\b \b");
             }
         }
+    }
+
+    static char[] NeedQuotesChars = new [] { ' ', '\t', '\n' };
+
+    /// <summary>
+    /// Escape a command line argument.
+    /// </summary>
+    /// <remarks>
+    /// Based on work from Nate McMaster, Licensed under the Apache License, Version 2.0.
+    /// In turn based on MSDN blog post:
+    /// https://blogs.msdn.microsoft.com/twistylittlepassagesallalike/2011/04/23/everyone-quotes-command-line-arguments-the-wrong-way/
+    /// </remarks>
+    public static string EscapeArgument(string arg)
+    {
+        var sb = new StringBuilder();
+
+        var needsQuotes = arg.IndexOfAny(NeedQuotesChars) >= 0;
+        var isQuoted = needsQuotes || (arg.Length > 1 && arg[0] == '"' && arg[arg.Length - 1] == '"');
+
+        if (needsQuotes) {
+            sb.Append('"');
+        }
+
+        for (int i = 0; i < arg.Length; ++i) {
+            var backslashes = 0;
+
+            // Consume all backslashes
+            while (i < arg.Length && arg[i] == '\\') {
+                backslashes++;
+                i++;
+            }
+
+            if (i == arg.Length && isQuoted) {
+                // Escape any backslashes at the end of the arg when the argument is also quoted.
+                // This ensures the outside quote is interpreted as an argument delimiter
+                sb.Append('\\', 2 * backslashes);
+            } else if (i == arg.Length) {
+                // At then end of the arg, which isn't quoted,
+                // just add the backslashes, no need to escape
+                sb.Append('\\', backslashes);
+            } else if (arg[i] == '"') {
+                // Escape any preceding backslashes and the quote
+                sb.Append('\\', (2 * backslashes) + 1);
+                sb.Append('"');
+            } else {
+                // Output any consumed backslashes and the character
+                sb.Append('\\', backslashes);
+                sb.Append(arg[i]);
+            }
+        }
+
+        if (needsQuotes) {
+            sb.Append('"');
+        }
+
+        return sb.ToString();
     }
 }
 
