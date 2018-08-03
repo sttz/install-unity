@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using sttz.ConsoleLogger;
@@ -53,36 +54,69 @@ public class CLIProgram
         return cmd;
     }
 
+    public const string PROGRAM_NAME = "install-unity";
+    public static Arguments ArgumentsDefinition;
+
     public static CLIProgram Parse(string[] args)
     {
         var parsed = new CLIProgram();
-        var def = new Arguments()
+        ArgumentsDefinition = new Arguments()
             .Option((bool v) => parsed.help = v, "h", "?", "help")
-            .Option((bool v) => parsed.version = v, "v", "version")
+                .Description("Show this help")
+            .Option((bool v) => parsed.version = v, "version")
+                .Description("Print the version of this program")
             .Option((bool v) => parsed.verbose++, "v", "verbose").Repeatable()
+                .Description("Increase verbosity of output, can be repeated")
             .Option((bool v) => parsed.update = v, "u", "update")
+                .Description("Force an update of the versions cache")
             .Option((string v) => parsed.dataPath = v, "d", "data-path", "datapath")
+                .ArgumentName("<path>")
+                .Description("Store all data at the given path, also don't delete packages after install")
             .Option((IList<string> v) => parsed.options.AddRange(v), "opt").Repeatable()
+                .ArgumentName("<name>=<value>")
+                .Description("Set additional options. Use 'list' to show all options and their default value")
 
             .Action("list")
+                .Description("List Unity versions available to install or already installed")
+            
             .Option((string v) => parsed.matchVersion = v, 0)
+                .ArgumentName("<version>")
+                .Description("Pattern to match Unity version")
             .Option((bool v) => parsed.installed = v, "i", "installed")
+                .Description("List installed versions of Unity")
             
             .Action("details")
+                .Description("Show details about a Unity version and its packages")
+            
             .Option((string v) => parsed.matchVersion = v, 0)
+                .ArgumentName("<version>")
+                .Description("Pattern to match Unity version")
             
             .Action("install")
+                .Description("Install a version of Unity")
+            
             .Option((string v) => parsed.matchVersion = v, 0)
+                .ArgumentName("<version>")
+                .Description("Pattern to match Unity version")
             .Option((IList<string> v) => parsed.packages.AddRange(v), "p", "packages").Repeatable()
+                .ArgumentName("<name,name>")
+                .Description("Select pacakges to download and install")
             .Option((bool v) => parsed.download = v, "download")
-            .Option((bool v) => parsed.install = v, "install");
-        parsed.action = def.Parse(args);
+                .Description("Only download the packages (requires --data-path)")
+            .Option((bool v) => parsed.install = v, "install")
+                .Description("Install previously downloaded packages (requires --data-path)");
+        parsed.action = ArgumentsDefinition.Parse(args);
         return parsed;
     }
 
-    public void Help()
+    public void PrintHelp()
     {
-        Console.WriteLine("Help!!");
+        Console.WriteLine(ArgumentsDefinition.Help(PROGRAM_NAME, null, null));
+    }
+
+    public void PrintVersion()
+    {
+        Console.WriteLine($"{PROGRAM_NAME} v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString()}");
     }
 
     // -------- Global --------
@@ -621,9 +655,20 @@ class Program
     {
         try {
             var parsed = CLIProgram.Parse(args);
+
+            if (parsed.help) {
+                parsed.PrintHelp();
+                return 0;
+            }
+
+            if (parsed.version) {
+                parsed.PrintVersion();
+                return 0;
+            }
+
             switch (parsed.action) {
                 case null:
-                    parsed.Help();
+                    parsed.PrintHelp();
                     break;
                 case "list":
                     await parsed.List();
@@ -639,10 +684,7 @@ class Program
             }
             return 0;
         } catch (ArgumentsException e) {
-            CLIProgram.SetForeground(ConsoleColor.Red);
-            Console.WriteLine(e.Message);
-            CLIProgram.ResetColor();
-            //ArgUsage.GenerateUsageFromTemplate(Args.GetAmbientDefinition()).Write();
+            Arguments.WriteArgumentsWithError(args, e);
             return 1;
         } catch (Exception e) {
             WriteException(e, true);

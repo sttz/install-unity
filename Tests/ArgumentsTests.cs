@@ -22,7 +22,7 @@ public class ArgumentsTests
         {
             var parsed = new Args();
             var def = new Arguments()
-                .Option((string v) => parsed.optionalArgument = v, "a", "arg").RequiresArgument(false)
+                .Option((string v) => parsed.optionalArgument = v, "a", "arg").OptionalArgument(false)
                 .Option((string v) => parsed.requiredPositional = v, 0).Required();
             def.Parse(args);
             return parsed;
