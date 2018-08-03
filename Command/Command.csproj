@@ -6,6 +6,18 @@
     <LangVersion>7.1</LangVersion>
   </PropertyGroup>
 
+  <PropertyGroup Label="Package">
+    <VersionPrefix>2.0.0</VersionPrefix>
+    <Authors>Adrian Stutz (sttz.ch)</Authors>
+    <Product>install-unity CLI</Product>
+    <Description>CLI for Install-Unity unofficial Unity installer library</Description>
+    <Copyright>Copyright © Adrian Stutz. All rights Reserved</Copyright>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <RepositoryUrl>https://github.com/sttz/install-unity</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>CLI;Unity;Installer</PackageTags>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="1.0.0-alpha-*" />
   </ItemGroup>
