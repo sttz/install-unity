@@ -116,6 +116,13 @@ public class MacPlatform : IInstallerPlatform
                 continue;
             }
 
+            var hashResult = await Command.Run("/usr/bin/defaults", $"read \"{line}/Contents/Info\" UnityBuildNumber", null, cancellation);
+            if (hashResult.exitCode != 0) {
+                throw new Exception($"ERROR: failed to run defaults: {hashResult.error}");
+            }
+
+            version.hash = hashResult.output.Trim();
+
             installations.Add(new Installation() {
                 path = line,
                 version = version
@@ -190,7 +197,7 @@ public class MacPlatform : IInstallerPlatform
             await Move(INSTALL_PATH, destination, cancellation);
         } else if (!aborted) {
             // Move new installations to "Unity VERSION"
-            destination = Helpers.GenerateUniqueFileName(INSTALL_PATH + " " + installing.version);
+            destination = Helpers.GenerateUniqueFileName(INSTALL_PATH + " " + installing.version.ToString(false));
             await Move(INSTALL_PATH, destination, cancellation);
         } else if (aborted) {
             // Clean up partial installation

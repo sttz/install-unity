@@ -18,6 +18,10 @@ namespace sttz.InstallUnity
 // https://public-cdn.cloud.unity3d.com/hub/prod/releases-darwin.json
 // https://download.unity3d.com/download_unity/9fd71167a288/unity-2017.1.4f1-osx.ini
 // http://download.unity3d.com/download_unity/787658998520/unity-2018.2.0f2-osx.ini
+// https://beta.unity3d.com/download/48afb4a72b1a/unity-2018.2.1f1-linux.ini
+// https://netstorage.unity3d.com/unity/1a9968d9f99c/unity-2018.2.1f1-win.ini
+
+// https://netstorage.unity3d.com/unity and http://download.unity3d.com/download_unity seem to be interchangeable
 
 /// <summary>
 /// Discover available Unity versions.
@@ -70,7 +74,7 @@ public class Scraper
     /// <summary>
     /// Regex to extract download links from HTML pages.
     /// </summary>
-    static readonly Regex UNIT_DOWNLOADS_RE = new Regex(@"(https?:\/\/[\w.-]+unity3d\.com\/[\w\/.-]+\/[0-9a-f]{12}\/)[\w\/.-]+-(\d+\.\d+\.\d+\w\d+)[\w\/.-]+");
+    static readonly Regex UNIT_DOWNLOADS_RE = new Regex(@"(https?:\/\/[\w.-]+unity3d\.com\/[\w\/.-]+\/([0-9a-f]{12})\/)[\w\/.-]+-(\d+\.\d+\.\d+\w\d+)[\w\/.-]+");
 
     /// <summary>
     /// Regex to extract beta release note pages from beta archive.
@@ -188,7 +192,8 @@ public class Scraper
             var version = new UnityVersion(match.Groups[1].Value);
             if (results.ContainsKey(version)) continue;
 
-            response = await client.GetAsync(UNITY_RELEASE_NOTES_BETA + version, cancellation);
+            var betaUrl = UNITY_RELEASE_NOTES_BETA + version.ToString(false);
+            response = await client.GetAsync(betaUrl, cancellation);
             response.EnsureSuccessStatusCode();
 
             html = await response.Content.ReadAsStringAsync();
@@ -205,7 +210,8 @@ public class Scraper
         var matches = UNIT_DOWNLOADS_RE.Matches(html);
         results = results ?? new Dictionary<UnityVersion, VersionMetadata>();
         foreach (Match match in matches) {
-            var version = new UnityVersion(match.Groups[2].Value);
+            var version = new UnityVersion(match.Groups[3].Value);
+            version.hash = match.Groups[2].Value;
             if (results.ContainsKey(version)) continue;
 
             results[version] = new VersionMetadata() {
@@ -273,7 +279,7 @@ public class Scraper
             throw new ArgumentException("VersionMetadata.iniUrl is not set", nameof(metadata));
         }
 
-        var url = metadata.iniUrl + string.Format(UNITY_INI_FILENAME, metadata.version, platformName);
+        var url = metadata.iniUrl + string.Format(UNITY_INI_FILENAME, metadata.version.ToString(false), platformName);
         var response = await client.GetAsync(url, cancellation);
         response.EnsureSuccessStatusCode();
 
@@ -316,9 +322,9 @@ public class Scraper
             case UnityVersion.Type.Final:
                 return UNITY_RELEASE_NOTES_FINAL + version.major + "." + version.minor + "." + version.patch;
             case UnityVersion.Type.Patch:
-                return UNITY_RELEASE_NOTES_PATCH + version;
+                return UNITY_RELEASE_NOTES_PATCH + version.ToString(false);
             case UnityVersion.Type.Beta:
-                return UNITY_RELEASE_NOTES_BETA + version;
+                return UNITY_RELEASE_NOTES_BETA + version.ToString(false);
             default:
                 return null;
         }

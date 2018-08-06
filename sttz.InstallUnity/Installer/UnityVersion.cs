@@ -60,6 +60,11 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
     /// </summary>
     public int build;
 
+    /// <summary>
+    /// Unique hash of the build.
+    /// </summary>
+    public string hash;
+
     // -------- Configuration --------
 
     /// <summary>
@@ -115,13 +120,14 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
     /// <summary>
     /// Create a new Unity version.
     /// </summary>
-    public UnityVersion(int major = -1, int minor = -1, int patch = -1, Type type = Type.Undefined, int build = -1)
+    public UnityVersion(int major = -1, int minor = -1, int patch = -1, Type type = Type.Undefined, int build = -1, string hash = null)
     {
         this.major = major;
         this.minor = minor;
         this.patch = patch;
         this.type = type;
         this.build = build;
+        this.hash = hash;
     }
 
     /// <summary>
@@ -141,6 +147,7 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
     {
         major = minor = patch = build = -1;
         type = Type.Undefined;
+        hash = null;
 
         if (string.IsNullOrEmpty(version)) return;
 
@@ -216,10 +223,11 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
         if (type != Type.Undefined && other.type != Type.Undefined 
             && GetSortingForType(type) > GetSortingForType(other.type)) return false;
         if (build >= 0 && other.build >= 0 && build != other.build) return false;
+        if (hash != null && other.hash != null && hash != other.hash) return false;
         return true;
     }
 
-    override public string ToString()
+    public string ToString(bool withHash)
     {
         if (!IsValid) return $"undefined";
 
@@ -229,8 +237,14 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
         if (patch >= 0) version += "." + patch;
         if (type != Type.Undefined) version += (char)type;
         if (build >= 0) version += build;
+        if (withHash && hash != null) version += " (" + hash + ")";
 
         return version;
+    }
+
+    override public string ToString()
+    {
+        return ToString(true);
     }
 
     // -------- IComparable --------
@@ -258,7 +272,10 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
         result = GetSortingForType(type).CompareTo(GetSortingForType(other.type));
         if (result != 0) return result;
 
-        return build.CompareTo(other.build);
+        result = build.CompareTo(other.build);
+        if (result != 0) return result;
+
+        return string.CompareOrdinal(hash, other.hash);
     }
 
     // -------- IEquatable --------
@@ -290,7 +307,8 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
             && minor == other.minor
             && patch == other.patch
             && type  == other.type
-            && build == other.build;
+            && build == other.build
+            && hash  == other.hash;
     }
 
     // -------- Operators --------
