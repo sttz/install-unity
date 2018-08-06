@@ -155,6 +155,8 @@ public class VersionsCache : IEnumerable<VersionMetadata>
     string dataFilePath;
     Cache cache;
 
+    ILogger Logger = UnityInstaller.CreateLogger<VersionsCache>();
+
     /// <summary>
     /// Data written out to JSON file.
     /// </summary>
@@ -177,6 +179,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
                 var json = File.ReadAllText(dataFilePath);
                 cache = JsonConvert.DeserializeObject<Cache>(json);
                 SortVersions();
+                Logger.LogInformation($"Loaded versions cache from '{dataFilePath}'");
             } catch (Exception e) {
                 Console.Error.WriteLine("ERROR: Could not read versions database file: " + e.Message);
                 Console.Error.WriteLine(e.InnerException);
@@ -184,6 +187,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
         }
 
         if (cache.versions == null) {
+            Logger.LogInformation("Creating a new empty versions cache");
             cache.versions = new List<VersionMetadata>();
         }
         if (cache.updated == null) {
@@ -209,6 +213,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
             Directory.CreateDirectory(Path.GetDirectoryName(dataFilePath));
             var json = JsonConvert.SerializeObject(cache, Formatting.Indented);
             File.WriteAllText(dataFilePath, json);
+            Logger.LogDebug($"Saved versions cache to '{dataFilePath}'");
             return true;
         } catch (Exception e) {
             Console.Error.WriteLine("ERROR: Could not save versions database file: " + e.Message);
@@ -223,6 +228,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
     {
         cache.versions.Clear();
         cache.updated.Clear();
+        Logger.LogDebug("Cleared versions cache");
     }
 
     /// <summary>
@@ -234,12 +240,14 @@ public class VersionsCache : IEnumerable<VersionMetadata>
         for (int i = 0; i < cache.versions.Count; i++) {
             if (cache.versions[i].version == metadata.version) {
                 cache.versions[i] = metadata;
+                Logger.LogDebug($"Updated version in cache: {metadata.version}");
                 return false;
             }
         }
 
         cache.versions.Add(metadata);
         SortVersions();
+        Logger.LogDebug($"Added version to cache: {metadata.version}");
         return true;
     }
 
@@ -253,11 +261,13 @@ public class VersionsCache : IEnumerable<VersionMetadata>
             for (int i = 0; i < cache.versions.Count; i++) {
                 if (cache.versions[i].version == metadata.version) {
                     cache.versions[i] = metadata;
+                    Logger.LogDebug($"Updated version in cache: {metadata.version}");
                     goto continueOuter;
                 }
             }
             cache.versions.Add(metadata);
             if (newVersions != null) newVersions.Add(metadata);
+            Logger.LogDebug($"Added version to cache: {metadata.version}");
             continueOuter:;
         }
 

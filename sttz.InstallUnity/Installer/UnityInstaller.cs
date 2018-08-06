@@ -205,14 +205,18 @@ public class UnityInstaller
 
         // Initialize platform-specific classes
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+            Logger.LogDebug("Loading plaform integration for macOS");
             Platform = new MacPlatform();
         } else {
             throw new NotImplementedException("Installer does not currently support the platform: " + RuntimeInformation.OSDescription);
         }
 
         DataPath = dataPath;
-        if (DataPath != null && !Directory.Exists(DataPath)) {
-            Directory.CreateDirectory(DataPath);
+        if (DataPath != null) {
+            Logger.LogInformation("Data path set to: " + DataPath);
+            if (!Directory.Exists(DataPath)) {
+                Directory.CreateDirectory(DataPath);
+            }
         }
 
         // Initialize configuration (from argument, from default location or default config)
@@ -225,6 +229,7 @@ public class UnityInstaller
             }
             if (Configuration == null) {
                 Configuration = new Configuration();
+                Logger.LogInformation("Use default configuration");
             }
         }
 
@@ -335,6 +340,7 @@ public class UnityInstaller
                 var str = id.Substring(1);
                 foreach (var package in metadata.packages) {
                     if (package.name.Contains(str, StringComparison.OrdinalIgnoreCase)) {
+                        Logger.LogDebug($"Fuzzy lookup '{id}' matched package '{package.name}'");
                         resolved = package;
                         break;
                     }
@@ -348,6 +354,7 @@ public class UnityInstaller
                 if (addDependencies) {
                     foreach (var package in metadata.packages) {
                         if (package.sync == resolved.name) {
+                            Logger.LogInformation($"Adding '{package.name}' which '{resolved.name}' is synced with");
                             metas.Add(package);
                         }
                     }
@@ -385,6 +392,7 @@ public class UnityInstaller
             }
 
             var fileName = package.GetFileName();
+            Logger.LogDebug($"{package.name}: Using file name '{fileName}' for url '{fullUrl}'");
             var outputPath = Path.Combine(downloadPath, fileName);
 
             items.Add(new QueueItem() {
@@ -454,10 +462,11 @@ public class UnityInstaller
                                 throw item.downloadTask.Exception;
                             }
                             item.currentState = install ? QueueItem.State.WaitingForInstall : QueueItem.State.Complete;
-                            Logger.LogDebug($"{item.package.name}: {item.currentState}");
+                            Logger.LogDebug($"{item.package.name} download complete: now {item.currentState}");
                         } else {
                             if (item.currentState == QueueItem.State.Hashing && item.downloader.CurrentState == Downloader.State.Downloading) {
                                 item.currentState = QueueItem.State.Downloading;
+                                Logger.LogDebug($"{item.package.name} hashed: now {item.currentState}");
                             }
                             downloading++;
                         }
@@ -467,7 +476,7 @@ public class UnityInstaller
                                 throw item.installTask.Exception;
                             }
                             item.currentState = QueueItem.State.Complete;
-                            Logger.LogDebug($"{item.package.name}: Complete");
+                            Logger.LogDebug($"{item.package.name}: install complete");
                         } else {
                             installing++;
                         }
@@ -505,6 +514,7 @@ public class UnityInstaller
             }
         } catch {
             if (install) {
+                Logger.LogInformation("Cleaning up aborted installation");
                 await Platform.CompleteInstall(true, cancellation);
             }
             throw;

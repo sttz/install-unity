@@ -123,6 +123,7 @@ public class MacPlatform : IInstallerPlatform
 
             version.hash = hashResult.output.Trim();
 
+            Logger.LogDebug($"Found Unity {version} at path: {line}");
             installations.Add(new Installation() {
                 path = line,
                 version = version
@@ -146,6 +147,7 @@ public class MacPlatform : IInstallerPlatform
             if (Directory.Exists(INSTALL_PATH_TMP)) {
                 throw new InvalidOperationException($"Fallback installation path '{INSTALL_PATH_TMP}' already exists.");
             }
+            Logger.LogInformation("Temporarily moving existing installation at default install path: " + INSTALL_PATH);
             await Move(INSTALL_PATH, INSTALL_PATH_TMP, cancellation);
             movedExisting = true;
         }
@@ -161,6 +163,7 @@ public class MacPlatform : IInstallerPlatform
 
             upgradeOriginalPath = GetInstallationBasePath(existingInstall);
 
+            Logger.LogInformation($"Temporarily moving installation to upgrade from '{existingInstall}' to default install path");
             await MoveInstallation(existingInstall, INSTALL_PATH, cancellation);
         }
     }
@@ -194,18 +197,22 @@ public class MacPlatform : IInstallerPlatform
         if (upgradeOriginalPath != null) {
             // Move back installation
             destination = upgradeOriginalPath;
+            Logger.LogInformation("Moving back upgraded installation to: " + destination);
             await Move(INSTALL_PATH, destination, cancellation);
         } else if (!aborted) {
             // Move new installations to "Unity VERSION"
             destination = Helpers.GenerateUniqueFileName(INSTALL_PATH + " " + installing.version.ToString(false));
+            Logger.LogInformation("Moving newly installed version to: " + destination);
             await Move(INSTALL_PATH, destination, cancellation);
         } else if (aborted) {
             // Clean up partial installation
+            Logger.LogInformation("Deleting aborted installation at path: " + INSTALL_PATH);
             await Delete(INSTALL_PATH, cancellation);
         }
 
         // Move back original Unity folder
         if (movedExisting) {
+            Logger.LogInformation("Moving back installation that was at default installation path");
             await Move(INSTALL_PATH_TMP, INSTALL_PATH, cancellation);
         }
 

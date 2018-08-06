@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace sttz.InstallUnity
 {
@@ -11,8 +12,10 @@ namespace sttz.InstallUnity
 /// <summary>
 /// Helper class to run command-line programs.
 /// </summary>
-public class Command
+public static class Command
 {
+    static ILogger Logger = UnityInstaller.CreateLogger("Command");
+
     /// <summary>
     /// Run a command asynchronously.
     /// </summary>
@@ -134,6 +137,7 @@ public class Command
         var completion = new TaskCompletionSource<int>();
         command.Exited += (s, a) => {
             command.WaitForExit(); // Waits for stdin and stderr to flush
+            Logger.LogDebug($"{command.StartInfo.FileName} exited with code {command.ExitCode}");
             completion.SetResult(command.ExitCode);
             command.Dispose();
         };
@@ -141,12 +145,14 @@ public class Command
         if (cancellation.CanBeCanceled) {
             cancellation.Register(() => {
                 if (command.HasExited) return;
+                Logger.LogDebug($"Terminating {command.StartInfo.FileName}");
                 //command.Kill();
                 command.CloseMainWindow();
             });
         }
 
         try {
+            Logger.LogDebug($"$ {command.StartInfo.FileName} {command.StartInfo.Arguments}");
             command.Start();
 
             command.BeginOutputReadLine();

@@ -104,11 +104,11 @@ public class CLIProgram
                 .Description("Pattern to match Unity version")
             .Option((IList<string> v) => parsed.packages.AddRange(v), "p", "packages").Repeatable()
                 .ArgumentName("<name,name>")
-                .Description("Select pacakges to download and install")
+                .Description("Select pacakges to download and install ('all' selects all available, '~NAME' matches substrings)")
             .Option((bool v) => parsed.download = v, "download")
-                .Description("Only download the packages (requires --data-path)")
+                .Description("Only download the packages (requires '--data-path')")
             .Option((bool v) => parsed.install = v, "install")
-                .Description("Install previously downloaded packages (requires --data-path)");
+                .Description("Install previously downloaded packages (requires '--data-path')")
             
             .Action("uninstall")
                 .Description("Uninstall a version of Unity")
@@ -127,9 +127,14 @@ public class CLIProgram
         Console.WriteLine(ArgumentsDefinition.Help(PROGRAM_NAME, null, null));
     }
 
+    public Version GetVersion()
+    {
+        return System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+    }
+
     public void PrintVersion()
     {
-        Console.WriteLine($"{PROGRAM_NAME} v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString()}");
+        Console.WriteLine($"{PROGRAM_NAME} v{GetVersion()}");
     }
 
     // -------- Global --------
@@ -154,11 +159,15 @@ public class CLIProgram
             .AddNiceConsole(level, false);
         Logger = factory.CreateLogger<CLIProgram>();
 
+        Logger.LogInformation($"{PROGRAM_NAME} v{GetVersion()}");
+        if (level != LogLevel.Warning) Logger.LogInformation($"Log level set to {level}");
+
         // Create installer instance
         installer = new UnityInstaller(dataPath: dataPath, loggerFactory: factory);
 
         // Re-set colors based on loaded configuration
         enableColors = enableColors && installer.Configuration.enableColoredOutput;
+        if (!enableColors) Logger.LogInformation("Console colors disabled");
 
         // Parse version argument (--unity-version or positional argument)
         var version = new UnityVersion(matchVersion);
@@ -222,6 +231,7 @@ public class CLIProgram
         var metadata = installer.Versions.Find(version);
         if (!metadata.version.IsValid) {
             try {
+                Logger.LogInformation("Version {version} not found in cache, trying exact lookup");
                 metadata = await installer.Scraper.LoadExact(version);
                 installer.Versions.Add(metadata);
                 installer.Versions.Save();
@@ -238,6 +248,7 @@ public class CLIProgram
 
         // Load packages ini if needed
         if (metadata.packages == null) {
+            Logger.LogInformation("Packages not yet loaded, loading ini now");
             metadata = await installer.Scraper.LoadPackages(metadata);
             installer.Versions.Add(metadata);
             installer.Versions.Save();
@@ -263,6 +274,7 @@ public class CLIProgram
     // -------- List Versions --------
 
    const int ListVersionsColumnWidth = 15;
+   const int ListVersionsWithHashColumnWith = 30;
 
     public async Task List()
     {
@@ -325,7 +337,8 @@ public class CLIProgram
         }
 
         // Write the generated columns line by line, wrapping to buffer size
-        var maxColumns = Math.Max(Console.BufferWidth / ListVersionsColumnWidth, 1);
+        var colWidth = (verbose > 0 ? ListVersionsWithHashColumnWith : ListVersionsColumnWidth);
+        var maxColumns = Math.Max(Console.BufferWidth / colWidth, 1);
         foreach (var majorRow in majorRows) {
             // Major version seperator / title
             var major = majorRow[0][0].version.major;
@@ -339,7 +352,7 @@ public class CLIProgram
                     for (int c = columnOffset; c < columnOffset + maxColumns && c < majorRow.Count; c++) {
                         if (r == -1) {
                             // Minor version title
-                            Console.SetCursorPosition((c - columnOffset) * ListVersionsColumnWidth, Console.CursorTop);
+                            Console.SetCursorPosition((c - columnOffset) * colWidth, Console.CursorTop);
 
                             SetColors(ConsoleColor.White, ConsoleColor.DarkGray);
                             var minorVersion = majorRow[c][0].version;
@@ -350,8 +363,8 @@ public class CLIProgram
                             continue;
                         }
                         if (r >= majorRow[c].Count) continue;
-                        Console.SetCursorPosition((c - columnOffset) * ListVersionsColumnWidth, Console.CursorTop);
-                        Console.Write(majorRow[c][r].version);
+                        Console.SetCursorPosition((c - columnOffset) * colWidth, Console.CursorTop);
+                        Console.Write(majorRow[c][r].version.ToString(verbose > 0));
                     }
                     Console.WriteLine();
                 }
@@ -369,6 +382,17 @@ public class CLIProgram
         ShowDetails(installer, metadata);
     }
 
+    void PackagesList(VersionMetadata metadata)
+    {
+        var list = string.Join(", ", metadata.packages
+            .Select(p => p.name + (p.install ? "*" : ""))
+            .ToArray()
+        );
+        Console.WriteLine(metadata.packages.Length + " Packages: " + list);
+        Console.WriteLine("* = default package");
+        Console.WriteLine();
+    }
+
     void ShowDetails(UnityInstaller installer, VersionMetadata metadata)
     {
         WriteBigTitle($"Details for Unity {metadata.version}");
@@ -384,13 +408,7 @@ public class CLIProgram
 
         Console.WriteLine();
 
-        var list = string.Join(", ", metadata.packages
-            .Select(p => p.name + (p.install ? "*" : ""))
-            .ToArray()
-        );
-        Console.WriteLine(metadata.packages.Length + " Packages: " + list);
-        Console.WriteLine("* = default package");
-        Console.WriteLine();
+        PackagesList(metadata);
 
         fieldWidth = 14;
         foreach (var package in metadata.packages.OrderBy(p => p.name)) {
@@ -429,6 +447,8 @@ public class CLIProgram
             op = UnityInstaller.InstallStep.DownloadAndInstall;
         }
 
+        Logger.LogInformation($"Install steps: {op}");
+
         if (op != UnityInstaller.InstallStep.DownloadAndInstall && dataPath != null) {
             throw new Exception("'--download' and '--install' require '--data-path' to be set.");
         }
@@ -438,14 +458,15 @@ public class CLIProgram
         // Determine packages to install (-p / --packages or defaultPackages option)
         IEnumerable<string> selection = packages;
         if (string.Equals(selection.FirstOrDefault(), "all", StringComparison.OrdinalIgnoreCase)) {
+            Logger.LogInformation("Found 'all', selecting all available packages");
             selection = metadata.packages.Select(p => p.name);
         } else if (!selection.Any()) {
             Console.WriteLine();
             if (installer.Configuration.defaultPackages != null) {
-                Console.WriteLine("Installing configured packages (select packages with --packages, see available packages with --details)");
+                Console.WriteLine("Installing configured packages (select packages with '--packages', see available packages with 'details')");
                 selection = installer.Configuration.defaultPackages;
             } else {
-                Console.WriteLine("Installing default packages (select packages with --packages, see available packages with --details)");
+                Console.WriteLine("Installing default packages (select packages with '--packages', see available packages with 'details')");
                 selection = installer.GetDefaultPackages(metadata);
             }
         }
@@ -478,11 +499,14 @@ public class CLIProgram
 
         // Request password before downoad so the download & installation can go on uninterrupted
         if ((op & UnityInstaller.InstallStep.Install) > 0 && !await installer.Platform.PromptForPasswordIfNecessary()) {
+            Logger.LogInformation("Failed password prompt too many times");
             Environment.Exit(1);
         }
 
         // Do the magic
         var downloadPath = installer.GetDownloadDirectory(metadata);
+        Logger.LogInformation($"Downloading packages to '{downloadPath}'");
+
         var queue = installer.CreateQueue(metadata, downloadPath, resolved);
         if (installer.Configuration.progressBar) {
             var processTask = installer.Process(op, queue);
@@ -499,10 +523,12 @@ public class CLIProgram
                 throw processTask.Exception;
             }
         } else {
+            Logger.LogInformation("Progress bar is disabled");
             await installer.Process(op, queue);
         }
 
         if (dataPath != null) {
+            Logger.LogInformation("Cleaning up downloaded pacakges ('--data-path' not set)");
             installer.CleanUpDownloads(metadata, downloadPath, resolved);
         }
 

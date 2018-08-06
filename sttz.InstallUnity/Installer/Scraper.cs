@@ -105,10 +105,13 @@ public class Scraper
             throw new NotImplementedException("Scraper.LoadLatest does not support platform: " + RuntimeInformation.OSDescription);
         }
 
-        var response = await client.GetAsync(string.Format(UNITY_HUB_RELEASES, platformName), cancellation);
+        var url = string.Format(UNITY_HUB_RELEASES, platformName);
+        Logger.LogInformation($"Loading latest releases for {platformName} from '{url}'");
+        var response = await client.GetAsync(url, cancellation);
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync();
+        Logger.LogDebug("Received response: {json}");
         var data = JsonConvert.DeserializeObject<Dictionary<string, HubUnityVersion[]>>(json);
 
         var result = new List<VersionMetadata>();
@@ -149,6 +152,7 @@ public class Scraper
                     };
                 }
 
+                Logger.LogDebug($"Found version {metadata.version} with {metadata.packages.Length} packages");
                 result.Add(metadata);
             }
         }
@@ -177,10 +181,12 @@ public class Scraper
                 throw new NotSupportedException("Discovering not supported for release type: " + type);
         }
 
+        Logger.LogInformation($"Scraping latest releases for {type} from '{url}'");
         var response = await client.GetAsync(url, cancellation);
         response.EnsureSuccessStatusCode();
 
         var html = await response.Content.ReadAsStringAsync();
+        Logger.LogDebug($"Got response: {html}");
 
         if (type == UnityVersion.Type.Final) {
             return ExtractFromHtml(html).Values;
@@ -193,10 +199,12 @@ public class Scraper
             if (results.ContainsKey(version)) continue;
 
             var betaUrl = UNITY_RELEASE_NOTES_BETA + version.ToString(false);
+            Logger.LogInformation($"Scraping beta {version} from '{betaUrl}'");
             response = await client.GetAsync(betaUrl, cancellation);
             response.EnsureSuccessStatusCode();
 
             html = await response.Content.ReadAsStringAsync();
+            Logger.LogDebug($"Got response: {html}");
             ExtractFromHtml(html, results);
         }
         return results.Values;
@@ -246,12 +254,14 @@ public class Scraper
             throw new ArgumentException("The Unity version type is not supported: " + version.type, nameof(version));
         }
 
+        Logger.LogInformation($"Trying to scrape guessed release notes url: {url}");
         var response = await client.GetAsync(url, cancellation);
         if (!response.IsSuccessStatusCode) {
             return default;
         }
 
         var html = await response.Content.ReadAsStringAsync();
+        Logger.LogDebug($"Got response: {html}");
         return ExtractFromHtml(html).Values.FirstOrDefault();
     }
 
@@ -280,10 +290,12 @@ public class Scraper
         }
 
         var url = metadata.iniUrl + string.Format(UNITY_INI_FILENAME, metadata.version.ToString(false), platformName);
+        Logger.LogInformation($"Loading packages for {metadata.version} and {platformName} from '{url}'");
         var response = await client.GetAsync(url, cancellation);
         response.EnsureSuccessStatusCode();
 
         var ini = await response.Content.ReadAsStringAsync();
+        Logger.LogDebug($"Got response: {ini}");
         
         var parser = new IniDataParser();
         var data = parser.Parse(ini);
@@ -309,6 +321,7 @@ public class Scraper
         }
 
         metadata.packages = packages;
+        Logger.LogInformation($"Found {metadata.packages.Length} packages");
         return metadata;
     }
 
