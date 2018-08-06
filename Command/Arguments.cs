@@ -244,7 +244,7 @@ public class Arguments
                         i += CallOption(opt, name, true, args, i);
                         isOption = true;
                     } else {
-                        throw new ArgumentsException($"Unknown option: {name}", i);
+                        // Don't treat this as an error, as it could be a path
                     }
 
                 // Short unix-style options: -x -xyz
