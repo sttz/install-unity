@@ -34,6 +34,9 @@ public class CLIProgram
     public bool download;
     public bool install;
 
+    // Uninstall options
+    public bool yes;
+
     public override string ToString()
     {
         var cmd = action ?? "";
@@ -106,6 +109,15 @@ public class CLIProgram
                 .Description("Only download the packages (requires --data-path)")
             .Option((bool v) => parsed.install = v, "install")
                 .Description("Install previously downloaded packages (requires --data-path)");
+            
+            .Action("uninstall")
+                .Description("Uninstall a version of Unity")
+            
+            .Option((string v) => parsed.matchVersion = v, 0)
+                .ArgumentName("<versionORpath>")
+                .Description("Pattern to match Unity version or path to installation root")
+            .Option((bool v) => parsed.yes = v, "y", "yes")
+                .Description("Don't prompt for confirmation before uninstall (use with care)");
         parsed.action = ArgumentsDefinition.Parse(args);
         return parsed;
     }
@@ -566,6 +578,64 @@ public class CLIProgram
         Console.SetCursorPosition(0, Console.CursorTop - queue.items.Count - 1);
     }
 
+    // -------- Uninstall --------
+
+    public async Task Uninstall()
+    {
+        await Setup();
+
+        var installs = await installer.Platform.FindInstallations();
+        if (!installs.Any()) {
+            throw new Exception("Could not find any installed versions of Unity");
+        }
+
+        Installation uninstall = null;
+        var version = new UnityVersion(matchVersion);
+        if (!version.IsValid) {
+            var fullPath = Path.GetFullPath(matchVersion);
+            foreach (var install in installs) {
+                var fullInstallPath = Path.GetFullPath(install.path);
+                if (fullPath == fullInstallPath) {
+                    uninstall = install;
+                    break;
+                }
+            }
+        } else {
+            foreach (var install in installs) {
+                if (version.FuzzyMatches(install.version)) {
+                    if (uninstall != null) {
+                        throw new Exception($"Version {version} is ambiguous between\n"
+                            + $"{uninstall.version} at '{uninstall.path}' and\n"
+                            + $"{install.version} at '{install.path}'\n"
+                            + "(use exact version or path instead).");
+                    }
+                    uninstall = install;
+                }
+            }
+        }
+
+        if (uninstall == null) {
+            throw new Exception("No matching version found to uninstall.");
+        }
+
+        if (!yes) {
+            while (true) {
+                Console.WriteLine();
+                Console.Write($"Uninstall Unity {uninstall.version} at '{uninstall.path}'? [yN]: ");
+                var key = Console.ReadKey();
+                Console.WriteLine();
+                if (key.Key == ConsoleKey.N || key.Key == ConsoleKey.Enter) {
+                    Environment.Exit(1);
+                } else if (key.Key == ConsoleKey.Y) {
+                    break;
+                }
+            }
+        }
+
+        await installer.Platform.Uninstall(uninstall);
+        Console.WriteLine($"Uninstalled Unity {uninstall.version} at path: {uninstall.path}");
+    }
+
     // -------- Console --------
 
     public static bool enableColors;
@@ -684,6 +754,9 @@ class Program
                     break;
                 case "install":
                     await parsed.Install();
+                    break;
+                case "uninstall":
+                    await parsed.Uninstall();
                     break;
                 default:
                     throw new Exception("Unknown action: " + parsed.action);
