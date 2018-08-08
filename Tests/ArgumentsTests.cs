@@ -8,9 +8,9 @@ namespace sttz.InstallUnity.Tests
 
 public class ArgumentsTests
 {
-    public CLIProgram Parse(params string[] args)
+    public InstallUnityCLI Parse(params string[] args)
     {
-        return CLIProgram.Parse(args);
+        return InstallUnityCLI.Parse(args);
     }
 
     class Args
@@ -21,10 +21,10 @@ public class ArgumentsTests
         public static Args Parse(params string[] args)
         {
             var parsed = new Args();
-            var def = new Arguments()
-                .Option((string v) => parsed.optionalArgument = v, "a", "arg").OptionalArgument(true)
-                .Option((string v) => parsed.requiredPositional = v, 0).Required();
-            def.Parse(args);
+            var def = new Arguments<Args>()
+                .Option((Args t, string v) => t.optionalArgument = v, "a", "arg").OptionalArgument(true)
+                .Option((Args t, string v) => t.requiredPositional = v, 0).Required();
+            def.Parse(parsed, args);
             return parsed;
         }
     }

@@ -50,7 +50,7 @@ public class ArgumentsException : Exception
 /// NOTE: Space-separated lists can eat the positional argument, use of -- required
 /// NOTE: Optional arguments can eat positinal arguments, use of -- or = required
 /// </remarks>
-public class Arguments
+public class Arguments<T>
 {
     // -------- API --------
 
@@ -58,7 +58,7 @@ public class Arguments
     /// Define a new action. All following Options will become child options of this action.
     /// </summary>
     /// <param name="name">Name of the action</param>
-    public Arguments Action(string name)
+    public Arguments<T> Action(string name)
     {
         definedAction = name;
         definedOption = null;
@@ -73,7 +73,7 @@ public class Arguments
     /// </summary>
     /// <param name="setter">Callback called when the option is set</param>
     /// <param name="names">Names of the option</param>
-    public Arguments Option(Action<bool> setter, params string[] names)
+    public Arguments<T> Option(Action<T, bool> setter, params string[] names)
     {
         AddOption(typeof(bool), new OptionDef<bool>() {
             action = definedAction,
@@ -90,7 +90,7 @@ public class Arguments
     /// </summary>
     /// <param name="setter">Callback called when the option is set</param>
     /// <param name="names">Names of the option</param>
-    public Arguments Option(Action<string> setter, params string[] names)
+    public Arguments<T> Option(Action<T, string> setter, params string[] names)
     {
         AddOption(typeof(string), new OptionDef<string>() {
             action = definedAction,
@@ -108,7 +108,7 @@ public class Arguments
     /// </summary>
     /// <param name="setter">Callback called when the option is set</param>
     /// <param name="names">Names of the option</param>
-    public Arguments Option(Action<IList<string>> setter, params string[] names)
+    public Arguments<T> Option(Action<T, IList<string>> setter, params string[] names)
     {
         AddOption(typeof(IList<string>), new OptionDef<IList<string>>() {
             action = definedAction,
@@ -126,7 +126,7 @@ public class Arguments
     /// </summary>
     /// <param name="setter">Callback called when the option is set</param>
     /// <param name="position">Position of the argument</param>
-    public Arguments Option(Action<string> setter, int position)
+    public Arguments<T> Option(Action<T, string> setter, int position)
     {
         AddOption(typeof(string), new OptionDef<string>() {
             action = definedAction,
@@ -141,7 +141,7 @@ public class Arguments
     /// Make the last defined option repeatable.
     /// The callback will be called multiple times for each instance the option appears in the arguments.
     /// </summary>
-    public Arguments Repeatable(bool repeatable = true)
+    public Arguments<T> Repeatable(bool repeatable = true)
     {
         if (definedOption == null) throw new InvalidOperationException("Repeatable: No current option to operate on");
         if (definedOption.position >= 0) throw new InvalidOperationException("Repeatable: Positional option cannot be repeatable");
@@ -152,7 +152,7 @@ public class Arguments
     /// <summary>
     /// Make the last defined option required.
     /// </summary>
-    public Arguments Required(bool required = true)
+    public Arguments<T> Required(bool required = true)
     {
         if (definedOption == null) throw new InvalidOperationException("Required: No current option to operate on");
         if (definedOption is OptionDef<bool>) throw new InvalidOperationException("Required: Boolean options cannot be required");
@@ -163,7 +163,7 @@ public class Arguments
     /// <summary>
     /// Make the last defined option's argument required (default) or optional (pass false).
     /// </summary>
-    public Arguments OptionalArgument(bool optional = true)
+    public Arguments<T> OptionalArgument(bool optional = true)
     {
         if (definedOption == null) throw new InvalidOperationException("OptionalArgument: No current option to operate on");
         if (definedOption.position >= 0) throw new InvalidOperationException("OptionalArgument: Positional option doesn't have argument");
@@ -177,7 +177,7 @@ public class Arguments
     /// This method can be used for options that take arguments and for positional arguments.
     /// The default name is &lt;arg&gt;, the &lt;&gt; should be included in the name.
     /// </summary>
-    public Arguments ArgumentName(string name)
+    public Arguments<T> ArgumentName(string name)
     {
         if (definedOption == null) throw new InvalidOperationException("ArgumentName: No current option to operate on");
         if (!TakesArgument(definedOption)) throw new InvalidOperationException("ArgumentName: Option does not take argument(s)");
@@ -189,7 +189,7 @@ public class Arguments
     /// Provide a description to be shown in the help.
     /// Can be used for actions, options and positional arguments.
     /// </summary>
-    public Arguments Description(string desc)
+    public Arguments<T> Description(string desc)
     {
         if (definedAction == null && definedOption == null)
             throw new InvalidOperationException("Description: No action or option to operate on");
@@ -204,9 +204,10 @@ public class Arguments
     /// <summary>
     /// Parse the given arguments and return the selected action.
     /// </summary>
+    /// <param name="target">The target object</param>
     /// <param name="args">Input arguments to parse.</param>
     /// <returns>The selected action or null if no action was selected.</returns>
-    public string Parse(string[] args)
+    public string Parse(T target, string[] args)
     {
         var hasActions = actions.Count > 0;
         var argPos = -1;
@@ -230,7 +231,7 @@ public class Arguments
                     var name = GetName(arg.Substring(2));
                     var opt = FindOption(parsedAction, name, false);
                     if (opt != null) {
-                        i += CallOption(opt, name, true, args, i);
+                        i += CallOption(opt, name, true, target, args, i);
                         isOption = true;
                     } else {
                         throw new ArgumentsException($"Unknown option: {name}", i);
@@ -241,7 +242,7 @@ public class Arguments
                     var name = GetName(arg.Substring(1));
                     var opt = FindOption(parsedAction, name, null);
                     if (opt != null) {
-                        i += CallOption(opt, name, true, args, i);
+                        i += CallOption(opt, name, true, target, args, i);
                         isOption = true;
                     } else {
                         // Don't treat this as an error, as it could be a path
@@ -253,7 +254,7 @@ public class Arguments
                         var name = arg[j].ToString();
                         var opt = FindOption(parsedAction, name, true);
                         if (opt != null) {
-                            i += CallOption(opt, name, j == arg.Length - 1, args, i);
+                            i += CallOption(opt, name, j == arg.Length - 1, target, args, i);
                             isOption = true;
                         } else {
                             throw new ArgumentsException($"Unknown short option: {name}", i);
@@ -274,7 +275,7 @@ public class Arguments
                     var pos = argPos - (parsedAction != null ? 1 : 0);
                     var opt = FindOption(parsedAction, pos);
                     if (opt != null) {
-                        CallOption(opt, arg);
+                        CallOption(opt, target, arg);
                     } else {
                         throw new ArgumentsException($"Unexpected argument at position #{pos}: {arg}", i);
                     }
@@ -676,9 +677,9 @@ public class Arguments
     /// <summary>
     /// Generic option definition subclass that contains the typed callback.
     /// </summary>
-    class OptionDef<T> : OptionDef
+    class OptionDef<TArg> : OptionDef
     {
-        public Action<T> setter;
+        public Action<T, TArg> setter;
     }
 
     string definedAction;
@@ -830,9 +831,10 @@ public class Arguments
     /// <param name="option">Option to process</param>
     /// <param name="name">Name the option was appeared with</param>
     /// <param name="canTakArguments">Wether the option is in a position where it can take arguments</param>
+    /// <param name="target">The target object</param>
     /// <param name="args">The input arguments</param>
     /// <param name="pos">The position of the option in the input arguments</param>
-    int CallOption(OptionDef option, string name, bool canTakArguments, string[] args, int pos)
+    int CallOption(OptionDef option, string name, bool canTakArguments, T target, string[] args, int pos)
     {
         // Check repeatability and set wasSet for requried testing
         if (option.wasSet && !option.repeatable) {
@@ -842,7 +844,7 @@ public class Arguments
 
         // Bool option (flag), never has an argument
         if (option is OptionDef<bool>) {
-            (option as OptionDef<bool>).setter(true);
+            (option as OptionDef<bool>).setter(target, true);
             return 0;
         
         // String option with single argument
@@ -853,15 +855,15 @@ public class Arguments
                 if (option.requiresArgument) {
                     throw new ArgumentsException($"Missing argument for option: {name}", pos);
                 } else {
-                    (option as OptionDef<string>).setter("");
+                    (option as OptionDef<string>).setter(target, "");
                     return 0;
                 }
             }
             if (value != null) {
-                (option as OptionDef<string>).setter(value);
+                (option as OptionDef<string>).setter(target, value);
                 return 0;
             } else {
-                (option as OptionDef<string>).setter(args[pos + 1]);
+                (option as OptionDef<string>).setter(target, args[pos + 1]);
                 return 1;
             }
         
@@ -874,7 +876,7 @@ public class Arguments
                 if (option.requiresArgument) {
                     throw new ArgumentsException($"Missing arguments for option: {name}", pos);
                 } else {
-                    (option as OptionDef<IList<string>>).setter(new List<string>());
+                    (option as OptionDef<IList<string>>).setter(target, new List<string>());
                     return 0;
                 }
             }
@@ -891,7 +893,7 @@ public class Arguments
                     index++;
                 }
             }
-            (option as OptionDef<IList<string>>).setter(list);
+            (option as OptionDef<IList<string>>).setter(target, list);
             return index - pos - 1;
         
         } else {
@@ -903,13 +905,14 @@ public class Arguments
     /// Call the callback of a positional option.
     /// </summary>
     /// <param name="option">Option to process</param>
+    /// <param name="target">The target object</param>
     /// <param name="value">The positional value</param>
-    void CallOption(OptionDef option, string value)
+    void CallOption(OptionDef option, T target, string value)
     {
         option.wasSet = true;
 
         if (option is OptionDef<string>) {
-            (option as OptionDef<string>).setter(value);
+            (option as OptionDef<string>).setter(target, value);
         
         } else {
             throw new Exception($"Unhandled OptionDef subtype for positional argument: {option.GetType().FullName}");

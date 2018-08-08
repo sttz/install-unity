@@ -10,33 +10,82 @@ using sttz.NiceConsoleLogger;
 namespace sttz.InstallUnity
 {
 
-public class CLIProgram
+/// <summary>
+/// Command line interface to the sttz.InstallUnity library.
+/// </summary>
+public class InstallUnityCLI
 {
-    // Command action
+    /// <summary>
+    /// The program command to execute.
+    /// </summary>
     public string action;
 
-    // General options
+    // -------- Options --------
+
+    /// <summary>
+    /// Wether to show the help.
+    /// </summary>
     public bool help;
+    /// <summary>
+    /// Wether to print the proram version.
+    /// </summary>
     public bool version;
+    /// <summary>
+    /// Verbosity of the output (0 = default, 1 = verbose, 3 = extra verbose)
+    /// </summary>
     public int verbose;
+    /// <summary>
+    /// Wether to force an update of the versions cache.
+    /// </summary>
     public bool update;
+    /// <summary>
+    /// Path to store all data at.
+    /// </summary>
     public string dataPath;
+    /// <summary>
+    /// Set generic program options.
+    /// </summary>
     public List<string> options = new List<string>();
 
-    // General arguments
+    /// <summary>
+    /// Version expression, used for most commands.
+    /// </summary>
     public string matchVersion;
 
-    // List options
+    // -- List
+
+    /// <summary>
+    /// Wether to list installed versions for list command.
+    /// </summary>
     public bool installed;
 
-    // Install options
+    // -- Install
+
+    /// <summary>
+    /// Packages to install for install command.
+    /// </summary>
     public List<string> packages = new List<string>();
+    /// <summary>
+    /// Wether to only download packages with install command.
+    /// </summary>
     public bool download;
+    /// <summary>
+    /// Wether to only install packages with install command.
+    /// </summary>
     public bool install;
 
-    // Uninstall options
+    // -- Uninstall
+
+    /// <summary>
+    /// Don't prompt for uninstall command.
+    /// </summary>
     public bool yes;
 
+    // -------- Arguments Defintion --------
+
+    /// <summary>
+    /// Convert the program back into a normalized arguments string.
+    /// </summary>
     public override string ToString()
     {
         var cmd = action ?? "";
@@ -57,81 +106,108 @@ public class CLIProgram
         return cmd;
     }
 
+    /// <summary>
+    /// Name of program used in output.
+    /// </summary>
     public const string PROGRAM_NAME = "install-unity";
-    public static Arguments ArgumentsDefinition;
 
-    public static CLIProgram Parse(string[] args)
+    /// <summary>
+    /// The definition of the program's arguments.
+    /// </summary>
+    public static Arguments<InstallUnityCLI> ArgumentsDefinition {
+        get {
+            if (_arguments != null) return _arguments;
+
+            _arguments = new Arguments<InstallUnityCLI>()
+                .Option((InstallUnityCLI t, bool v) => t.help = v, "h", "?", "help")
+                    .Description("Show this help")
+                .Option((InstallUnityCLI t, bool v) => t.version = v, "version")
+                    .Description("Print the version of this program")
+                .Option((InstallUnityCLI t, bool v) => t.verbose++, "v", "verbose").Repeatable()
+                    .Description("Increase verbosity of output, can be repeated")
+                .Option((InstallUnityCLI t, bool v) => t.update = v, "u", "update")
+                    .Description("Force an update of the versions cache")
+                .Option((InstallUnityCLI t, string v) => t.dataPath = v, "d", "data-path", "datapath")
+                    .ArgumentName("<path>")
+                    .Description("Store all data at the given path, also don't delete packages after install")
+                .Option((InstallUnityCLI t, IList<string> v) => t.options.AddRange(v), "opt").Repeatable()
+                    .ArgumentName("<name>=<value>")
+                    .Description("Set additional options. Use 'list' to show all options and their default value"
+                    + " and 'save' to create an editable JSON config file.")
+
+                .Action("list")
+                    .Description("List Unity versions available to install or already installed")
+                
+                .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
+                    .ArgumentName("<version>")
+                    .Description("Pattern to match Unity version")
+                .Option((InstallUnityCLI t, bool v) => t.installed = v, "i", "installed")
+                    .Description("List installed versions of Unity")
+                
+                .Action("details")
+                    .Description("Show details about a Unity version and its packages")
+                
+                .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
+                    .ArgumentName("<version>")
+                    .Description("Pattern to match Unity version")
+                
+                .Action("install")
+                    .Description("Install a version of Unity")
+                
+                .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
+                    .ArgumentName("<version>")
+                    .Description("Pattern to match Unity version")
+                .Option((InstallUnityCLI t, IList<string> v) => t.packages.AddRange(v), "p", "packages").Repeatable()
+                    .ArgumentName("<name,name>")
+                    .Description("Select pacakges to download and install ('all' selects all available, '~NAME' matches substrings)")
+                .Option((InstallUnityCLI t, bool v) => t.download = v, "download")
+                    .Description("Only download the packages (requires '--data-path')")
+                .Option((InstallUnityCLI t, bool v) => t.install = v, "install")
+                    .Description("Install previously downloaded packages (requires '--data-path')")
+                
+                .Action("uninstall")
+                    .Description("Uninstall a version of Unity")
+                
+                .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
+                    .ArgumentName("<versionORpath>")
+                    .Description("Pattern to match Unity version or path to installation root")
+                .Option((InstallUnityCLI t, bool v) => t.yes = v, "y", "yes")
+                    .Description("Don't prompt for confirmation before uninstall (use with care)");
+                
+                return _arguments;
+        }
+    }
+    static Arguments<InstallUnityCLI> _arguments;
+
+    /// <summary>
+    /// Parses the arguments and returns the program with the fields set.
+    /// </summary>
+    public static InstallUnityCLI Parse(string[] args)
     {
-        var parsed = new CLIProgram();
-        ArgumentsDefinition = new Arguments()
-            .Option((bool v) => parsed.help = v, "h", "?", "help")
-                .Description("Show this help")
-            .Option((bool v) => parsed.version = v, "version")
-                .Description("Print the version of this program")
-            .Option((bool v) => parsed.verbose++, "v", "verbose").Repeatable()
-                .Description("Increase verbosity of output, can be repeated")
-            .Option((bool v) => parsed.update = v, "u", "update")
-                .Description("Force an update of the versions cache")
-            .Option((string v) => parsed.dataPath = v, "d", "data-path", "datapath")
-                .ArgumentName("<path>")
-                .Description("Store all data at the given path, also don't delete packages after install")
-            .Option((IList<string> v) => parsed.options.AddRange(v), "opt").Repeatable()
-                .ArgumentName("<name>=<value>")
-                .Description("Set additional options. Use 'list' to show all options and their default value"
-                + " and 'save' to create an editable JSON config file.")
-
-            .Action("list")
-                .Description("List Unity versions available to install or already installed")
-            
-            .Option((string v) => parsed.matchVersion = v, 0)
-                .ArgumentName("<version>")
-                .Description("Pattern to match Unity version")
-            .Option((bool v) => parsed.installed = v, "i", "installed")
-                .Description("List installed versions of Unity")
-            
-            .Action("details")
-                .Description("Show details about a Unity version and its packages")
-            
-            .Option((string v) => parsed.matchVersion = v, 0)
-                .ArgumentName("<version>")
-                .Description("Pattern to match Unity version")
-            
-            .Action("install")
-                .Description("Install a version of Unity")
-            
-            .Option((string v) => parsed.matchVersion = v, 0)
-                .ArgumentName("<version>")
-                .Description("Pattern to match Unity version")
-            .Option((IList<string> v) => parsed.packages.AddRange(v), "p", "packages").Repeatable()
-                .ArgumentName("<name,name>")
-                .Description("Select pacakges to download and install ('all' selects all available, '~NAME' matches substrings)")
-            .Option((bool v) => parsed.download = v, "download")
-                .Description("Only download the packages (requires '--data-path')")
-            .Option((bool v) => parsed.install = v, "install")
-                .Description("Install previously downloaded packages (requires '--data-path')")
-            
-            .Action("uninstall")
-                .Description("Uninstall a version of Unity")
-            
-            .Option((string v) => parsed.matchVersion = v, 0)
-                .ArgumentName("<versionORpath>")
-                .Description("Pattern to match Unity version or path to installation root")
-            .Option((bool v) => parsed.yes = v, "y", "yes")
-                .Description("Don't prompt for confirmation before uninstall (use with care)");
-        parsed.action = ArgumentsDefinition.Parse(args);
+        var parsed = new InstallUnityCLI();
+        parsed.action = ArgumentsDefinition.Parse(parsed, args);
         return parsed;
     }
 
+    /// <summary>
+    /// Print the help for this program.
+    /// </summary>
     public void PrintHelp()
     {
         Console.WriteLine(ArgumentsDefinition.Help(PROGRAM_NAME, null, null));
     }
 
+    /// <summary>
+    /// Return the version of this program.
+    /// </summary>
     public Version GetVersion()
     {
         return System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
     }
 
+    /// <summary>
+    /// Print the program name and version to the console.
+    /// </summary>
     public void PrintVersion()
     {
         Console.WriteLine($"{PROGRAM_NAME} v{GetVersion()}");
@@ -157,7 +233,7 @@ public class CLIProgram
 
         var factory = new LoggerFactory()
             .AddNiceConsole(level, false);
-        Logger = factory.CreateLogger<CLIProgram>();
+        Logger = factory.CreateLogger<InstallUnityCLI>();
 
         Logger.LogInformation($"{PROGRAM_NAME} v{GetVersion()}");
         if (level != LogLevel.Warning) Logger.LogInformation($"Log level set to {level}");
@@ -764,9 +840,9 @@ class Program
 {
     static async Task<int> Main(string[] args)
     {
-        CLIProgram parsed = null;
+        InstallUnityCLI parsed = null;
         try {
-            parsed = CLIProgram.Parse(args);
+            parsed = InstallUnityCLI.Parse(args);
 
             if (parsed.help) {
                 parsed.PrintHelp();
@@ -799,9 +875,11 @@ class Program
                     throw new Exception("Unknown action: " + parsed.action);
             }
             return 0;
+        
         } catch (ArgumentsException e) {
-            Arguments.WriteArgumentsWithError(args, e);
+            Arguments<InstallUnityCLI>.WriteArgumentsWithError(args, e);
             return 1;
+        
         } catch (Exception e) {
             Console.WriteLine();
             WriteException(e, parsed == null || parsed.verbose > 0);
@@ -823,13 +901,13 @@ class Program
             }
 
         } else {
-            CLIProgram.SetForeground(ConsoleColor.Red);
+            InstallUnityCLI.SetForeground(ConsoleColor.Red);
             Console.WriteLine(e.Message);
             if (stackTrace) {
-                CLIProgram.SetForeground(ConsoleColor.Gray);
+                InstallUnityCLI.SetForeground(ConsoleColor.Gray);
                 Console.WriteLine(e.StackTrace);
             }
-            CLIProgram.ResetColor();
+            InstallUnityCLI.ResetColor();
         }
     }
 }
