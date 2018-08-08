@@ -133,12 +133,13 @@ public class MacPlatform : IInstallerPlatform
         return installations;
     }
 
-    public async Task PrepareInstall(UnityInstaller.Queue queue, CancellationToken cancellation = default)
+    public async Task PrepareInstall(UnityInstaller.Queue queue, string installationPaths, CancellationToken cancellation = default)
     {
         if (installing.version.IsValid)
             throw new InvalidOperationException($"Already installing another version: {installing.version}");
 
         installing = queue.metadata;
+        this.installationPaths = installationPaths;
         installedEditor = false;
 
         // Move existing installation out of the way
@@ -201,7 +202,7 @@ public class MacPlatform : IInstallerPlatform
             await Move(INSTALL_PATH, destination, cancellation);
         } else if (!aborted) {
             // Move new installations to "Unity VERSION"
-            destination = Helpers.GenerateUniqueFileName(INSTALL_PATH + " " + installing.version.ToString(false));
+            destination = GetUniqueInstallationPath(installing.version, installationPaths);
             Logger.LogInformation("Moving newly installed version to: " + destination);
             await Move(INSTALL_PATH, destination, cancellation);
         } else if (aborted) {
@@ -254,6 +255,7 @@ public class MacPlatform : IInstallerPlatform
     bool? isRoot;
     string pwd;
     VersionMetadata installing;
+    string installationPaths;
     string upgradeOriginalPath;
     bool movedExisting;
     bool installedEditor;
@@ -313,6 +315,42 @@ public class MacPlatform : IInstallerPlatform
             if (result.exitCode != 0) {
                 Logger.LogError($"Failed to run hdiutil: {result.error}");
             }
+        }
+    }
+
+    /// <summary>
+    /// Find a unique path for a new installation.
+    /// Tries paths in installationPaths until one is unused, falls back to adding
+    /// increasing numbers to the the last path in installationPaths or using the
+    /// default installation path.
+    /// </summary>
+    /// <param name="version">Unity version being installed</param>
+    /// <param name="installationPaths">Paths string (see <see cref="Configuration.installPathMac"/></param>
+    string GetUniqueInstallationPath(UnityVersion version, string installationPaths)
+    {
+        string expanded = null;
+        if (!string.IsNullOrEmpty(installationPaths)) {
+            var comparison = StringComparison.OrdinalIgnoreCase;
+            var paths = installationPaths.Split(';', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var path in paths) {
+                expanded = path.Trim()
+                    .Replace("{major}", version.major.ToString(), comparison)
+                    .Replace("{minor}", version.minor.ToString(), comparison)
+                    .Replace("{patch}", version.patch.ToString(), comparison)
+                    .Replace("{type}",  ((char)version.type).ToString(), comparison)
+                    .Replace("{build}", version.build.ToString(), comparison)
+                    .Replace("{hash}",  version.hash, comparison);
+                
+                if (!Directory.Exists(expanded)) {
+                    return expanded;
+                }
+            }
+        }
+
+        if (expanded != null) {
+            return Helpers.GenerateUniqueFileName(expanded);
+        } else {
+            return Helpers.GenerateUniqueFileName(INSTALL_PATH);
         }
     }
 

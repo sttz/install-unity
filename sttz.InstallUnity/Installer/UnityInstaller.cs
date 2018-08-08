@@ -447,7 +447,14 @@ public class UnityInstaller
         }
 
         if (install) {
-            await Platform.PrepareInstall(queue, cancellation);
+            string installationPaths = null;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+                installationPaths = Configuration.installPathMac;
+            } else {
+                throw new NotImplementedException("Installer does not currently support the platform: " + RuntimeInformation.OSDescription);
+            }
+
+            await Platform.PrepareInstall(queue, installationPaths, cancellation);
         }
 
         try {

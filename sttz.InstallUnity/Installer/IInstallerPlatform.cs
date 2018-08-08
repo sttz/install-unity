@@ -61,8 +61,9 @@ public interface IInstallerPlatform
     /// Prepare to install the given version of Unity.
     /// </summary>
     /// <param name="queue">The installation queue to prepare</param>
+    /// <param name="installationPaths">Paths to try to move the installation to (see <see cref="Configuration.installPathMac"/>)</param>
     /// <param name="cancellation">Cancellation token</param>
-    Task PrepareInstall(UnityInstaller.Queue queue, CancellationToken cancellation = default);
+    Task PrepareInstall(UnityInstaller.Queue queue, string installationPaths, CancellationToken cancellation = default);
 
     /// <summary>
     /// Install a package (<see cref="PrepareInstall"/> has to be called first).

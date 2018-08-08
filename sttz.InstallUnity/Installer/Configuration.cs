@@ -50,6 +50,12 @@ public class Configuration
     [Description("Enable colored console output.")]
     public bool enableColoredOutput = true;
 
+    [Description("Mac installation paths, separted by ; (first non-existing will be used, variables: {major} {minor} {patch} {type} {build} {hash}).")]
+    public string installPathMac = 
+          "/Applications/Unity {major}.{minor};"
+        + "/Applications/Unity {major}.{minor}.{patch}{type}{build};"
+        + "/Applications/Unity {major}.{minor}.{patch}{type}{build} ({hash})";
+
     // -------- Serialization --------
 
     /// <summary>
