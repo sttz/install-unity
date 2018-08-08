@@ -473,7 +473,17 @@ public class CLIProgram
 
         var notFound = new List<string>();
         var resolved = installer.ResolvePackages(metadata, selection, notFound: notFound);
-        
+
+        // Check version to be installed against installed
+        var freshInstall = resolved.Any(p => p.name == PackageMetadata.EDITOR_PACKAGE_NAME);
+        var installs = await installer.Platform.FindInstallations();
+        var existing = installs.FirstOrDefault(i => i.version == metadata.version);
+        if (!freshInstall && existing == null) {
+            throw new Exception($"Installing additional packages but Unity {metadata.version} hasn't been installed yet (add the 'Unity' package to install it).");
+        } else if (freshInstall && existing != null) {
+            throw new Exception($"Unity {metadata.version} already installed at '{existing.path}' (remove the 'Unity' package to install additional packages).");
+        }
+
         WriteTitle("Selected packages:");
         long totalSpace = 0, totalDownload = 0;
         foreach (var package in resolved) {
