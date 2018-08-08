@@ -764,8 +764,9 @@ class Program
 {
     static async Task<int> Main(string[] args)
     {
+        CLIProgram parsed = null;
         try {
-            var parsed = CLIProgram.Parse(args);
+            parsed = CLIProgram.Parse(args);
 
             if (parsed.help) {
                 parsed.PrintHelp();
@@ -802,7 +803,8 @@ class Program
             Arguments.WriteArgumentsWithError(args, e);
             return 1;
         } catch (Exception e) {
-            WriteException(e, true);
+            Console.WriteLine();
+            WriteException(e, parsed == null || parsed.verbose > 0);
             return 2;
         }
     }
