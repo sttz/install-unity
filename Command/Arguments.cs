@@ -128,6 +128,12 @@ public class Arguments<T>
     /// <param name="position">Position of the argument</param>
     public Arguments<T> Option(Action<T, string> setter, int position)
     {
+        if (position > 0) {
+            var option = FindOption(definedAction, position - 1);
+            if (option == null) throw new ArgumentException($"Invalid position {position}: No Option at position {position-1} defined");
+            if (option.repeatable) throw new InvalidOperationException("Cannot add another positional argument after a repeatable positional argument");
+        }
+
         AddOption(typeof(string), new OptionDef<string>() {
             action = definedAction,
             names = null,
@@ -144,7 +150,6 @@ public class Arguments<T>
     public Arguments<T> Repeatable(bool repeatable = true)
     {
         if (definedOption == null) throw new InvalidOperationException("Repeatable: No current option to operate on");
-        if (definedOption.position >= 0) throw new InvalidOperationException("Repeatable: Positional option cannot be repeatable");
         definedOption.repeatable = repeatable;
         return this;
     }
@@ -822,8 +827,9 @@ public class Arguments<T>
 
         foreach (var option in options) {
             if (option.action != null && option.action != action) continue;
+            if (option.position < 0) continue;
 
-            if (option.position == position) {
+            if (option.position == position || (option.repeatable && position >= option.position)) {
                 return option;
             }
         }

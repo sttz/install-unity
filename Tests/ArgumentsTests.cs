@@ -210,6 +210,15 @@ public class ArgumentsTests
     }
 
     [Fact]
+    public void TestRepeatablePositionalArgument()
+    {
+        Assert.Equal(
+            "run 2018 --detach -- -batchmode -nographics -quit",
+            Parse("run", "-d", "2018", "--", "-batchmode", "-nographics", "-quit").ToString()
+        );
+    }
+
+    [Fact]
     public void TestPathsAndOptions()
     {
         Assert.Equal(
