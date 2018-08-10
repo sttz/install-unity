@@ -301,11 +301,14 @@ public class InstallUnityCLI
         return version;
     }
 
-    async Task<VersionMetadata> SelectAndLoad(UnityVersion version)
+    async Task<VersionMetadata> SelectAndLoad(UnityVersion version, bool installOnly)
     {
         // Locate version in cache or look it up
         var metadata = installer.Versions.Find(version);
         if (!metadata.version.IsValid) {
+            if (installOnly) {
+                throw new Exception("Could not find version matching input: " + version);
+            }
             try {
                 Logger.LogInformation("Version {version} not found in cache, trying exact lookup");
                 metadata = await installer.Scraper.LoadExact(version);
@@ -324,6 +327,9 @@ public class InstallUnityCLI
 
         // Load packages ini if needed
         if (metadata.packages == null) {
+            if (installOnly) {
+                throw new Exception("Packages not found in versions cache (install only): " + version);
+            }
             Logger.LogInformation("Packages not yet loaded, loading ini now");
             metadata = await installer.Scraper.LoadPackages(metadata);
             installer.Versions.Add(metadata);
@@ -454,7 +460,7 @@ public class InstallUnityCLI
     public async Task Details()
     {
         var version = await Setup();
-        var metadata = await SelectAndLoad(version);
+        var metadata = await SelectAndLoad(version, false);
         ShowDetails(installer, metadata);
     }
 
@@ -528,7 +534,7 @@ public class InstallUnityCLI
             throw new Exception("'--download' and '--install' require '--data-path' to be set.");
         }
 
-        var metadata = await SelectAndLoad(version);
+        var metadata = await SelectAndLoad(version, op == UnityInstaller.InstallStep.Install);
 
         // Determine packages to install (-p / --packages or defaultPackages option)
         IEnumerable<string> selection = packages;
