@@ -213,6 +213,8 @@ public class Arguments<T>
         var argPos = -1;
         var processOptions = true;
 
+        parsedAction = null;
+
         for (int i = 0; i < args.Length; i++) {
             var arg = args[i];
 
