@@ -525,7 +525,7 @@ public class InstallUnityCLI
 
         Logger.LogInformation($"Install steps: {op}");
 
-        if (op != UnityInstaller.InstallStep.DownloadAndInstall && dataPath != null) {
+        if (op != UnityInstaller.InstallStep.DownloadAndInstall && dataPath == null) {
             throw new Exception("'--download' and '--install' require '--data-path' to be set.");
         }
 
@@ -539,10 +539,10 @@ public class InstallUnityCLI
         } else if (!selection.Any()) {
             Console.WriteLine();
             if (installer.Configuration.defaultPackages != null) {
-                Console.WriteLine("Installing configured packages (select packages with '--packages', see available packages with 'details')");
+                Console.WriteLine("Selecting configured packages (select packages with '--packages', see available packages with 'details')");
                 selection = installer.Configuration.defaultPackages;
             } else {
-                Console.WriteLine("Installing default packages (select packages with '--packages', see available packages with 'details')");
+                Console.WriteLine("Selecting default packages (select packages with '--packages', see available packages with 'details')");
                 selection = installer.GetDefaultPackages(metadata);
             }
         }
@@ -551,13 +551,15 @@ public class InstallUnityCLI
         var resolved = installer.ResolvePackages(metadata, selection, notFound: notFound);
 
         // Check version to be installed against installed
-        var freshInstall = resolved.Any(p => p.name == PackageMetadata.EDITOR_PACKAGE_NAME);
-        var installs = await installer.Platform.FindInstallations();
-        var existing = installs.FirstOrDefault(i => i.version == metadata.version);
-        if (!freshInstall && existing == null) {
-            throw new Exception($"Installing additional packages but Unity {metadata.version} hasn't been installed yet (add the 'Unity' package to install it).");
-        } else if (freshInstall && existing != null) {
-            throw new Exception($"Unity {metadata.version} already installed at '{existing.path}' (remove the 'Unity' package to install additional packages).");
+        if ((op & UnityInstaller.InstallStep.Install) > 0) {
+            var freshInstall = resolved.Any(p => p.name == PackageMetadata.EDITOR_PACKAGE_NAME);
+            var installs = await installer.Platform.FindInstallations();
+            var existing = installs.FirstOrDefault(i => i.version == metadata.version);
+            if (!freshInstall && existing == null) {
+                throw new Exception($"Installing additional packages but Unity {metadata.version} hasn't been installed yet (add the 'Unity' package to install it).");
+            } else if (freshInstall && existing != null) {
+                throw new Exception($"Unity {metadata.version} already installed at '{existing.path}' (remove the 'Unity' package to install additional packages).");
+            }
         }
 
         WriteTitle("Selected packages:");
@@ -613,7 +615,7 @@ public class InstallUnityCLI
             await installer.Process(op, queue);
         }
 
-        if (dataPath != null) {
+        if (dataPath == null) {
             Logger.LogInformation("Cleaning up downloaded pacakges ('--data-path' not set)");
             installer.CleanUpDownloads(metadata, downloadPath, resolved);
         }
