@@ -136,7 +136,7 @@ public class InstallUnityCLI
                     + " and 'save' to create an editable JSON config file.")
 
                 .Action("list")
-                    .Description("List Unity versions available to install or already installed")
+                    .Description("Get an overview of available or installed Unity versions")
                 
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
                     .ArgumentName("<version>")
@@ -145,14 +145,14 @@ public class InstallUnityCLI
                     .Description("List installed versions of Unity")
                 
                 .Action("details")
-                    .Description("Show details about a Unity version and its packages")
+                    .Description("Show version information and all its available packages")
                 
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
                     .ArgumentName("<version>")
                     .Description("Pattern to match Unity version")
                 
                 .Action("install")
-                    .Description("Install a version of Unity")
+                    .Description("Download and install a version of Unity")
                 
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
                     .ArgumentName("<version>")
@@ -166,10 +166,10 @@ public class InstallUnityCLI
                     .Description("Install previously downloaded packages (requires '--data-path')")
                 
                 .Action("uninstall")
-                    .Description("Uninstall a version of Unity")
+                    .Description("Remove a previously installed version of Unity")
                 
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
-                    .ArgumentName("<versionORpath>")
+                    .ArgumentName("<version-or-path>")
                     .Description("Pattern to match Unity version or path to installation root")
                 .Option((InstallUnityCLI t, bool v) => t.yes = v, "y", "yes")
                     .Description("Don't prompt for confirmation before uninstall (use with care)");

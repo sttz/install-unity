@@ -357,7 +357,7 @@ public class Arguments<T>
         // -- Actions
         if (actions.Count > 0) {
             foreach (var action in actions) {
-                sb.AppendLine($"---- ACTION {action}:");
+                sb.AppendLine($"---- {action.ToUpper()}:");
                 
                 string desc;
                 if (actionDescriptions.TryGetValue(action, out desc)) {
@@ -414,6 +414,7 @@ public class Arguments<T>
             var name = GetFirstLongName(option);
             name = (name.Length == 1 ? "-" : "--") + name;
             if (TakesArgument(option)) name += " " + ArgumentName(option);
+            if (option.repeatable) name += "...";
             if (!option.required) name = "[" + name + "]";
 
             pos = WrappedAppend(sb, prefix, pos, width, name + " ");
@@ -430,6 +431,7 @@ public class Arguments<T>
             if (option.position < 0 || !filter(option)) continue;
 
             var name = ArgumentName(option);
+            if (option.repeatable) name += "...";
             if (!option.required) name = "[" + name + "]";
 
             pos = WrappedAppend(sb, prefix, pos, width, name + " ");
