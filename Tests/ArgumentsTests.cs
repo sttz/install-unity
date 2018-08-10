@@ -75,6 +75,15 @@ public class ArgumentsTests
     }
 
     [Fact]
+    public void TestCaseInsensitivity()
+    {
+        Assert.Equal(
+            "list --installed",
+            Parse("LIST", "-I").ToString()
+        );
+    }
+
+    [Fact]
     public void TestPositionalArg()
     {
         Assert.Equal(

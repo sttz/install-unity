@@ -186,6 +186,7 @@ public class InstallUnityCLI
     {
         var parsed = new InstallUnityCLI();
         parsed.action = ArgumentsDefinition.Parse(parsed, args);
+        if (parsed.action != null) parsed.action = parsed.action.ToLower();
         return parsed;
     }
 

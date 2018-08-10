@@ -292,7 +292,7 @@ public class Arguments<T>
 
         // Check for missing required options
         foreach (var option in options) {
-            if (option.action == null || option.action == parsedAction) {
+            if (option.action == null || string.Equals(option.action, parsedAction, ActionComp)) {
                 if (option.required && !option.wasSet) {
                     if (option.position >= 0) {
                         throw new ArgumentsException($"Required argument #{option.position} not set.");
@@ -378,16 +378,16 @@ public class Arguments<T>
                 pos = Append(sb, pos, " ");
 
                 prefix = new string(' ', 8 + command.Length);
-                pos = OptionUsage(sb, prefix, pos, width, (option) => option.action == action);
-                pos = ArgumentUsage(sb, prefix, pos, width, (option) => option.action == action);
+                pos = OptionUsage(sb, prefix, pos, width, (option) => string.Equals(option.action, action, ActionComp));
+                pos = ArgumentUsage(sb, prefix, pos, width, (option) => string.Equals(option.action, action, ActionComp));
                 sb.AppendLine();
 
                 sb.AppendLine();
 
                 // Action options
-                if (options.Count(o => o.action == action) > 0) {
+                if (options.Count(option => string.Equals(option.action, action, ActionComp)) > 0) {
                     sb.AppendLine("OPTIONS:");
-                    ListOptions(sb, width, (option) => option.action == action);
+                    ListOptions(sb, width, (option) => string.Equals(option.action, action, ActionComp));
                     sb.AppendLine();
                 }
 
@@ -689,6 +689,8 @@ public class Arguments<T>
         public Action<T, TArg> setter;
     }
 
+    static StringComparison ActionComp = StringComparison.OrdinalIgnoreCase;
+
     string definedAction;
     OptionDef definedOption;
     HashSet<string> actions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -804,11 +806,11 @@ public class Arguments<T>
     OptionDef FindOption(string action, string name, bool? shortOption)
     {
         foreach (var option in options) {
-            if (option.names == null || (option.action != null && option.action != action)) continue;
+            if (option.names == null || (option.action != null && !string.Equals(option.action, action, ActionComp))) continue;
 
             foreach (var candidate in option.names) {
                 if (shortOption == (candidate.Length != 1)) continue;
-                if (string.Equals(name, candidate, StringComparison.OrdinalIgnoreCase)) {
+                if (string.Equals(name, candidate, ActionComp)) {
                     return option;
                 }
             }
@@ -826,8 +828,8 @@ public class Arguments<T>
         if (position < 0) throw new ArgumentException($"Argument cannot be < 0", nameof(position));
 
         foreach (var option in options) {
-            if (option.action != null && option.action != action) continue;
             if (option.position < 0) continue;
+            if (option.action != null && !string.Equals(option.action, action, ActionComp)) continue;
 
             if (option.position == position || (option.repeatable && position >= option.position)) {
                 return option;
