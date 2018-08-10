@@ -218,7 +218,7 @@ public class InstallUnityCLI
     UnityInstaller installer;
     ILogger Logger;
 
-    public async Task<UnityVersion> Setup()
+    public async Task<UnityVersion> Setup(bool avoidCacheUpate = false)
     {
         enableColors = Environment.GetEnvironmentVariable("CLICOLORS") != "0";
 
@@ -278,7 +278,7 @@ public class InstallUnityCLI
 
         // Update cache if needed or requested (--update)
         IEnumerable<VersionMetadata> newVersions;
-        if (update || installer.IsCacheOutdated(version.type)) {
+        if (update || (!avoidCacheUpate && installer.IsCacheOutdated(version.type))) {
             WriteTitle("Updating Cache...");
             newVersions = await installer.UpdateCache(version.type);
 
@@ -512,8 +512,6 @@ public class InstallUnityCLI
 
     public async Task Install()
     {
-        var version = await Setup();
-
         // Determine operation (based on --download and --install)
         var op = UnityInstaller.InstallStep.None;
         if (download) op |= UnityInstaller.InstallStep.Download;
@@ -523,6 +521,7 @@ public class InstallUnityCLI
             op = UnityInstaller.InstallStep.DownloadAndInstall;
         }
 
+        var version = await Setup(op == UnityInstaller.InstallStep.Install);
         Logger.LogInformation($"Install steps: {op}");
 
         if (op != UnityInstaller.InstallStep.DownloadAndInstall && dataPath == null) {
