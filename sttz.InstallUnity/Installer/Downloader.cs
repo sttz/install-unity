@@ -189,6 +189,31 @@ public class Downloader
     }
 
     /// <summary>
+    /// Check if an existing file's hash is valid (does not download any data).
+    /// </summary>
+    public async Task AssertExistingFileHash(CancellationToken cancellation = default)
+    {
+        if (ExpectedHash == null) throw new InvalidOperationException("No ExpectedHash set.");
+        if (!File.Exists(TargetPath)) return;
+
+        HashAlgorithm hasher = null;
+        if (HashAlgorithm != null) {
+            hasher = (HashAlgorithm)Activator.CreateInstance(HashAlgorithm);
+        }
+
+        using (var input = File.Open(TargetPath, FileMode.Open, FileAccess.Read)) {
+            CurrentState = State.Hashing;
+            await CopyToAsync(input, Stream.Null, hasher, cancellation);
+        }
+        hasher.TransformFinalBlock(new byte[0], 0, 0);
+        Hash = Helpers.ToHexString(hasher.Hash);
+
+        if (!CheckHash()) {
+            throw new Exception($"Existing file '{TargetPath}' does not match expected hash (got {Hash}, expected {ExpectedHash}).");
+        }
+    }
+
+    /// <summary>
     /// Start the download.
     /// </summary>
     public async Task Start(CancellationToken cancellation = default)

@@ -430,7 +430,14 @@ public class UnityInstaller
                 if (!File.Exists(item.filePath))
                     throw new InvalidOperationException($"File for package {item.package.name} not found at path: {item.filePath}");
 
-                item.currentState = QueueItem.State.WaitingForInstall;
+                if (item.package.md5 == null) {
+                    Logger.LogWarning($"File exists but cannot be checked for completeness: {item.filePath}");
+                    item.currentState = QueueItem.State.WaitingForInstall;
+                } else {
+                    item.downloader = new Downloader();
+                    item.downloader.Prepare(null, item.filePath, item.package.size, item.package.md5);
+                    item.currentState = QueueItem.State.WaitingForDownload;
+                }
 
             } else {
                 // Some packages (Vistual Studio, Mono) have wrong size and no hash
@@ -502,7 +509,11 @@ public class UnityInstaller
                 foreach (var item in queue.items) {
                     if (downloading < Configuration.maxConcurrentDownloads && item.currentState == QueueItem.State.WaitingForDownload) {
                         Logger.LogDebug($"{item.package.name}: Starting download");
-                        item.downloadTask = item.downloader.Start(cancellation);
+                        if (download) {
+                            item.downloadTask = item.downloader.Start(cancellation);
+                        } else {
+                            item.downloadTask = item.downloader.AssertExistingFileHash(cancellation);
+                        }
                         item.currentState = QueueItem.State.Hashing;
                         downloading++;
                     } else if (installing < Configuration.maxConcurrentInstalls && item.currentState == QueueItem.State.WaitingForInstall) {
