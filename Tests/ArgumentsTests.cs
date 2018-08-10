@@ -210,6 +210,28 @@ public class ArgumentsTests
     }
 
     [Fact]
+    public void TestPathsAndOptions()
+    {
+        Assert.Equal(
+            "install --data-path /tmp/test 2018 --download",
+            Parse("install", "2018", "--data-path",  "/tmp/test",  "--download").ToString()
+        );
+
+        Assert.Equal(
+            "install --data-path /tmp/test 2018 --download",
+            Parse("install", "/dataPath", "/tmp/test", "/download", "2018").ToString()
+        );
+
+        var ex = Assert.Throws<ArgumentsException>(() => Parse("install", "/dataPath", "/download", "2018"));
+        Assert.Equal("Missing argument for option: dataPath", ex.Message);
+
+        Assert.Equal(
+            "uninstall /Applications/Unity",
+            Parse("uninstall", "/Applications/Unity").ToString()
+        );
+    }
+
+    [Fact]
     public void TestMissingPositionalArgument()
     {
         var ex = Assert.Throws<ArgumentsException>(() => Args.Parse("-a"));

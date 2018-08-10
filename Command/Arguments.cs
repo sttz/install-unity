@@ -718,7 +718,10 @@ public class Arguments<T>
     /// </summary>
     bool IsOption(string arg)
     {
-        return arg.StartsWith('-') || arg.StartsWith('/');
+        if (arg.StartsWith('/')) {
+            return FindOption(parsedAction, GetName(arg.Substring(1)), null) != null;
+        }
+        return arg.StartsWith('-');
     }
 
     /// <summary>
