@@ -45,10 +45,10 @@ public class Configuration
     public bool progressBar = true;
 
     [Description("The interval in milliseconds in which the progress bars are updated.")]
-    public int progressRefreshInterval = 30; // 33 fps
+    public int progressRefreshInterval = 50; // 20 fps
 
     [Description("Update the download status text every n progress refresh intervals.")]
-    public int statusRefreshEvery = 33; // 1 fps
+    public int statusRefreshEvery = 20; // 1 fps
 
     [Description("Enable colored console output.")]
     public bool enableColoredOutput = true;
