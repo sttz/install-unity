@@ -99,33 +99,46 @@ public class MacPlatform : IInstallerPlatform
 
         var lines = findResult.output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         var installations = new List<Installation>(lines.Length);
-        foreach (var line in lines) {
-            if (!Directory.Exists(line)) {
-                Logger.LogWarning($"Could not find Unity installation at path: {line}");
+        foreach (var appPath in lines) {
+            if (!Directory.Exists(appPath)) {
+                Logger.LogWarning($"Could not find Unity installation at path: {appPath}");
                 continue;
             }
 
-            var versionResult = await Command.Run("/usr/bin/defaults", $"read \"{line}/Contents/Info\" CFBundleVersion", null, cancellation);
+            var installRoot = Path.GetDirectoryName(appPath);
+
+            // Cursory check if the user has moved the Unity.app somewhere else
+            var bugReporterPath = Path.Combine(installRoot, "Unity Bug Reporter.app");
+            if (!Directory.Exists(bugReporterPath)) {
+                Logger.LogWarning("Unity.app appears to be in a non-standard Unity folder: " + appPath);
+                continue;
+            }
+
+            var versionResult = await Command.Run("/usr/bin/defaults", $"read \"{appPath}/Contents/Info\" CFBundleVersion", null, cancellation);
             if (versionResult.exitCode != 0) {
                 throw new Exception($"ERROR: failed to run defaults: {versionResult.error}");
             }
 
             var version = new UnityVersion(versionResult.output.Trim());
             if (!version.IsFullVersion) {
-                Logger.LogWarning($"Could not determine Unity version at path '{line}': {versionResult.output.Trim()}");
+                Logger.LogWarning($"Could not determine Unity version at path '{appPath}': {versionResult.output.Trim()}");
                 continue;
             }
 
-            var hashResult = await Command.Run("/usr/bin/defaults", $"read \"{line}/Contents/Info\" UnityBuildNumber", null, cancellation);
+            var hashResult = await Command.Run("/usr/bin/defaults", $"read \"{appPath}/Contents/Info\" UnityBuildNumber", null, cancellation);
             if (hashResult.exitCode != 0) {
                 throw new Exception($"ERROR: failed to run defaults: {hashResult.error}");
             }
 
             version.hash = hashResult.output.Trim();
 
-            Logger.LogDebug($"Found Unity {version} at path: {line}");
+            var executable = ExecutableFromAppPath(appPath);
+            if (executable == null) continue;
+
+            Logger.LogDebug($"Found Unity {version} at path: {appPath}");
             installations.Add(new Installation() {
-                path = line,
+                path = installRoot,
+                executable = executable,
                 version = version
             });
         }
@@ -162,7 +175,7 @@ public class MacPlatform : IInstallerPlatform
                 throw new InvalidOperationException($"Not installing editor but version {queue.metadata.version} not already installed.");
             }
 
-            upgradeOriginalPath = GetInstallationBasePath(existingInstall);
+            upgradeOriginalPath = existingInstall.path;
 
             Logger.LogInformation($"Temporarily moving installation to upgrade from '{existingInstall}' to default install path");
             await MoveInstallation(existingInstall, INSTALL_PATH, cancellation);
@@ -218,9 +231,13 @@ public class MacPlatform : IInstallerPlatform
         }
 
         if (!aborted) {
+            var executable = ExecutableFromAppPath(Path.Combine(destination, "Unity.app"));
+            if (executable == null) return default;
+
             var installation = new Installation() {
                 version = installing.version,
-                path = Path.Combine(destination, "Unity.app")
+                executable = executable,
+                path = destination
             };
 
             installing = default;
@@ -238,14 +255,12 @@ public class MacPlatform : IInstallerPlatform
         if (Directory.Exists(newPath) || File.Exists(newPath))
             throw new ArgumentException("Destination path already exists: " + newPath);
 
-        var sourcePath = GetInstallationBasePath(installation);
-        return Move(sourcePath, newPath, cancellation);
+        return Move(installation.path, newPath, cancellation);
     }
 
     public async Task Uninstall(Installation installation, CancellationToken cancellation = default)
     {
-        var deletePath = GetInstallationBasePath(installation);
-        await Delete(deletePath, cancellation);
+        await Delete(installation.path, cancellation);
     }
 
     // -------- Helpers --------
@@ -259,6 +274,19 @@ public class MacPlatform : IInstallerPlatform
     string upgradeOriginalPath;
     bool movedExisting;
     bool installedEditor;
+
+    /// <summary>
+    /// Get the path to the Unity executable inside the App bundle.
+    /// </summary>
+    string ExecutableFromAppPath(string appPath)
+    {
+        var executable = Path.Combine(appPath, "Contents", "MacOS", "Unity");
+        if (!File.Exists(executable)) {
+            Logger.LogError("Could not find Unity executable at path: " + executable);
+            return null;
+        }
+        return executable;
+    }
 
     /// <summary>
     /// Install a PKG package using the `installer` command.
@@ -437,27 +465,6 @@ public class MacPlatform : IInstallerPlatform
         if (result.exitCode != 0) {
             throw new Exception($"ERROR: failed to run rm: {result.error}");
         }
-    }
-
-    /// <summary>
-    /// Get the root Unity installation folder (containing the Unity.app) but check
-    /// if the user has maybe moved the Unity.app somewhere else.
-    /// </summary>
-    string GetInstallationBasePath(Installation installation)
-    {
-        if (!Directory.Exists(installation.path))
-            throw new ArgumentException("Could not find installation at path: " + installation.path);
-
-        // Installation path points to Unity.app, get the base folder
-        var installRoot = Path.GetDirectoryName(installation.path);
-
-        // Cursory check if the user has moved the Unity.app somewhere else
-        var bugReporterPath = Path.Combine(installRoot, "Unity Bug Reporter.app");
-        if (!Directory.Exists(bugReporterPath)) {
-            throw new InvalidOperationException("Unity.app appears to be in a non-standard Unity folder: " + installation.path);
-        }
-
-        return installRoot;
     }
 
     /// <summary>

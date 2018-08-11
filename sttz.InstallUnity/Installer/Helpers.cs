@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
 
@@ -146,6 +147,16 @@ public static class Helpers
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Add a range of items to a collection.
+    /// </summary>
+    public static void AddRange<T>(this Collection<T> collection, IEnumerable<T> items)
+    {
+        foreach (var item in items) {
+            collection.Add(item);
+        }
     }
 }
 

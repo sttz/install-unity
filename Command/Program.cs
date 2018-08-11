@@ -205,7 +205,7 @@ public class InstallUnityCLI
                     .Description("Don't prompt for confirmation before uninstall (use with care)")
                     
                 .Action("run")
-                    .Description("Execute a versionf of Unity or a Unity project, matching it to its Unity version")
+                    .Description("Execute a version of Unity or a Unity project, matching it to its Unity version")
                 
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0).Required()
                     .ArgumentName("<version-or-path>")
@@ -814,7 +814,25 @@ public class InstallUnityCLI
 
         Installation installation = null;
         var version = new UnityVersion(matchVersion);
-        if (!version.IsValid) {
+        if (version.IsValid) {
+            // Argument is version pattern
+            foreach (var install in installs.OrderByDescending(i => i.version)) {
+                if (version.FuzzyMatches(install.version)) {
+                    if (installation != null) {
+                        if (!version.IsFullVersion) continue;
+                        throw new Exception($"Version {version} is ambiguous between\n"
+                            + $"{installation.version} at '{installation.path}' and\n"
+                            + $"{install.version} at '{install.path}'\n"
+                            + "(use exact version).");
+                    }
+                    installation = install;
+                }
+            }
+
+        } else {
+            // Argument is path to project
+            version = default;
+
             var projectPath = matchVersion;
             if (!Directory.Exists(projectPath)) {
                 throw new Exception($"Project path '{projectPath}' does not exist.");
@@ -839,6 +857,21 @@ public class InstallUnityCLI
                 throw new Exception("Could not parse version from ProjectVersion.txt: " + versionPath);
             }
 
+            var allowedVersion = version;
+            if (allowNewer >= AllowNewer.Patch) allowedVersion.patch = -1;
+            if (allowNewer >= AllowNewer.Minor) allowedVersion.minor = -1;
+            if (allowNewer >= AllowNewer.All)   allowedVersion.major = -1;
+            foreach (var install in installs.OrderByDescending(i => i.version)) {
+                // Exact match trumps fuzzy
+                if (version.FuzzyMatches(install.version)) {
+                    installation = install;
+                }
+                // Fuzzy match only newest version
+                if (installation == null && allowedVersion.FuzzyMatches(install.version)) {
+                    installation = install;
+                }
+            }
+
             var projectPathSet = false;
             for (var i = 0; i < unityArguments.Count; i++) {
                 if (string.Equals(unityArguments[i], "-projectPath", StringComparison.OrdinalIgnoreCase)) {
@@ -857,23 +890,46 @@ public class InstallUnityCLI
             }
         }
 
-        foreach (var install in installs) {
-            if (version.FuzzyMatches(install.version)) {
-                if (installation != null) {
-                    throw new Exception($"Version {version} is ambiguous between\n"
-                        + $"{installation.version} at '{installation.path}' and\n"
-                        + $"{install.version} at '{install.path}'\n"
-                        + "(use exact version).");
-                }
-                installation = install;
-            }
-        }
-
         if (installation == null) {
             throw new Exception($"Could not run Unity {version}: Not installed");
         }
 
         Console.WriteLine($"Will run {installation.path} with {string.Join(" ", unityArguments)}");
+
+        var cmd = new System.Diagnostics.Process();
+        cmd.StartInfo.FileName = installation.executable;
+        cmd.StartInfo.ArgumentList.AddRange(unityArguments);
+        cmd.StartInfo.UseShellExecute = false;
+
+        if (detach) {
+            cmd.Start();
+            return;
+        }
+
+        cmd.StartInfo.RedirectStandardOutput = true;
+        cmd.StartInfo.RedirectStandardError = true;
+        cmd.EnableRaisingEvents = true;
+
+        cmd.OutputDataReceived += (s, a) => {
+            if (a.Data == null) return;
+            Logger.LogInformation(a.Data);
+        };
+        cmd.ErrorDataReceived += (s, a) => {
+            if (a.Data == null) return;
+            Logger.LogError(a.Data);
+        };
+
+        cmd.Start();
+        cmd.BeginOutputReadLine();
+        cmd.BeginErrorReadLine();
+
+        while (!cmd.HasExited) {
+            await Task.Delay(100);
+        }
+
+        cmd.WaitForExit(); // Let stdout and stderr flush
+        Logger.LogInformation($"Unity exited with code {cmd.ExitCode}");
+        Environment.Exit(cmd.ExitCode);
     }
 
     // -------- Console --------

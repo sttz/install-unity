@@ -11,9 +11,14 @@ namespace sttz.InstallUnity
 public class Installation
 {
     /// <summary>
-    /// Path to the Unity installation.
+    /// Path to the Unity installation root.
     /// </summary>
     public string path;
+
+    /// <summary>
+    /// Path to the Unity executable.
+    /// </summary>
+    public string executable;
 
     /// <summary>
     /// Version of the installation.
@@ -78,7 +83,7 @@ public interface IInstallerPlatform
     /// Complete an installation after all packages have been installed.
     /// </summary>
     /// <param name="cancellation">Cancellation token</param>
-    Task<Installation> CompleteInstall(bool aborted, CancellationToken cancellation = default); 
+    Task<Installation> CompleteInstall(bool aborted, CancellationToken cancellation = default);
 
     /// <summary>
     /// Uninstall a Unity installation.
