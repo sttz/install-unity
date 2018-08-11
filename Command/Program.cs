@@ -1074,28 +1074,34 @@ class Program
         }
     }
 
-    static void WriteException(Exception e, bool stackTrace = false)
+    static void WriteException(Exception e, bool stackTrace)
     {
         var agg = e as AggregateException;
         if (agg != null) {
             if (agg.InnerExceptions.Count == 1) {
-                WriteException(e.InnerException, true);
+                WriteSingleException(e, false);
+                WriteException(e.InnerException, stackTrace);
             } else {
-                WriteException(e, false);
+                WriteSingleException(e, false);
                 foreach (var inner in agg.InnerExceptions) {
-                    WriteException(inner, true);
+                    WriteException(inner, stackTrace);
                 }
             }
 
         } else {
-            InstallUnityCLI.SetForeground(ConsoleColor.Red);
-            Console.WriteLine(e.Message);
-            if (stackTrace) {
-                InstallUnityCLI.SetForeground(ConsoleColor.Gray);
-                Console.WriteLine(e.StackTrace);
-            }
-            InstallUnityCLI.ResetColor();
+            WriteSingleException(e, stackTrace);
         }
+    }
+
+    static void WriteSingleException(Exception e, bool stackTrace)
+    {
+        InstallUnityCLI.SetForeground(ConsoleColor.Red);
+        Console.WriteLine(e.Message);
+        if (stackTrace) {
+            InstallUnityCLI.SetForeground(ConsoleColor.Gray);
+            Console.WriteLine(e.StackTrace);
+        }
+        InstallUnityCLI.ResetColor();
     }
 }
 
