@@ -96,6 +96,11 @@ public class Downloader
         Downloading,
 
         /// <summary>
+        /// Error occured while downloading.
+        /// </summary>
+        Error,
+
+        /// <summary>
         /// Download complete.
         /// </summary>
         Complete
@@ -221,115 +226,120 @@ public class Downloader
         if (CurrentState != State.Idle)
             throw new InvalidOperationException("A download already in progress or instance not prepared.");
 
-        HashAlgorithm hasher = null;
-        if (HashAlgorithm != null) {
-            hasher = (HashAlgorithm)Activator.CreateInstance(HashAlgorithm);
-        }
+        try {
+            HashAlgorithm hasher = null;
+            if (HashAlgorithm != null) {
+                hasher = (HashAlgorithm)Activator.CreateInstance(HashAlgorithm);
+            }
 
-        var filename = Path.GetFileName(TargetPath);
+            var filename = Path.GetFileName(TargetPath);
 
-        // Check existing file
-        var mode = FileMode.Create;
-        var startOffset = 0L;
-        if (File.Exists(TargetPath) && Resume) {
-            // Try to resume existing file
-            var fileInfo = new FileInfo(TargetPath);
-            if (ExpectedSize > 0 && fileInfo.Length >= ExpectedSize) {
-                if (hasher != null) {
+            // Check existing file
+            var mode = FileMode.Create;
+            var startOffset = 0L;
+            if (File.Exists(TargetPath) && Resume) {
+                // Try to resume existing file
+                var fileInfo = new FileInfo(TargetPath);
+                if (ExpectedSize > 0 && fileInfo.Length >= ExpectedSize) {
+                    if (hasher != null) {
+                        using (var input = File.Open(TargetPath, FileMode.Open, FileAccess.Read)) {
+                            CurrentState = State.Hashing;
+                            await CopyToAsync(input, Stream.Null, hasher, cancellation);
+                        }
+                        hasher.TransformFinalBlock(new byte[0], 0, 0);
+                        Hash = Helpers.ToHexString(hasher.Hash);
+                        if (ExpectedHash != null) {
+                            if (CheckHash()) {
+                                Logger.LogInformation($"Existing file '{filename}' has matching hash, skipping...");
+                                CurrentState = State.Complete;
+                                return;
+                            } else {
+                                // Hash mismatch, force redownload
+                                Logger.LogWarning($"Existing file '{filename}' has different hash: Got {Hash} but expected {ExpectedHash}. Will redownload...");
+                                startOffset = 0;
+                                mode = FileMode.Create;
+                            }
+                        } else {
+                            Logger.LogInformation($"Existing file '{filename}' has hash {Hash} but we have nothing to check against, assuming it's ok...");
+                        }
+                    } else {
+                        // Assume file is good
+                        Logger.LogInformation($"Existing file '{filename}' cannot be checked for integrity, assuming it's ok...");
+                        CurrentState = State.Complete;
+                        return;
+                    }
+                
+                } else {
+                    Logger.LogInformation($"Resuming partial download of '{filename}' ({Helpers.FormatSize(fileInfo.Length)} already downloaded)...");
+                    startOffset = fileInfo.Length;
+                    mode = FileMode.Append;
+                }
+            }
+
+            // Load headers
+            var request = new HttpRequestMessage(HttpMethod.Get, Url);
+            if (startOffset != 0) {
+                request.Headers.Range = new RangeHeaderValue(startOffset, null);
+            }
+
+            if (client.Timeout != TimeSpan.FromSeconds(Timeout))
+                client.Timeout = TimeSpan.FromSeconds(Timeout);
+            var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellation);
+            response.EnsureSuccessStatusCode();
+
+            // Redownload whole file if resuming fails
+            if (startOffset > 0 && response.StatusCode != HttpStatusCode.PartialContent) {
+                Logger.LogInformation("Server does not support resuming download.");
+                startOffset = 0;
+                mode = FileMode.Create;
+            }
+
+            if (hasher != null) {
+                hasher.Initialize();
+
+                // When resuming, hash already downloaded data
+                if (startOffset > 0) {
                     using (var input = File.Open(TargetPath, FileMode.Open, FileAccess.Read)) {
                         CurrentState = State.Hashing;
                         await CopyToAsync(input, Stream.Null, hasher, cancellation);
                     }
-                    hasher.TransformFinalBlock(new byte[0], 0, 0);
-                    Hash = Helpers.ToHexString(hasher.Hash);
-                    if (ExpectedHash != null) {
-                        if (CheckHash()) {
-                            Logger.LogInformation($"Existing file '{filename}' has matching hash, skipping...");
-                            CurrentState = State.Complete;
-                            return;
-                        } else {
-                            // Hash mismatch, force redownload
-                            Logger.LogWarning($"Existing file '{filename}' has different hash: Got {Hash} but expected {ExpectedHash}. Will redownload...");
-                            startOffset = 0;
-                            mode = FileMode.Create;
-                        }
-                    } else {
-                        Logger.LogInformation($"Existing file '{filename}' has hash {Hash} but we have nothing to check against, assuming it's ok...");
-                    }
-                } else {
-                    // Assume file is good
-                    Logger.LogInformation($"Existing file '{filename}' cannot be checked for integrity, assuming it's ok...");
+                }
+            }
+
+            if (response.Content.Headers.ContentLength != null) {
+                BytesTotal = response.Content.Headers.ContentLength.Value + startOffset;
+            }
+
+            // Download
+            Directory.CreateDirectory(Path.GetDirectoryName(TargetPath));
+            using (Stream input = await response.Content.ReadAsStreamAsync(), output = File.Open(TargetPath, mode, FileAccess.Write)) {
+                CurrentState = State.Downloading;
+                BytesProcessed = startOffset;
+                await CopyToAsync(input, output, hasher, cancellation);
+            }
+
+            if (hasher != null) {
+                hasher.TransformFinalBlock(new byte[0], 0, 0);
+                Hash = Helpers.ToHexString(hasher.Hash);
+            }
+
+            if (Hash != null && ExpectedHash != null && !CheckHash()) {
+                if (ExpectedHash == null) {
+                    Logger.LogInformation($"Downloaded file '{filename}' with hash {Hash}");
                     CurrentState = State.Complete;
-                    return;
+                } else if (CheckHash()) {
+                    Logger.LogInformation($"Downloaded file '{filename}' with expected hash {Hash}");
+                    CurrentState = State.Complete;
+                } else {
+                    throw new Exception($"Downloaded file '{filename}' does not match expected hash (got {Hash} but expected {ExpectedHash})");
                 }
-            
             } else {
-                Logger.LogInformation($"Resuming partial download of '{filename}' ({Helpers.FormatSize(fileInfo.Length)} already downloaded)...");
-                startOffset = fileInfo.Length;
-                mode = FileMode.Append;
-            }
-        }
-
-        // Load headers
-        var request = new HttpRequestMessage(HttpMethod.Get, Url);
-        if (startOffset != 0) {
-            request.Headers.Range = new RangeHeaderValue(startOffset, null);
-        }
-
-        if (client.Timeout != TimeSpan.FromSeconds(Timeout))
-            client.Timeout = TimeSpan.FromSeconds(Timeout);
-        var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellation);
-        response.EnsureSuccessStatusCode();
-
-        // Redownload whole file if resuming fails
-        if (startOffset > 0 && response.StatusCode != HttpStatusCode.PartialContent) {
-            Logger.LogInformation("Server does not support resuming download.");
-            startOffset = 0;
-            mode = FileMode.Create;
-        }
-
-        if (hasher != null) {
-            hasher.Initialize();
-
-            // When resuming, hash already downloaded data
-            if (startOffset > 0) {
-                using (var input = File.Open(TargetPath, FileMode.Open, FileAccess.Read)) {
-                    CurrentState = State.Hashing;
-                    await CopyToAsync(input, Stream.Null, hasher, cancellation);
-                }
-            }
-        }
-
-        if (response.Content.Headers.ContentLength != null) {
-            BytesTotal = response.Content.Headers.ContentLength.Value + startOffset;
-        }
-
-        // Download
-        Directory.CreateDirectory(Path.GetDirectoryName(TargetPath));
-        using (Stream input = await response.Content.ReadAsStreamAsync(), output = File.Open(TargetPath, mode, FileAccess.Write)) {
-            CurrentState = State.Downloading;
-            BytesProcessed = startOffset;
-            await CopyToAsync(input, output, hasher, cancellation);
-        }
-
-        if (hasher != null) {
-            hasher.TransformFinalBlock(new byte[0], 0, 0);
-            Hash = Helpers.ToHexString(hasher.Hash);
-        }
-
-        if (Hash != null && ExpectedHash != null && !CheckHash()) {
-            if (ExpectedHash == null) {
-                Logger.LogInformation($"Downloaded file '{filename}' with hash {Hash}");
+                Logger.LogInformation($"Downloaded file '{filename}'");
                 CurrentState = State.Complete;
-            } else if (CheckHash()) {
-                Logger.LogInformation($"Downloaded file '{filename}' with expected hash {Hash}");
-                CurrentState = State.Complete;
-            } else {
-                throw new Exception($"Downloaded file '{filename}' does not match expected hash (got {Hash} but expected {ExpectedHash})");
             }
-        } else {
-            Logger.LogInformation($"Downloaded file '{filename}'");
-            CurrentState = State.Complete;
+        } catch {
+            CurrentState = State.Error;
+            throw;
         }
     }
 

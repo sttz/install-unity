@@ -36,7 +36,10 @@ public class Configuration
     public int requestTimeout = 30;
 
     [Description("How often to retry downloads.")]
-    public int retryCount = 4; // TODO
+    public int retryCount = 4;
+
+    [Description("Delay in seconds before download is retried.")]
+    public int retryDelay = 5;
 
     [Description("Draw progress bars for hashing and downloading.")]
     public bool progressBar = true;

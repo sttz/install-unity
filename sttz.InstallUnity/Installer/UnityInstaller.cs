@@ -178,6 +178,15 @@ public class UnityInstaller
         public Downloader downloader;
 
         /// <summary>
+        /// Number of retries left.
+        /// </summary>
+        public int retries;
+        /// <summary>
+        /// Enforce delay when retrying download.
+        /// </summary>
+        public DateTime waitUntil;
+
+        /// <summary>
         /// When downloading, the task of the download.
         /// </summary>
         public Task downloadTask;
@@ -407,6 +416,7 @@ public class UnityInstaller
                 package = package,
                 downloadUrl = new Uri(fullUrl),
                 filePath = outputPath,
+                retries = Configuration.retryCount
             });
         }
 
@@ -481,10 +491,20 @@ public class UnityInstaller
                     if (item.currentState == QueueItem.State.Hashing || item.currentState == QueueItem.State.Downloading) {
                         if (item.downloadTask.IsCompleted) {
                             if (item.downloadTask.IsFaulted) {
-                                throw item.downloadTask.Exception;
+                                if (!download || item.retries <= 0) {
+                                    throw item.downloadTask.Exception;
+                                } else {
+                                    item.retries--;
+                                    Logger.LogError(item.downloadTask.Exception.InnerException.Message 
+                                        + $" (retrying in {Configuration.retryDelay}s, {item.retries} retries remaining)");
+                                    item.waitUntil = DateTime.UtcNow + TimeSpan.FromSeconds(Configuration.retryDelay);
+                                    item.downloader.Reset();
+                                    item.currentState = QueueItem.State.WaitingForDownload;
+                                }
+                            } else {
+                                item.currentState = install ? QueueItem.State.WaitingForInstall : QueueItem.State.Complete;
+                                Logger.LogDebug($"{item.package.name} download complete: now {item.currentState}");
                             }
-                            item.currentState = install ? QueueItem.State.WaitingForInstall : QueueItem.State.Complete;
-                            Logger.LogDebug($"{item.package.name} download complete: now {item.currentState}");
                         } else {
                             if (item.currentState == QueueItem.State.Hashing && item.downloader.CurrentState == Downloader.State.Downloading) {
                                 item.currentState = QueueItem.State.Downloading;
@@ -492,6 +512,7 @@ public class UnityInstaller
                             }
                             downloading++;
                         }
+                    
                     } else if (item.currentState == QueueItem.State.Installing) {
                         if (item.installTask.IsCompleted) {
                             if (item.installTask.IsFaulted) {
@@ -516,6 +537,9 @@ public class UnityInstaller
                 // Start new items
                 foreach (var item in queue.items) {
                     if (downloading < Configuration.maxConcurrentDownloads && item.currentState == QueueItem.State.WaitingForDownload) {
+                        if (item.waitUntil > DateTime.UtcNow) {
+                            continue;
+                        }
                         Logger.LogDebug($"{item.package.name}: Starting download");
                         if (download) {
                             item.downloadTask = item.downloader.Start(cancellation);
@@ -524,6 +548,7 @@ public class UnityInstaller
                         }
                         item.currentState = QueueItem.State.Hashing;
                         downloading++;
+                    
                     } else if (installing < Configuration.maxConcurrentInstalls && item.currentState == QueueItem.State.WaitingForInstall) {
                         if (editorItem != null && item != editorItem && editorItem.currentState != QueueItem.State.Complete) {
                             // Wait for the editor to complete installation
