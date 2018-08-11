@@ -13,7 +13,15 @@ namespace sttz.InstallUnity
 {
 
 // TODO
-// - Offline installation flow
+// - Add all ini fields
+// - Run command
+// - Retry downloads
+// - Discover installed packages?
+// - Select version by hash
+// - ~NAME ambiguous
+// - Check cache updatin
+// - Include beta in list
+// - Cross-platform download
 
 /// <summary>
 /// Main Unity installer class.

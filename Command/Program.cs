@@ -81,6 +81,17 @@ public class InstallUnityCLI
     /// </summary>
     public bool yes;
 
+    // -- Run
+
+    /// <summary>
+    /// Detach from the launched Unity instance.
+    /// </summary>
+    public bool detach;
+    /// <summary>
+    /// Arguments to launch Unity with.
+    /// </summary>
+    public List<string> unityArguments = new List<string>();
+
     // -------- Arguments Defintion --------
 
     /// <summary>
@@ -102,6 +113,9 @@ public class InstallUnityCLI
         if (packages.Count > 0) cmd += " --packages " + string.Join(" ", packages);
         if (download) cmd += " --download";
         if (install) cmd += " --install";
+
+        if (detach) cmd += " --detach";
+        if (unityArguments.Count > 0) cmd += " -- " + string.Join(" ", unityArguments);
 
         return cmd;
     }
@@ -127,7 +141,7 @@ public class InstallUnityCLI
                     .Description("Increase verbosity of output, can be repeated")
                 .Option((InstallUnityCLI t, bool v) => t.update = v, "u", "update")
                     .Description("Force an update of the versions cache")
-                .Option((InstallUnityCLI t, string v) => t.dataPath = v, "d", "data-path", "datapath")
+                .Option((InstallUnityCLI t, string v) => t.dataPath = v, "data-path", "datapath")
                     .ArgumentName("<path>")
                     .Description("Store all data at the given path, also don't delete packages after install")
                 .Option((InstallUnityCLI t, IList<string> v) => t.options.AddRange(v), "opt").Repeatable()
@@ -172,7 +186,19 @@ public class InstallUnityCLI
                     .ArgumentName("<version-or-path>")
                     .Description("Pattern to match Unity version or path to installation root")
                 .Option((InstallUnityCLI t, bool v) => t.yes = v, "y", "yes")
-                    .Description("Don't prompt for confirmation before uninstall (use with care)");
+                    .Description("Don't prompt for confirmation before uninstall (use with care)")
+                    
+                .Action("run")
+                    .Description("Execute a versionf of Unity or a Unity project, matching it to its Unity version")
+                
+                .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0).Required()
+                    .ArgumentName("<version-or-path>")
+                    .Description("Pattern to match Unity version or path to a Unity project")
+                .Option((InstallUnityCLI t, string v) => t.unityArguments.Add(v), 1).Repeatable()
+                    .ArgumentName("<unity-arguments>")
+                    .Description("Arguments to launch Unity with (put a -- first to avoid Unity options being parsed as install-unity options)")
+                .Option((InstallUnityCLI t, bool v) => t.detach = v, "d", "detach")
+                    .Description("Detach from the launched Unity instance");
                 
                 return _arguments;
         }
@@ -756,6 +782,81 @@ public class InstallUnityCLI
         Console.WriteLine($"Uninstalled Unity {uninstall.version} at path: {uninstall.path}");
     }
 
+    // -------- Run --------
+
+    public async Task Run()
+    {
+        await Setup();
+
+        var installs = await installer.Platform.FindInstallations();
+        if (!installs.Any()) {
+            throw new Exception("Could not find any installed versions of Unity");
+        }
+
+        Installation installation = null;
+        var version = new UnityVersion(matchVersion);
+        if (!version.IsValid) {
+            var projectPath = matchVersion;
+            if (!Directory.Exists(projectPath)) {
+                throw new Exception($"Project path '{projectPath}' does not exist.");
+            }
+
+            var versionPath = Path.Combine(projectPath, "ProjectSettings", "ProjectVersion.txt");
+            if (!File.Exists(versionPath)) {
+                throw new Exception($"ProjectVersion.txt not found at expected path: {versionPath}");
+            }
+
+            var lines = await File.ReadAllLinesAsync(versionPath);
+            foreach (var line in lines) {
+                if (line.StartsWith("m_EditorVersion:")) {
+                    var colonIndex = line.IndexOf(':');
+                    var versionString = line.Substring(colonIndex + 1).Trim();
+                    version = new UnityVersion(versionString);
+                    break;
+                }
+            }
+
+            if (!version.IsValid) {
+                throw new Exception("Could not parse version from ProjectVersion.txt: " + versionPath);
+            }
+
+            var projectPathSet = false;
+            for (var i = 0; i < unityArguments.Count; i++) {
+                if (string.Equals(unityArguments[i], "-projectPath", StringComparison.OrdinalIgnoreCase)) {
+                    if (i + 1 >= unityArguments.Count) {
+                        throw new Exception("-projectPath has no argument.");
+                    }
+                    Logger.LogWarning($"-projectPath already set, overwriting with '{projectPath}'");
+                    unityArguments[i + 1] = Helpers.EscapeArgument(projectPath);
+                    projectPathSet = true;
+                    break;
+                }
+            }
+            if (!projectPathSet) {
+                unityArguments.Add("-projectPath");
+                unityArguments.Add(Helpers.EscapeArgument(projectPath));
+            }
+        }
+
+        foreach (var install in installs) {
+            if (version.FuzzyMatches(install.version)) {
+                if (installation != null) {
+                    throw new Exception($"Version {version} is ambiguous between\n"
+                        + $"{installation.version} at '{installation.path}' and\n"
+                        + $"{install.version} at '{install.path}'\n"
+                        + "(use exact version).");
+                }
+                installation = install;
+            }
+        }
+
+        if (installation == null) {
+            throw new Exception($"Could not run Unity {version}: Not installed");
+        }
+
+        Console.WriteLine($"Will run {installation.path} with {string.Join(" ", unityArguments)}");
+    }
+
     // -------- Console --------
 
     public static bool enableColors;
@@ -878,6 +979,9 @@ class Program
                     break;
                 case "uninstall":
                     await parsed.Uninstall();
+                    break;
+                case "run":
+                    await parsed.Run();
                     break;
                 default:
                     throw new Exception("Unknown action: " + parsed.action);
