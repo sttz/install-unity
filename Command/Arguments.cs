@@ -103,6 +103,41 @@ public class Arguments<T>
     }
 
     /// <summary>
+    /// Define an option with a Enum argument.
+    /// By default the option is optional and not repeatable, the argument required.
+    /// </summary>
+    /// <param name="setter">Callback called when the option is set</param>
+    /// <param name="names">Names of the option</param>
+    public Arguments<T> Option<TEnum>(Action<T, TEnum> setter, params string[] names) where TEnum : IConvertible
+    {
+        if (!typeof(TEnum).IsEnum) throw new ArgumentException($"Type {typeof(TEnum)} is not an Enum", nameof(TEnum));
+
+        AddOption(typeof(string), new OptionDef<string>() {
+            action = definedAction,
+            names = names,
+            position = -1,
+            requiresArgument = true,
+            setter = (target, input) => {
+                if (string.IsNullOrEmpty(input)) {
+                    setter(target, default);
+                    return;
+                }
+
+                object value;
+                if (!Enum.TryParse(typeof(TEnum), input, true, out value)) {
+                    var values = Enum.GetNames(typeof(TEnum)).Select(v => "'" + v.ToLower() + "'");
+                    var name = names.FirstOrDefault(n => n.Length > 1);
+                    if (name == null) name = names[0];
+                    throw new ArgumentsException($"Invalid value for {name}: '{input}' (must be {string.Join(", ", values)})");
+                }
+
+                setter(target, (TEnum)value);
+            }
+        });
+        return this;
+    }
+
+    /// <summary>
     /// Define a list option.
     /// By default the option is optional and not repeatable, the argument required.
     /// </summary>

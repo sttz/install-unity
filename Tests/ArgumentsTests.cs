@@ -250,6 +250,18 @@ public class ArgumentsTests
     }
 
     [Fact]
+    public void TestEnumArguments()
+    {
+        Assert.Equal(
+            "run /tmp/test --allow-newer minor",
+            Parse("run", "/tmp/test", "--allow-newer", "minor").ToString()
+        );
+
+        var ex = Assert.Throws<ArgumentsException>(() => Parse("run", "/tmp/test", "--allow-newer", "blah"));
+        Assert.Equal("Invalid value for allow-newer: 'blah' (must be 'none', 'patch', 'minor', 'all')", ex.Message);
+    }
+
+    [Fact]
     public void TestMissingPositionalArgument()
     {
         var ex = Assert.Throws<ArgumentsException>(() => Args.Parse("-a"));

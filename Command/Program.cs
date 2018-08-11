@@ -88,9 +88,24 @@ public class InstallUnityCLI
     /// </summary>
     public bool detach;
     /// <summary>
+    /// Allow newer versions of Unity to open a project.
+    /// </summary>
+    public AllowNewer allowNewer;
+    /// <summary>
     /// Arguments to launch Unity with.
     /// </summary>
     public List<string> unityArguments = new List<string>();
+
+    /// <summary>
+    /// Specify which newer versions are accepted to open a Unity project.
+    /// </summary>
+    public enum AllowNewer
+    {
+        None,
+        Patch,
+        Minor,
+        All
+    }
 
     // -------- Arguments Defintion --------
 
@@ -115,6 +130,7 @@ public class InstallUnityCLI
         if (install) cmd += " --install";
 
         if (detach) cmd += " --detach";
+        if (allowNewer != AllowNewer.None) cmd += " --allow-newer " + allowNewer.ToString().ToLower();
         if (unityArguments.Count > 0) cmd += " -- " + string.Join(" ", unityArguments);
 
         return cmd;
@@ -198,7 +214,10 @@ public class InstallUnityCLI
                     .ArgumentName("<unity-arguments>")
                     .Description("Arguments to launch Unity with (put a -- first to avoid Unity options being parsed as install-unity options)")
                 .Option((InstallUnityCLI t, bool v) => t.detach = v, "d", "detach")
-                    .Description("Detach from the launched Unity instance");
+                    .Description("Detach from the launched Unity instance")
+                .Option((InstallUnityCLI t, AllowNewer v) => t.allowNewer = v, "a", "allow-newer", "allownewer").OptionalArgument()
+                    .ArgumentName("none|patch|minor|all")
+                    .Description("Allow newer versions of Unity to open a project");
                 
                 return _arguments;
         }
