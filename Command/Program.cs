@@ -419,7 +419,7 @@ public class InstallUnityCLI
 
     public void InstalledList(UnityInstaller installer, UnityVersion version, IEnumerable<Installation> installations)
     {
-        foreach (var install in installations) {
+        foreach (var install in installations.OrderByDescending(i => i.version)) {
             if (!version.FuzzyMatches(install.version)) continue;
             Console.WriteLine($"{install.version}\t{install.path}");
         }
