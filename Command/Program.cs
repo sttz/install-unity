@@ -682,7 +682,7 @@ public class InstallUnityCLI
 
     void WriteQueueStatus(UnityInstaller.Queue queue, bool updateStatus)
     {
-        Console.WriteLine();
+        Console.Write(new string(' ', Console.BufferWidth));
 
         var longestName = queue.items.Max(i => i.package.name.Length);
         foreach (var item in queue.items) {
