@@ -10,6 +10,17 @@ namespace sttz.InstallUnity
 {
 
 /// <summary>
+/// Platforms supported by the cache.
+/// </summary>
+public enum CachePlatform
+{
+    None,
+    macOS,
+    Windows,
+    Linux
+}
+
+/// <summary>
 /// Information about a Unity version available to install.
 /// </summary>
 public struct VersionMetadata
@@ -19,6 +30,63 @@ public struct VersionMetadata
     /// </summary>
     public UnityVersion version;
 
+    /// <summary>
+    /// macOS specific metadata.
+    /// </summary>
+    public VersionPlatformMetadata mac;
+
+    /// <summary>
+    /// Windows specific metadata.
+    /// </summary>
+    public VersionPlatformMetadata win;
+
+    /// <summary>
+    /// Linux specific metadata.
+    /// </summary>
+    public VersionPlatformMetadata linux;
+
+    /// <summary>
+    /// Get platform specific metadata by platform name.
+    /// </summary>
+    /// <param name="platform">Platform to get.</param>
+    public VersionPlatformMetadata GetPlatform(CachePlatform platform)
+    {
+        switch (platform) {
+            case CachePlatform.macOS:
+                return mac;
+            case CachePlatform.Windows:
+                return win;
+            case CachePlatform.Linux:
+                return linux;
+            default:
+                throw new Exception("Invalid platform name: " + platform);
+        }
+    }
+
+    /// <summary>
+    /// Set platform specific metadata by platform name.
+    /// </summary>
+    /// <param name="platform">Platform to set.</param>
+    public void SetPlatform(CachePlatform platform, VersionPlatformMetadata metadata)
+    {
+        switch (platform) {
+            case CachePlatform.macOS:
+                mac = metadata;
+                break;
+            case CachePlatform.Windows:
+                win = metadata;
+                break;
+            case CachePlatform.Linux:
+                linux = metadata;
+                break;
+            default:
+                throw new Exception("Invalid platform name: " + platform);
+        }
+    }
+}
+
+public struct VersionPlatformMetadata
+{
     /// <summary>
     /// URL of the versions' INI file.
     /// </summary>
@@ -274,7 +342,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
     {
         for (int i = 0; i < cache.versions.Count; i++) {
             if (cache.versions[i].version == metadata.version) {
-                cache.versions[i] = metadata;
+                UpdateVersion(i, metadata);
                 Logger.LogDebug($"Updated version in cache: {metadata.version}");
                 return false;
             }
@@ -295,7 +363,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
         foreach (var metadata in metadatas) {
             for (int i = 0; i < cache.versions.Count; i++) {
                 if (cache.versions[i].version == metadata.version) {
-                    cache.versions[i] = metadata;
+                    UpdateVersion(i, metadata);
                     Logger.LogDebug($"Updated version in cache: {metadata.version}");
                     goto continueOuter;
                 }
@@ -307,6 +375,18 @@ public class VersionsCache : IEnumerable<VersionMetadata>
         }
 
         SortVersions();
+    }
+
+    /// <summary>
+    /// Update a version, merging its platform-specific data.
+    /// </summary>
+    void UpdateVersion(int index, VersionMetadata with)
+    {
+        var existing = cache.versions[index];
+        if (with.mac.packages != null) existing.mac = with.mac;
+        if (with.win.packages != null) existing.win = with.win;
+        if (with.linux.packages != null) existing.linux = with.linux;
+        cache.versions[index] = existing;
     }
 
     /// <summary>

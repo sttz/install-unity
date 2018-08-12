@@ -298,14 +298,15 @@ public class UnityInstaller
     /// <summary>
     /// Update the Unity versions cache.
     /// </summary>
+    /// <param name="cachePlatform">Name of platform to update (only used for loading hub JSON)</param>
     /// <param name="type">Undefined = update latest, others = update archive of type and higher types</param>
     /// <returns>Task returning the newly discovered versions</returns>
-    public async Task<IEnumerable<VersionMetadata>> UpdateCache(UnityVersion.Type type = UnityVersion.Type.Undefined, CancellationToken cancellation = default)
+    public async Task<IEnumerable<VersionMetadata>> UpdateCache(CachePlatform cachePlatform, UnityVersion.Type type = UnityVersion.Type.Undefined, CancellationToken cancellation = default)
     {
         var added = new List<VersionMetadata>();
         if (type == UnityVersion.Type.Undefined) {
             Logger.LogDebug("Loading UnityHub JSON with latest Unity versions...");
-            var newVersions = await Scraper.LoadLatest(cancellation);
+            var newVersions = await Scraper.LoadLatest(cachePlatform, cancellation);
             Logger.LogInformation($"Loaded {newVersions.Count()} versions from UnityHub JSON");
             
             Versions.Add(newVersions, added);
@@ -333,10 +334,12 @@ public class UnityInstaller
     /// Get the default package IDs for the given version.
     /// </summary>
     /// <param name="metadata">Unity version</param>
-    public IEnumerable<string> GetDefaultPackages(VersionMetadata metadata)
+    /// <param name="cachePlatform">Name of platform</param>
+    public IEnumerable<string> GetDefaultPackages(VersionMetadata metadata, CachePlatform cachePlatform)
     {
-        if (metadata.packages == null) throw new ArgumentException("Unity version contains no packages.");
-        return metadata.packages.Where(p => p.install).Select(p => p.name);
+        var platform = metadata.GetPlatform(cachePlatform);
+        if (platform.packages == null) throw new ArgumentException("Unity version contains no packages.");
+        return platform.packages.Where(p => p.install).Select(p => p.name);
     }
 
     /// <summary>
@@ -345,17 +348,19 @@ public class UnityInstaller
     /// </summary>
     public IEnumerable<PackageMetadata> ResolvePackages(
         VersionMetadata metadata, 
+        CachePlatform cachePlatform,
         IEnumerable<string> packages, 
         IList<string> notFound = null,
         bool addDependencies = true
     ) {
+        var platform = metadata.GetPlatform(cachePlatform);
         var metas = new List<PackageMetadata>();
         foreach (var id in packages) {
             PackageMetadata resolved = default;
             if (id.StartsWith('~')) {
                 // Contains lookup
                 var str = id.Substring(1);
-                foreach (var package in metadata.packages) {
+                foreach (var package in platform.packages) {
                     if (package.name.Contains(str, StringComparison.OrdinalIgnoreCase)) {
                         if (resolved.name == null) {
                             Logger.LogDebug($"Fuzzy lookup '{id}' matched package '{resolved.name}'");
@@ -367,12 +372,12 @@ public class UnityInstaller
                 }
             } else {
                 // Exact lookup
-                resolved = metadata.GetPackage(id);
+                resolved = platform.GetPackage(id);
             }
 
             if (resolved.name != null) {
                 if (addDependencies) {
-                    foreach (var package in metadata.packages) {
+                    foreach (var package in platform.packages) {
                         if (package.sync == resolved.name) {
                             Logger.LogInformation($"Adding '{package.name}' which '{resolved.name}' is synced with");
                             metas.Add(package);
@@ -393,22 +398,25 @@ public class UnityInstaller
     /// Create a download and install queue from the given version and packages.
     /// </summary>
     /// <param name="metadata">The Unity version</param>
+    /// <param name="cachePlatform">Name of platform</param>
     /// <param name="downloadPath">Location of the downloaded the packages</param>
     /// <param name="packageIds">Packages to download and/or install</param>
     /// <returns>The queue list with the created queue items</returns>
-    public Queue CreateQueue(VersionMetadata metadata, string downloadPath, IEnumerable<PackageMetadata> packages)
+    public Queue CreateQueue(VersionMetadata metadata, CachePlatform cachePlatform, string downloadPath, IEnumerable<PackageMetadata> packages)
     {
         if (!metadata.version.IsFullVersion)
             throw new ArgumentException("VersionMetadata.version needs to contain a full Unity version", nameof(metadata));
         
-        if (metadata.packages == null || metadata.packages.Length == 0)
+        var platform = metadata.GetPlatform(cachePlatform);
+
+        if (platform.packages == null || platform.packages.Length == 0)
             throw new ArgumentException("VersionMetadata.packages cannot be null or empty", nameof(metadata));
         
         var items = new List<QueueItem>();
         foreach (var package in packages) {
             var fullUrl = package.url;
-            if (metadata.iniUrl != null && !fullUrl.StartsWith("http")) {
-                fullUrl = metadata.iniUrl + package.url;
+            if (platform.iniUrl != null && !fullUrl.StartsWith("http")) {
+                fullUrl = platform.iniUrl + package.url;
             }
 
             var fileName = package.GetFileName();
