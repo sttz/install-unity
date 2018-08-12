@@ -186,7 +186,7 @@ public class Scraper
         response.EnsureSuccessStatusCode();
 
         var html = await response.Content.ReadAsStringAsync();
-        Logger.LogDebug($"Got response: {html}");
+        Logger.LogTrace($"Got response: {html}");
 
         if (type == UnityVersion.Type.Final) {
             return ExtractFromHtml(html).Values;
@@ -204,7 +204,7 @@ public class Scraper
             response.EnsureSuccessStatusCode();
 
             html = await response.Content.ReadAsStringAsync();
-            Logger.LogDebug($"Got response: {html}");
+            Logger.LogTrace($"Got response: {html}");
             ExtractFromHtml(html, results);
         }
         return results.Values;
@@ -261,7 +261,7 @@ public class Scraper
         }
 
         var html = await response.Content.ReadAsStringAsync();
-        Logger.LogDebug($"Got response: {html}");
+        Logger.LogTrace($"Got response: {html}");
         return ExtractFromHtml(html).Values.FirstOrDefault();
     }
 
@@ -295,7 +295,7 @@ public class Scraper
         response.EnsureSuccessStatusCode();
 
         var ini = await response.Content.ReadAsStringAsync();
-        Logger.LogDebug($"Got response: {ini}");
+        Logger.LogTrace($"Got response: {ini}");
         
         var parser = new IniDataParser();
         var data = parser.Parse(ini);

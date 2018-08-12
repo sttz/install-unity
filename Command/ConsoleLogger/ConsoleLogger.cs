@@ -237,20 +237,31 @@ public class ConsoleLogger : ILogger
                 });
             }
 
+            ConsoleColor? fgColor = null, bgColor = null;
+            if (!TryParseColor(match.Groups[2].Value, out fgColor)
+                    || (match.Groups[1].Length == 0 && !TryParseColor(match.Groups[3].Value, out bgColor))) {
+                result.Add(new ColorString() {
+                    text = input.Substring(match.Index, match.Length),
+                    fgColor = currentColors.fgColor,
+                    bgColor = currentColors.bgColor
+                });
+                pos = match.Index + match.Length;
+                continue;
+            }
+
             if (match.Groups[1].Length == 0) {
                 currentColors = new ColorString() {
-                    fgColor = ParseColor(match.Groups[2].Value) ?? currentColors.fgColor,
-                    bgColor = ParseColor(match.Groups[3].Value) ?? currentColors.bgColor
+                    fgColor = fgColor ?? currentColors.fgColor,
+                    bgColor = bgColor ?? currentColors.bgColor
                 };
                 colors.Add(currentColors);
             } else {
                 if (colors.Count == 1) {
                     throw new ArgumentException($"End console color tag </{match.Groups[2].Value}> before any opening tags");
                 }
-                var color = ParseColor(match.Groups[2].Value);
                 var current = colors[colors.Count - 1].fgColor;
-                if (colors[colors.Count - 1].fgColor != color) {
-                    throw new ArgumentException($"Umatched console color tag: Expected {current}, got {color}");
+                if (colors[colors.Count - 1].fgColor != fgColor) {
+                    throw new ArgumentException($"Umatched console color tag: Expected {current}, got {fgColor}");
                 }
                 colors.RemoveAt(colors.Count - 1);
                 currentColors = colors[colors.Count - 1];
@@ -270,47 +281,66 @@ public class ConsoleLogger : ILogger
         return result;
     }
 
-    static ConsoleColor? ParseColor(string input)
+    static bool TryParseColor(string input, out ConsoleColor? color)
     {
         switch (input.ToLower()) {
             case "black":
-                return ConsoleColor.Black;
+                color = ConsoleColor.Black;
+                return true;
             case "darkblue":
-                return ConsoleColor.DarkBlue;
+                color = ConsoleColor.DarkBlue;
+                return true;
             case "darkgreen":
-                return ConsoleColor.DarkGreen;
+                color = ConsoleColor.DarkGreen;
+                return true;
             case "darkcyan":
-                return ConsoleColor.DarkCyan;
+                color = ConsoleColor.DarkCyan;
+                return true;
             case "darkred":
-                return ConsoleColor.DarkRed;
+                color = ConsoleColor.DarkRed;
+                return true;
             case "darkmagenta":
-                return ConsoleColor.DarkMagenta;
+                color = ConsoleColor.DarkMagenta;
+                return true;
             case "darkyellow":
-                return ConsoleColor.DarkYellow;
+                color = ConsoleColor.DarkYellow;
+                return true;
             case "gray":
-                return ConsoleColor.Gray;
+                color = ConsoleColor.Gray;
+                return true;
             case "darkgray":
-                return ConsoleColor.DarkGray;
+                color = ConsoleColor.DarkGray;
+                return true;
             case "blue":
-                return ConsoleColor.Blue;
+                color = ConsoleColor.Blue;
+                return true;
             case "green":
-                return ConsoleColor.Green;
+                color = ConsoleColor.Green;
+                return true;
             case "cyan":
-                return ConsoleColor.Cyan;
+                color = ConsoleColor.Cyan;
+                return true;
             case "red":
-                return ConsoleColor.Red;
+                color = ConsoleColor.Red;
+                return true;
             case "magenta":
-                return ConsoleColor.Magenta;
+                color = ConsoleColor.Magenta;
+                return true;
             case "yellow":
-                return ConsoleColor.Yellow;
+                color = ConsoleColor.Yellow;
+                return true;
             case "white":
-                return ConsoleColor.White;
+                color = ConsoleColor.White;
+                return true;
             case "inherit":
-                return null;
+                color = null;
+                return true;
             case "":
-                return null;
+                color = null;
+                return true;
             default:
-                throw new ArgumentException("Invalid console color name: " + input);
+                color = null;
+                return false;
         }
     }
 }
