@@ -357,9 +357,12 @@ public class UnityInstaller
                 var str = id.Substring(1);
                 foreach (var package in metadata.packages) {
                     if (package.name.Contains(str, StringComparison.OrdinalIgnoreCase)) {
-                        Logger.LogDebug($"Fuzzy lookup '{id}' matched package '{package.name}'");
-                        resolved = package;
-                        break;
+                        if (resolved.name == null) {
+                            Logger.LogDebug($"Fuzzy lookup '{id}' matched package '{resolved.name}'");
+                            resolved = package;
+                        } else {
+                            throw new Exception($"Fuzzy package match '{id}' is ambiguous between '{package.name}' and '{resolved.name}'");
+                        }
                     }
                 }
             } else {
