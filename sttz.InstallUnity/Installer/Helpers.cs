@@ -158,6 +158,40 @@ public static class Helpers
             collection.Add(item);
         }
     }
+
+    /// <summary>
+    /// Prompt the user on the console for an one-character answer.
+    /// </summary>
+    /// <param name="prompt">Prompt to ask user</param>
+    /// <param name="options">Possible one-character answers (uppercase = default)</param>
+    /// <returns>Chosen character out of given options</returns>
+    public static char ConsolePrompt(string prompt, string options)
+    {
+        while (true) {
+            Console.WriteLine();
+            Console.Write($"{prompt} [{options}]: ");
+            
+            var input = Console.ReadKey();
+            Console.WriteLine();
+            
+            // Choose default option on enter
+            if (input.Key == ConsoleKey.Enter) {
+                for (var i = 0; i < options.Length; i++) {
+                    if (char.IsUpper(options[i])) {
+                        return options[i];
+                    }
+                }
+            }
+
+            for (var i = 0; i < options.Length; i++) {
+                if (char.ToLower(options[i]) == char.ToLower(input.KeyChar)) {
+                    return options[i];
+                }
+            }
+
+            // Repeat on invalid input
+        }
+    }
 }
 
 }

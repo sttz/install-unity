@@ -35,6 +35,10 @@ public class InstallUnityCLI
     /// </summary>
     public int verbose;
     /// <summary>
+    /// Assume yes for prompts.
+    /// </summary>
+    public bool yes;
+    /// <summary>
     /// Wether to force an update of the versions cache.
     /// </summary>
     public bool update;
@@ -73,13 +77,6 @@ public class InstallUnityCLI
     /// Wether to only install packages with install command.
     /// </summary>
     public bool install;
-
-    // -- Uninstall
-
-    /// <summary>
-    /// Don't prompt for uninstall command.
-    /// </summary>
-    public bool yes;
 
     // -- Run
 
@@ -155,6 +152,8 @@ public class InstallUnityCLI
                     .Description("Print the version of this program")
                 .Option((InstallUnityCLI t, bool v) => t.verbose++, "v", "verbose").Repeatable()
                     .Description("Increase verbosity of output, can be repeated")
+                .Option((InstallUnityCLI t, bool v) => t.yes = v, "y", "yes")
+                    .Description("Don't prompt for confirmation (use with care)")
                 .Option((InstallUnityCLI t, bool v) => t.update = v, "u", "update")
                     .Description("Force an update of the versions cache")
                 .Option((InstallUnityCLI t, string v) => t.dataPath = v, "data-path", "datapath")
@@ -201,8 +200,6 @@ public class InstallUnityCLI
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
                     .ArgumentName("<version-or-path>")
                     .Description("Pattern to match Unity version or path to installation root")
-                .Option((InstallUnityCLI t, bool v) => t.yes = v, "y", "yes")
-                    .Description("Don't prompt for confirmation before uninstall (use with care)")
                     
                 .Action("run")
                     .Description("Execute a version of Unity or a Unity project, matching it to its Unity version")
@@ -636,6 +633,28 @@ public class InstallUnityCLI
             Console.WriteLine("WARN: Following packages were not found: " + string.Join(", ", notFound.ToArray()));
         }
 
+        // Make user accept additional EULAs
+        var hasEula = false;
+        foreach (var package in resolved) {
+            if (package.eulamessage == null) continue;
+            hasEula = true;
+            Console.WriteLine();
+            SetForeground(ConsoleColor.Yellow);
+            Console.WriteLine($"Installing '{package.name}' requires accepting following EULA(s):");
+            Console.WriteLine($"- {package.eulalabel1}: {package.eulaurl1}");
+            if (package.eulalabel2 != null) {
+                Console.WriteLine($"- {package.eulalabel2}: {package.eulaurl2}");
+            }
+            ResetColor();
+        }
+
+        if (hasEula && !yes) {
+            var response = Helpers.ConsolePrompt($"Do you agree to the above EULA(s)?", "yN");
+            if (response == 'N') {
+                Environment.Exit(1);
+            }
+        }
+
         // Request password before downoad so the download & installation can go on uninterrupted
         if ((op & UnityInstaller.InstallStep.Install) > 0 && !await installer.Platform.PromptForPasswordIfNecessary()) {
             Logger.LogInformation("Failed password prompt too many times");
@@ -784,16 +803,9 @@ public class InstallUnityCLI
         }
 
         if (!yes) {
-            while (true) {
-                Console.WriteLine();
-                Console.Write($"Uninstall Unity {uninstall.version} at '{uninstall.path}'? [yN]: ");
-                var key = Console.ReadKey();
-                Console.WriteLine();
-                if (key.Key == ConsoleKey.N || key.Key == ConsoleKey.Enter) {
-                    Environment.Exit(1);
-                } else if (key.Key == ConsoleKey.Y) {
-                    break;
-                }
+            var response = Helpers.ConsolePrompt($"Uninstall Unity {uninstall.version} at '{uninstall.path}'?", "yN");
+            if (response == 'N') {
+                Environment.Exit(1);
             }
         }
 

@@ -303,21 +303,75 @@ public class Scraper
         var packages = new PackageMetadata[data.Sections.Count];
         var i = 0;
         foreach (var section in data.Sections) {
-            packages[i++] = new PackageMetadata() {
-                name = section.SectionName,
-                title = section.Keys["title"],
-                description = section.Keys["description"],
-                url = section.Keys["url"],
-                install = bool.Parse(section.Keys["install"]),
-                mandatory = bool.Parse(section.Keys["mandatory"]),
-                size = long.Parse(section.Keys["size"]),
-                installedsize = long.Parse(section.Keys["installedsize"]),
-                version = section.Keys["version"],
-                hidden = section.Keys["hidden"] != null ? bool.Parse(section.Keys["hidden"]) : false,
-                extension = section.Keys["extension"],
-                sync = section.Keys["sync"],
-                md5 = section.Keys["md5"]
-            };
+            var meta = new PackageMetadata();
+            meta.name = section.SectionName;
+
+            foreach (var pair in section.Keys) {
+                switch (pair.KeyName) {
+                    case "title":
+                        meta.title = pair.Value;
+                        break;
+                    case "description":
+                        meta.description = pair.Value;
+                        break;
+                    case "url":
+                        meta.url = pair.Value;
+                        break;
+                    case "install":
+                        meta.install = bool.Parse(pair.Value);
+                        break;
+                    case "mandatory":
+                        meta.mandatory = bool.Parse(pair.Value);
+                        break;
+                    case "size":
+                        meta.size = long.Parse(pair.Value);
+                        break;
+                    case "installedsize":
+                        meta.installedsize = long.Parse(pair.Value);
+                        break;
+                    case "version":
+                        meta.version = pair.Value;
+                        break;
+                    case "hidden":
+                        meta.hidden = bool.Parse(pair.Value);
+                        break;
+                    case "extension":
+                        meta.extension = pair.Value;
+                        break;
+                    case "sync":
+                        meta.sync = pair.Value;
+                        break;
+                    case "md5":
+                        meta.md5 = pair.Value;
+                        break;
+                    case "requires_unity":
+                        meta.requires_unity = bool.Parse(pair.Value);
+                        break;
+                    case "appidentifier":
+                        meta.appidentifier = pair.Value;
+                        break;
+                    case "eulamessage":
+                        meta.eulamessage = pair.Value;
+                        break;
+                    case "eulalabel1":
+                        meta.eulalabel1 = pair.Value;
+                        break;
+                    case "eulaurl1":
+                        meta.eulaurl1 = pair.Value;
+                        break;
+                    case "eulalabel2":
+                        meta.eulalabel2 = pair.Value;
+                        break;
+                    case "eulaurl2":
+                        meta.eulaurl2 = pair.Value;
+                        break;
+                    default:
+                        Logger.LogDebug($"Unknown ini field {pair.KeyName}: {pair.Value}");
+                        break;
+                }
+            }
+
+            packages[i++] = meta;
         }
 
         metadata.packages = packages;

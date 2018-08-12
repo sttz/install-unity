@@ -119,6 +119,41 @@ public struct PackageMetadata
     public string md5;
 
     /// <summary>
+    /// Wether the package can be installed without the editor.
+    /// </summary>
+    public bool requires_unity;
+
+    /// <summary>
+    /// Bundle Identifier of app in package.
+    /// </summary>
+    public string appidentifier;
+
+    /// <summary>
+    /// Message for extra EULA terms.
+    /// </summary>
+    public string eulamessage;
+
+    /// <summary>
+    /// Label of first extra EULA.
+    /// </summary>
+    public string eulalabel1;
+
+    /// <summary>
+    /// URL of first extra EULA.
+    /// </summary>
+    public string eulaurl1;
+
+    /// <summary>
+    /// Label of second extra EULA.
+    /// </summary>
+    public string eulalabel2;
+
+    /// <summary>
+    /// URL of second extra EULA.
+    /// </summary>
+    public string eulaurl2;
+
+    /// <summary>
     /// Get the file name to use for the package.
     /// </summary>
     public string GetFileName()
