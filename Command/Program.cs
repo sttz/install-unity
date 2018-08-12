@@ -290,7 +290,9 @@ public class InstallUnityCLI
 
         // Parse version argument (--unity-version or positional argument)
         var version = new UnityVersion(matchVersion);
-        if (version.type == UnityVersion.Type.Undefined) version.type = UnityVersion.Type.Final;
+        if (version.type == UnityVersion.Type.Undefined && version.hash == null) {
+            version.type = UnityVersion.Type.Final;
+        }
 
         // Set additional configuration (--opt NAME=VALUE)
         if (options != null) {
@@ -320,10 +322,18 @@ public class InstallUnityCLI
         }
 
         // Update cache if needed or requested (--update)
+        var updateType = version.type;
+        if (updateType == UnityVersion.Type.Undefined) {
+            if (version.hash != null) {
+                updateType = UnityVersion.Type.Beta;
+            } else {
+                updateType = UnityVersion.Type.Final;
+            }
+        }
         IEnumerable<VersionMetadata> newVersions;
-        if (update || (!avoidCacheUpate && installer.IsCacheOutdated(version.type))) {
+        if (update || (!avoidCacheUpate && installer.IsCacheOutdated(updateType))) {
             WriteTitle("Updating Cache...");
-            newVersions = await installer.UpdateCache(version.type);
+            newVersions = await installer.UpdateCache(updateType);
 
             var total = newVersions.Count();
             if (total == 0) {
@@ -906,7 +916,7 @@ public class InstallUnityCLI
             throw new Exception($"Could not run Unity {version}: Not installed");
         }
 
-        Console.WriteLine($"Will run {installation.path} with {string.Join(" ", unityArguments)}");
+        Console.WriteLine($"Will run {installation.path} with arguments: '{string.Join(" ", unityArguments)}'");
 
         var cmd = new System.Diagnostics.Process();
         cmd.StartInfo.FileName = installation.executable;

@@ -74,6 +74,11 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
     static readonly Regex VERSION_REGEX = new Regex(@"^(\d+)?(?:\.(\d+)(?:\.(\d+))?)?(?:(\w)(?:(\d+))?)?$");
 
     /// <summary>
+    /// Regex to match a Unity version hash.
+    /// </summary>
+    static readonly Regex HASH_REGEX = new Regex(@"^([0-9a-f]{12})$");
+
+    /// <summary>
     /// Get the sorting strength for a release type.
     /// </summary>
     public static int GetSortingForType(Type type)
@@ -152,7 +157,7 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
         if (string.IsNullOrEmpty(version)) return;
 
         var match = VERSION_REGEX.Match(version);
-        if (match.Success) { 
+        if (match.Success) {
             if (match.Groups[1].Success) {
                 major = int.Parse(match.Groups[1].Value);
                 if (match.Groups[2].Success) {
@@ -172,6 +177,11 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
                     type = Type.Undefined;
                 }
             }
+        } else {
+            match = HASH_REGEX.Match(version);
+            if (match.Success) {
+                hash = match.Groups[1].Value;
+            }
         }
     }
 
@@ -186,7 +196,7 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
     /// </remarks>
     public bool IsValid {
         get {
-            if (major <= 0 && type == Type.Undefined) return false;
+            if (major <= 0 && type == Type.Undefined && hash == null) return false;
             if (minor >= 0 && major < 0) return false;
             if (patch >= 0 && minor < 0) return false;
             if (build >= 0 && patch < 0) return false;
@@ -225,6 +235,22 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
         if (build >= 0 && other.build >= 0 && build != other.build) return false;
         if (hash != null && other.hash != null && hash != other.hash) return false;
         return true;
+    }
+
+    /// <summary>
+    /// Check if either the version hashes match or the full version matches.
+    /// </summary>
+    public bool MatchesVersionOrHash(UnityVersion other)
+    {
+        if (hash != null && other.hash != null) {
+            return hash == other.hash;
+        }
+
+        return major == other.major
+            && minor == other.minor
+            && patch == other.patch
+            && type  == other.type
+            && build == other.build;
     }
 
     public string ToString(bool withHash)
@@ -302,8 +328,7 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
 
     public bool Equals(UnityVersion other)
     {
-        return
-               major == other.major
+        return major == other.major
             && minor == other.minor
             && patch == other.patch
             && type  == other.type
