@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using Newtonsoft.Json;
 
 namespace sttz.InstallUnity
 {
@@ -194,6 +195,7 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
     /// Patch can only be specified if minor is.
     /// Build can only be specified if patch is.
     /// </remarks>
+    [JsonIgnore]
     public bool IsValid {
         get {
             if (major <= 0 && type == Type.Undefined && hash == null) return false;
@@ -207,6 +209,7 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
     /// <summary>
     /// Wether all components of the version are set.
     /// </summary>
+    [JsonIgnore]
     public bool IsFullVersion {
         get {
             return major >= 0 && minor >= 0 && patch >= 0 && type != Type.Undefined && build >= 0;
