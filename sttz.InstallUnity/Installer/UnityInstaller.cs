@@ -315,12 +315,12 @@ public class UnityInstaller
                 if (t != UnityVersion.Type.Final && t != UnityVersion.Type.Beta)
                     continue;
 
-                Logger.LogDebug($"Updating {type} Unity Versions...");
+                Logger.LogDebug($"Updating {t} Unity Versions...");
                 var newVersions = await Scraper.Load(t, cancellation);
-                Logger.LogInformation($"Scraped {newVersions.Count()} versions of type {type}");
+                Logger.LogInformation($"Scraped {newVersions.Count()} versions of type {t}");
 
                 Versions.Add(newVersions, added);
-                Versions.SetLastUpdate(type, DateTime.Now);
+                Versions.SetLastUpdate(t, DateTime.Now);
             }
         }
         Versions.Save();
