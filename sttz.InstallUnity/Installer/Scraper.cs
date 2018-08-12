@@ -333,9 +333,16 @@ public class Scraper
 
         var ini = await response.Content.ReadAsStringAsync();
         Logger.LogTrace($"Got response: {ini}");
-        
+
         var parser = new IniDataParser();
-        var data = parser.Parse(ini);
+        IniParser.Model.IniData data = null;
+        try {
+            data = parser.Parse(ini);
+        } catch (Exception e) {
+            Logger.LogWarning($"Error parsing ini file, trying again with skipping invalid lines... ({e.Message})");
+            parser.Configuration.SkipInvalidLines = true;
+            data = parser.Parse(ini);
+        }
 
         var packages = new PackageMetadata[data.Sections.Count];
         var i = 0;
