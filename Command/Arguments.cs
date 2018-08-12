@@ -117,6 +117,7 @@ public class Arguments<T>
             names = names,
             position = -1,
             requiresArgument = true,
+            argumentName = string.Join('|', Enum.GetNames(typeof(TEnum)).Select(n => n.ToLower())),
             setter = (target, input) => {
                 if (string.IsNullOrEmpty(input)) {
                     setter(target, default);
