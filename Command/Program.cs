@@ -593,9 +593,14 @@ public class InstallUnityCLI
             WriteField("Title", package.title);
             WriteField("Description", package.description);
             WriteField("URL", package.url);
-            WriteField("Mandatory", (package.mandatory ? "yes" : "no"));
-            WriteField("Hidden", (package.hidden ? "yes" : "no"));
+            WriteField("Mandatory", (package.mandatory ? "yes" : null));
+            WriteField("Hidden", (package.hidden ? "yes" : null));
             WriteField("Size", $"{Helpers.FormatSize(package.size)} ({Helpers.FormatSize(package.installedsize)} installed)");
+            WriteField("EULA", package.eulamessage);
+            if (package.eulalabel1 != null && package.eulaurl1 != null)
+                WriteField("", package.eulalabel1 + ": " + package.eulaurl1);
+            if (package.eulalabel2 != null && package.eulaurl2 != null)
+                WriteField("", package.eulalabel2 + ": " + package.eulaurl2);
             WriteField("Install with", package.sync);
             WriteField("MD5", package.md5);
 
@@ -691,7 +696,8 @@ public class InstallUnityCLI
             hasEula = true;
             Console.WriteLine();
             SetForeground(ConsoleColor.Yellow);
-            Console.WriteLine($"Installing '{package.name}' requires accepting following EULA(s):");
+            Console.WriteLine($"Installing '{package.name}' requires accepting following EULA(s).");
+            Console.WriteLine(package.eulamessage);
             Console.WriteLine($"- {package.eulalabel1}: {package.eulaurl1}");
             if (package.eulalabel2 != null) {
                 Console.WriteLine($"- {package.eulalabel2}: {package.eulaurl2}");
