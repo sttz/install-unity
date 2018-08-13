@@ -1160,6 +1160,10 @@ class Program
                 }
             }
 
+        } else if (e.InnerException != null) {
+            WriteSingleException(e, false);
+            WriteException(e.InnerException, stackTrace);
+
         } else {
             WriteSingleException(e, stackTrace);
         }
