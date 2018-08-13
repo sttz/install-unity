@@ -248,15 +248,18 @@ public class InstallUnityCLI
     /// </summary>
     public void PrintHelp()
     {
+        PrintVersion();
+        Console.WriteLine();
         Console.WriteLine(ArgumentsDefinition.Help(PROGRAM_NAME, null, null));
     }
 
     /// <summary>
     /// Return the version of this program.
     /// </summary>
-    public Version GetVersion()
+    public string GetVersion()
     {
-        return System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        var assembly = Assembly.GetExecutingAssembly();
+        return assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
     }
 
     /// <summary>
