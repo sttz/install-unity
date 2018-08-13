@@ -8,5 +8,8 @@
             <Type Name="System.Linq.Expressions.ExpressionCreator`1[[Newtonsoft.Json.Serialization.ObjectConstructor`1[[System.Object,System.Private.CoreLib]],Newtonsoft.Json]]" Dynamic="Required All" />
             <Type Name="System.Linq.Expressions.ExpressionCreator`1[[System.Func`2[[System.Object,System.Private.CoreLib],[System.Object,System.Private.CoreLib]],System.Private.CoreLib]]" Dynamic="Required All" />
         </Assembly>
+        <Assembly Name="Microsoft.Extensions.Logging">
+            <Type Name="Microsoft.Extensions.Logging.ProviderAliasAttribute" Dynamic="Required All" />
+        </Assembly>
     </Application>
 </Directives>

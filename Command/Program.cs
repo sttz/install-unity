@@ -12,7 +12,7 @@ namespace sttz.InstallUnity
 {
 
 /// <summary>
-/// Command line interface to the sttz.InstallUnity library.
+/// Command line interface to the <see cref="sttz.InstallUnity"/> library.
 /// </summary>
 public class InstallUnityCLI
 {

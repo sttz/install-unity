@@ -33,13 +33,13 @@ public class ArgumentsException : Exception
 /// - Short options can be combined (-xyz is equivalent to -x -y -z)
 /// - Options can have an argument (-x arg, --xxx arg, --xxx=arg, --xxx:arg, -zyx arg)
 /// - Options can have multiple arguments (either comma-separated or space-separated)
-/// - Options can be optionally repeatable (-vv, -p one -p two)
-/// - Option can optionally be required, arguments can optionally be optional
+/// - Options can optionally be repeatable (-vv, -p one -p two)
+/// - Options can optionally be required, arguments can optionally be optional
 /// - Actions with own options and positional arguments
 ///   (action must be first positional argument, global options are allowed before action)
 /// - Free ordering of options and arguments
 /// - Usage of -- to terminate option parsing (everything that follows is treated as positional arguments)
-/// - Currently only bool, string and IList&lt;string&gt; are supported
+/// - Currently only bool, string, enums and IList&lt;string&gt; are supported
 /// - Generate help
 /// - Generate error with faulty argument highlighted
 /// 

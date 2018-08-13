@@ -12,17 +12,6 @@ using Microsoft.Extensions.Logging;
 namespace sttz.InstallUnity
 {
 
-// TODO
-// - Add all ini fields
-// - Run command
-// - Retry downloads
-// - Discover installed packages?
-// - Select version by hash
-// - ~NAME ambiguous
-// - Check cache updatin
-// - Include beta in list
-// - Cross-platform download
-
 /// <summary>
 /// Main Unity installer class.
 /// </summary>
@@ -83,7 +72,7 @@ public class UnityInstaller
     /// <summary>
     /// Name used to refer to this library.
     /// </summary>
-    public const string PRODUCT_NAME = "InstallUnity";
+    public const string PRODUCT_NAME = "install-unity";
 
     /// <summary>
     /// Name of the configuration JSON file.
