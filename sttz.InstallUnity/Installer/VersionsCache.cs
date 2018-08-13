@@ -400,7 +400,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
         if (version.IsFullVersion) {
             // Do exact match
             foreach (var metadata in cache.versions) {
-                if (version == metadata.version) {
+                if (version.MatchesVersionOrHash(metadata.version)) {
                     return metadata;
                 }
             }

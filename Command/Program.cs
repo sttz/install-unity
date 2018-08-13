@@ -402,7 +402,7 @@ public class InstallUnityCLI
             }
         }
 
-        if (metadata.version != version) {
+        if (!metadata.version.MatchesVersionOrHash(version)) {
             Console.WriteLine();
             ConsoleLogger.WriteLine($"Selected <white bg=darkgray>{metadata.version}</white> for input {version}");
         }
