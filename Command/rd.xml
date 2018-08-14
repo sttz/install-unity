@@ -11,5 +11,8 @@
         <Assembly Name="Microsoft.Extensions.Logging">
             <Type Name="Microsoft.Extensions.Logging.ProviderAliasAttribute" Dynamic="Required All" />
         </Assembly>
+        <Assembly Name="System.Security.Cryptography.X509Certificates">
+            <Type Name="System.Security.Cryptography.X509Certificates.CertificateRequest" Dynamic="Required All" />
+        </Assembly>
     </Application>
 </Directives>
