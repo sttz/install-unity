@@ -2,6 +2,12 @@
 
 Unofficial Unity 3D installer for OS X.
 
+# Version 2
+
+[Version 2 of install-unity](https://github.com/sttz/install-unity/tree/next) is in beta and will replace this script in the near future.
+
+Version 2 features shorter install times and many new features. Note that it's written in C# and has a different CLI than this version.
+
 # Requirements & Installation
 
 If you're running macOS High Sierra (10.13), you can download and run the script without needing to install anything:<br>
