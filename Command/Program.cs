@@ -235,14 +235,51 @@ public class InstallUnityCLI
     static Arguments<InstallUnityCLI> _arguments;
 
     /// <summary>
-    /// Parses the arguments and returns the program with the fields set.
+    /// Main entry method.
     /// </summary>
-    public static InstallUnityCLI Parse(string[] args)
+    public static async Task<int> Main(string[] args)
     {
-        var parsed = new InstallUnityCLI();
-        parsed.action = ArgumentsDefinition.Parse(parsed, args);
-        if (parsed.action != null) parsed.action = parsed.action.ToLower();
-        return parsed;
+        var cli = new InstallUnityCLI();
+        try {
+            ArgumentsDefinition.Parse(cli, args);
+
+            if (cli.help) {
+                cli.PrintHelp();
+                return 0;
+            } else if (cli.version) {
+                cli.PrintVersion();
+                return 0;
+            }
+
+            switch (cli.action) {
+                case "":
+                    await cli.Setup();
+                    cli.PrintHelp();
+                    break;
+                case "list":
+                    await cli.List();
+                    break;
+                case "details":
+                    await cli.Details();
+                    break;
+                case "install":
+                    await cli.Install();
+                    break;
+                case "uninstall":
+                    await cli.Uninstall();
+                    break;
+                case "run":
+                    await cli.Run();
+                    break;
+                default:
+                    throw new Exception("Unknown action: " + cli.action);
+            }
+            return 0;
+
+        } catch (Exception e) {
+            Arguments<InstallUnityCLI>.WriteException(e, args, cli.verbose > 0, enableColors);
+            return 1;
+        }
     }
 
     /// <summary>
@@ -1091,95 +1128,6 @@ public class InstallUnityCLI
         if (enableColors) {
             Console.ResetColor();
         }
-    }
-}
-
-class Program
-{
-    static async Task<int> Main(string[] args)
-    {
-        InstallUnityCLI parsed = null;
-        try {
-            parsed = InstallUnityCLI.Parse(args);
-
-            if (parsed.help) {
-                parsed.PrintHelp();
-                return 0;
-            }
-
-            if (parsed.version) {
-                parsed.PrintVersion();
-                return 0;
-            }
-
-            switch (parsed.action) {
-                case null:
-                    await parsed.Setup();
-                    parsed.PrintHelp();
-                    break;
-                case "list":
-                    await parsed.List();
-                    break;
-                case "details":
-                    await parsed.Details();
-                    break;
-                case "install":
-                    await parsed.Install();
-                    break;
-                case "uninstall":
-                    await parsed.Uninstall();
-                    break;
-                case "run":
-                    await parsed.Run();
-                    break;
-                default:
-                    throw new Exception("Unknown action: " + parsed.action);
-            }
-            return 0;
-        
-        } catch (ArgumentsException e) {
-            Arguments<InstallUnityCLI>.WriteArgumentsWithError(args, e);
-            return 1;
-        
-        } catch (Exception e) {
-            Console.WriteLine();
-            WriteException(e, parsed == null || parsed.verbose > 0);
-            return 2;
-        }
-    }
-
-    static void WriteException(Exception e, bool stackTrace)
-    {
-        var agg = e as AggregateException;
-        if (agg != null) {
-            if (agg.InnerExceptions.Count == 1) {
-                WriteSingleException(e, false);
-                WriteException(e.InnerException, stackTrace);
-            } else {
-                WriteSingleException(e, false);
-                foreach (var inner in agg.InnerExceptions) {
-                    WriteException(inner, stackTrace);
-                }
-            }
-
-        } else if (e.InnerException != null) {
-            WriteSingleException(e, false);
-            WriteException(e.InnerException, stackTrace);
-
-        } else {
-            WriteSingleException(e, stackTrace);
-        }
-    }
-
-    static void WriteSingleException(Exception e, bool stackTrace)
-    {
-        InstallUnityCLI.SetForeground(ConsoleColor.Red);
-        Console.WriteLine(e.Message);
-        if (stackTrace) {
-            InstallUnityCLI.SetForeground(ConsoleColor.Gray);
-            Console.WriteLine(e.StackTrace);
-        }
-        InstallUnityCLI.ResetColor();
     }
 }
 

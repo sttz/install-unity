@@ -360,6 +360,51 @@ public class Arguments<T>
             action.callback(target, action.name);
         }
     }
+
+    /// <summary>
+    /// Write an exception to the console, recursively handling aggregate and inner exceptions.
+    /// </summary>
+    /// <param name="e">Exception to print</param>
+    /// <param name="stackTrace">Print stack trace (never for outer exceptions)</param>
+    /// <param name="enableColors">Colorize output</param>
+    public static void WriteException(Exception e, string[] args, bool stackTrace, bool enableColors)
+    {
+        var arg = e as ArgumentsException;
+        if (arg != null) {
+            WriteArgumentsWithError(args, arg);
+            return;
+        }
+
+        var agg = e as AggregateException;
+        if (agg != null) {
+            WriteSingleException(e, false, enableColors);
+            foreach (var inner in agg.InnerExceptions) {
+                WriteException(inner, args, stackTrace, enableColors);
+            }
+            return;
+        }
+
+        if (e.InnerException != null) {
+            WriteSingleException(e, false, enableColors);
+            WriteException(e.InnerException, args, stackTrace, enableColors);
+            return;
+        }
+
+        WriteSingleException(e, stackTrace, enableColors);
+    }
+
+    static void WriteSingleException(Exception e, bool stackTrace, bool enableColors)
+    {
+        if (enableColors) Console.ForegroundColor = ConsoleColor.Red;
+        
+        Console.WriteLine(e.Message);
+        
+        if (stackTrace) {
+            if (enableColors) Console.ForegroundColor = ConsoleColor.Gray;
+            Console.WriteLine(e.StackTrace);
+        }
+
+        Console.ResetColor();
     }
 
     // -------- Output --------
