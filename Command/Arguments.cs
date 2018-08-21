@@ -57,12 +57,25 @@ public class Arguments<T>
     /// <summary>
     /// Define a new action. All following Options will become child options of this action.
     /// </summary>
-    /// <param name="name">Name of the action</param>
-    public Arguments<T> Action(string name)
+    /// <param name="name">Name of the action (null = global / no action)</param>
+    /// <param name="callback">Callback executed when the action has been selected</param>
+    public Arguments<T> Action(string name, Action<T, string> callback = null)
     {
-        definedAction = name;
+        if (name == null) {
+            name = "";
+        }
+
+        if (actions.ContainsKey(name)) {
+            throw new ArgumentException($"Action '{name}' already defined.");
+        }
+        definedAction = new ActionDef() {
+            name = name,
+            callback = callback
+        };
+        actions[definedAction.name] = definedAction;
+
         definedOption = null;
-        if (name != null) actions.Add(name);
+
         return this;
     }
 
@@ -76,7 +89,7 @@ public class Arguments<T>
     public Arguments<T> Option(Action<T, bool> setter, params string[] names)
     {
         AddOption(typeof(bool), new OptionDef<bool>() {
-            action = definedAction,
+            action = definedAction?.name,
             names = names,
             position = -1,
             setter = setter
@@ -93,7 +106,7 @@ public class Arguments<T>
     public Arguments<T> Option(Action<T, string> setter, params string[] names)
     {
         AddOption(typeof(string), new OptionDef<string>() {
-            action = definedAction,
+            action = definedAction?.name,
             names = names,
             position = -1,
             requiresArgument = true,
@@ -113,7 +126,7 @@ public class Arguments<T>
         if (!typeof(TEnum).IsEnum) throw new ArgumentException($"Type {typeof(TEnum)} is not an Enum", nameof(TEnum));
 
         AddOption(typeof(string), new OptionDef<string>() {
-            action = definedAction,
+            action = definedAction?.name,
             names = names,
             position = -1,
             requiresArgument = true,
@@ -147,7 +160,7 @@ public class Arguments<T>
     public Arguments<T> Option(Action<T, IList<string>> setter, params string[] names)
     {
         AddOption(typeof(IList<string>), new OptionDef<IList<string>>() {
-            action = definedAction,
+            action = definedAction?.name,
             names = names,
             position = -1,
             requiresArgument = true,
@@ -165,13 +178,13 @@ public class Arguments<T>
     public Arguments<T> Option(Action<T, string> setter, int position)
     {
         if (position > 0) {
-            var option = FindOption(definedAction, position - 1);
+            var option = FindOption(definedAction?.name, position - 1);
             if (option == null) throw new ArgumentException($"Invalid position {position}: No Option at position {position-1} defined");
             if (option.repeatable) throw new InvalidOperationException("Cannot add another positional argument after a repeatable positional argument");
         }
 
         AddOption(typeof(string), new OptionDef<string>() {
-            action = definedAction,
+            action = definedAction?.name,
             names = null,
             position = position,
             setter = setter
@@ -237,7 +250,7 @@ public class Arguments<T>
         if (definedOption != null) {
             definedOption.description = desc;
         } else {
-            actionDescriptions[definedAction] = desc;
+            definedAction.description = desc;
         }
         return this;
     }
@@ -247,8 +260,7 @@ public class Arguments<T>
     /// </summary>
     /// <param name="target">The target object</param>
     /// <param name="args">Input arguments to parse.</param>
-    /// <returns>The selected action or null if no action was selected.</returns>
-    public string Parse(T target, string[] args)
+    public void Parse(T target, string[] args)
     {
         var hasActions = actions.Count > 0;
         var argPos = -1;
@@ -311,7 +323,7 @@ public class Arguments<T>
                 argPos++;
 
                 // First positional argument is parsed as action
-                if (hasActions && argPos == 0 && actions.Contains(arg)) {
+                if (hasActions && argPos == 0 && actions.ContainsKey(arg)) {
                     parsedAction = arg;
 
                 } else {
@@ -328,7 +340,7 @@ public class Arguments<T>
 
         // Check for missing required options
         foreach (var option in options) {
-            if (option.action == null || string.Equals(option.action, parsedAction, ActionComp)) {
+            if (string.IsNullOrEmpty(option.action) || string.Equals(option.action, parsedAction, ActionComp)) {
                 if (option.required && !option.wasSet) {
                     if (option.position >= 0) {
                         throw new ArgumentsException($"Required argument #{option.position} not set.");
@@ -342,7 +354,12 @@ public class Arguments<T>
             option.wasSet = false;
         }
 
-        return parsedAction;
+        // Action callback
+        ActionDef action;
+        if (actions.TryGetValue(parsedAction ?? "", out action) && action.callback != null) {
+            action.callback(target, action.name);
+        }
+    }
     }
 
     // -------- Output --------
@@ -367,7 +384,7 @@ public class Arguments<T>
         // Global options
         var prefix = new string(' ', 8 + command.Length);
         var pos = prefix.Length;
-        pos = OptionUsage(sb, prefix, pos, width, (option) => option.action == null);
+        pos = OptionUsage(sb, prefix, pos, width, (option) => string.IsNullOrEmpty(option.action));
 
         // Action
         if (actions.Count > 0) {
@@ -375,16 +392,16 @@ public class Arguments<T>
         }
 
         // Gloabl positional arguments
-        pos = ArgumentUsage(sb, prefix, pos, width, (option) => option.action == null);
+        pos = ArgumentUsage(sb, prefix, pos, width, (option) => string.IsNullOrEmpty(option.action));
 
         sb.AppendLine();
         sb.AppendLine();
 
         // -- Global Options
-        if (options.Count(o => o.action == null) > 0) {
+        if (options.Count(o => string.IsNullOrEmpty(o.action)) > 0) {
             if (actions.Count > 0) sb.Append("GLOBAL ");
             sb.AppendLine("OPTIONS:");
-            ListOptions(sb, width, (option) => option.action == null);
+            ListOptions(sb, width, (option) => string.IsNullOrEmpty(option.action));
 
             sb.AppendLine();
             sb.AppendLine();
@@ -392,14 +409,13 @@ public class Arguments<T>
 
         // -- Actions
         if (actions.Count > 0) {
-            foreach (var action in actions) {
-                sb.AppendLine($"---- {action.ToUpper()}:");
+            foreach (var action in actions.Values) {
+                sb.AppendLine($"---- {action.name.ToUpper()}:");
                 
-                string desc;
-                if (actionDescriptions.TryGetValue(action, out desc)) {
+                if (action.description != null) {
                     prefix = "     ";
                     sb.Append(prefix);
-                    WordWrappedAppend(sb, prefix, prefix.Length, width, desc);
+                    WordWrappedAppend(sb, prefix, prefix.Length, width, action.description);
                     sb.AppendLine();
                 }
 
@@ -410,20 +426,20 @@ public class Arguments<T>
                 pos = Append(sb, pos, "USAGE: ");
                 pos = Append(sb, pos, command);
                 pos = Append(sb, pos, " [options] ");
-                pos = Append(sb, pos, action);
+                pos = Append(sb, pos, action.name);
                 pos = Append(sb, pos, " ");
 
                 prefix = new string(' ', 8 + command.Length);
-                pos = OptionUsage(sb, prefix, pos, width, (option) => string.Equals(option.action, action, ActionComp));
-                pos = ArgumentUsage(sb, prefix, pos, width, (option) => string.Equals(option.action, action, ActionComp));
+                pos = OptionUsage(sb, prefix, pos, width, (option) => string.Equals(option.action, action.name, ActionComp));
+                pos = ArgumentUsage(sb, prefix, pos, width, (option) => string.Equals(option.action, action.name, ActionComp));
                 sb.AppendLine();
 
                 sb.AppendLine();
 
                 // Action options
-                if (options.Count(option => string.Equals(option.action, action, ActionComp)) > 0) {
+                if (options.Count(option => string.Equals(option.action, action.name, ActionComp)) > 0) {
                     sb.AppendLine("OPTIONS:");
-                    ListOptions(sb, width, (option) => string.Equals(option.action, action, ActionComp));
+                    ListOptions(sb, width, (option) => string.Equals(option.action, action.name, ActionComp));
                     sb.AppendLine();
                 }
 
@@ -727,12 +743,30 @@ public class Arguments<T>
         public Action<T, TArg> setter;
     }
 
+    /// <summary>
+    /// Action definition.
+    /// </summary>
+    class ActionDef
+    {
+        /// <summary>
+        /// Name of the action.
+        /// </summary>
+        public string name;
+        /// <summary>
+        /// Description shown in help.
+        /// </summary>
+        public string description;
+        /// <summary>
+        /// Called when action has been selected.
+        /// </summary>
+        public Action<T, string> callback;
+    }
+
     static StringComparison ActionComp = StringComparison.OrdinalIgnoreCase;
 
-    string definedAction;
+    ActionDef definedAction;
     OptionDef definedOption;
-    HashSet<string> actions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-    Dictionary<string, string> actionDescriptions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    Dictionary<string, ActionDef> actions = new Dictionary<string, ActionDef>(StringComparer.OrdinalIgnoreCase);
     List<OptionDef> options = new List<OptionDef>();
 
     string parsedAction;
@@ -743,12 +777,12 @@ public class Arguments<T>
     void AddOption(Type t, OptionDef option)
     {
         if (option.position >= 0) {
-            if (FindOption(definedAction, option.position) != null) {
+            if (FindOption(definedAction?.name, option.position) != null) {
                 throw new Exception($"Argument #{option.position} already defined.");
             }
         } else {
             foreach (var name in option.names) {
-                if (FindOption(definedAction, name, null) != null) {
+                if (FindOption(definedAction?.name, name, null) != null) {
                     throw new Exception($"Argument named '{name}' already defined.");
                 }
             }
@@ -844,7 +878,7 @@ public class Arguments<T>
     OptionDef FindOption(string action, string name, bool? shortOption)
     {
         foreach (var option in options) {
-            if (option.names == null || (option.action != null && !string.Equals(option.action, action, ActionComp))) continue;
+            if (option.names == null || (!string.IsNullOrEmpty(option.action) && !string.Equals(option.action, action, ActionComp))) continue;
 
             foreach (var candidate in option.names) {
                 if (shortOption == (candidate.Length != 1)) continue;
@@ -867,7 +901,7 @@ public class Arguments<T>
 
         foreach (var option in options) {
             if (option.position < 0) continue;
-            if (option.action != null && !string.Equals(option.action, action, ActionComp)) continue;
+            if (!string.IsNullOrEmpty(option.action) && !string.Equals(option.action, action, ActionComp)) continue;
 
             if (option.position == position || (option.repeatable && position >= option.position)) {
                 return option;

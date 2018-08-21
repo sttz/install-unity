@@ -17,7 +17,7 @@ namespace sttz.InstallUnity
 public class InstallUnityCLI
 {
     /// <summary>
-    /// The program command to execute.
+    /// The selected action.
     /// </summary>
     public string action;
 
@@ -151,6 +151,8 @@ public class InstallUnityCLI
             if (_arguments != null) return _arguments;
 
             _arguments = new Arguments<InstallUnityCLI>()
+                .Action(null, (t, a) => t.action = a)
+
                 .Option((InstallUnityCLI t, bool v) => t.help = v, "h", "?", "help")
                     .Description("Show this help")
                 .Option((InstallUnityCLI t, bool v) => t.version = v, "version")
@@ -169,7 +171,7 @@ public class InstallUnityCLI
                     .Description("Set additional options. Use 'list' to show all options and their default value"
                     + " and 'save' to create an editable JSON config file.")
 
-                .Action("list")
+                .Action("list", (t, a) => t.action = a)
                     .Description("Get an overview of available or installed Unity versions")
                 
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
@@ -180,7 +182,7 @@ public class InstallUnityCLI
                 .Option((InstallUnityCLI t, CachePlatform v) => t.platform = v, "platform")
                     .Description("Platform to list the versions for (default = current platform)")
                 
-                .Action("details")
+                .Action("details", (t, a) => t.action = a)
                     .Description("Show version information and all its available packages")
                 
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
@@ -189,7 +191,7 @@ public class InstallUnityCLI
                 .Option((InstallUnityCLI t, CachePlatform v) => t.platform = v, "platform")
                     .Description("Platform to show the details for (default = current platform)")
                 
-                .Action("install")
+                .Action("install", (t, a) => t.action = a)
                     .Description("Download and install a version of Unity")
                 
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
@@ -205,14 +207,14 @@ public class InstallUnityCLI
                 .Option((InstallUnityCLI t, CachePlatform v) => t.platform = v, "platform")
                     .Description("Platform to download the packages for (only valid with '--download', default = current platform)")
                 
-                .Action("uninstall")
+                .Action("uninstall", (t, a) => t.action = a)
                     .Description("Remove a previously installed version of Unity")
                 
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
                     .ArgumentName("<version-or-path>")
                     .Description("Pattern to match Unity version or path to installation root")
                     
-                .Action("run")
+                .Action("run", (t, a) => t.action = a)
                     .Description("Execute a version of Unity or a Unity project, matching it to its Unity version")
                 
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0).Required()

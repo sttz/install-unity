@@ -10,7 +10,9 @@ public class ArgumentsTests
 {
     public InstallUnityCLI Parse(params string[] args)
     {
-        return InstallUnityCLI.Parse(args);
+        var cli = new InstallUnityCLI();
+        InstallUnityCLI.ArgumentsDefinition.Parse(cli, args);
+        return cli;
     }
 
     class Args
