@@ -432,7 +432,7 @@ public class UnityInstaller
     /// <param name="steps">Which steps to perform.</param>
     /// <param name="queue">The queue to process</param>
     /// <param name="cancellation">Cancellation token</param>
-    public async Task Process(InstallStep steps, Queue queue, CancellationToken cancellation = default)
+    public async Task<Installation> Process(InstallStep steps, Queue queue, CancellationToken cancellation = default)
     {
         if (queue == null) throw new ArgumentNullException(nameof(queue));
 
@@ -572,7 +572,9 @@ public class UnityInstaller
         }
 
         if (install) {
-            await Platform.CompleteInstall(false, cancellation);
+            return await Platform.CompleteInstall(false, cancellation);
+        } else {
+            return null;
         }
     }
 
