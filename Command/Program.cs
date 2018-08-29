@@ -82,6 +82,10 @@ public class InstallUnityCLI
     /// Wether to only install packages with install command.
     /// </summary>
     public bool install;
+    /// <summary>
+    /// Uninstall existing installation first.
+    /// </summary>
+    public bool upgrade;
 
     // -- Run
 
@@ -122,6 +126,7 @@ public class InstallUnityCLI
         if (update) cmd += " --update";
         if (dataPath != null) cmd += " --data-path " + dataPath;
         if (options.Count > 0) cmd += " --opt " + string.Join(" ", options);
+        if (platform != CachePlatform.None) cmd += " --platform " + platform;
         
         if (matchVersion != null) cmd += " " + matchVersion;
 
@@ -130,6 +135,7 @@ public class InstallUnityCLI
         if (packages.Count > 0) cmd += " --packages " + string.Join(" ", packages);
         if (download) cmd += " --download";
         if (install) cmd += " --install";
+        if (upgrade) cmd += " --upgrade";
 
         if (detach) cmd += " --detach";
         if (allowNewer != AllowNewer.None) cmd += " --allow-newer " + allowNewer.ToString().ToLower();
@@ -204,6 +210,8 @@ public class InstallUnityCLI
                     .Description("Only download the packages (requires '--data-path')")
                 .Option((InstallUnityCLI t, bool v) => t.install = v, "install")
                     .Description("Install previously downloaded packages (requires '--data-path')")
+                .Option((InstallUnityCLI t, bool v) => t.upgrade = v, "upgrade")
+                    .Description("Uninstall matching Unity version before installing the new one")
                 .Option((InstallUnityCLI t, CachePlatform v) => t.platform = v, "platform")
                     .Description("Platform to download the packages for (only valid with '--download', default = current platform)")
                 
@@ -670,6 +678,10 @@ public class InstallUnityCLI
             throw new Exception("'--download' and '--install' require '--data-path' to be set.");
         }
 
+        if (upgrade && op == UnityInstaller.InstallStep.Download) {
+            throw new Exception("'--upgrade' cannot be used with '--download'");
+        }
+
         if (op != UnityInstaller.InstallStep.Download && platform != GetCurrentPlatform()) {
             throw new Exception("The platform can only be set when only downloading.");
         }
@@ -696,15 +708,34 @@ public class InstallUnityCLI
         var notFound = new List<string>();
         var resolved = installer.ResolvePackages(metadata, platform, selection, notFound: notFound);
 
-        // Check version to be installed against installed
-        if ((op & UnityInstaller.InstallStep.Install) > 0) {
+        // Check version to be installed against already installed
+        Installation uninstall = null;
+        if (upgrade || (op & UnityInstaller.InstallStep.Install) > 0) {
             var freshInstall = resolved.Any(p => p.name == PackageMetadata.EDITOR_PACKAGE_NAME);
             var installs = await installer.Platform.FindInstallations();
             var existing = installs.FirstOrDefault(i => i.version == metadata.version);
             if (!freshInstall && existing == null) {
                 throw new Exception($"Installing additional packages but Unity {metadata.version} hasn't been installed yet (add the 'Unity' package to install it).");
             } else if (freshInstall && existing != null) {
-                throw new Exception($"Unity {metadata.version} already installed at '{existing.path}' (remove the 'Unity' package to install additional packages).");
+                if (upgrade) {
+                    Console.WriteLine($"Unity {metadata.version} already installed at '{existing.path}', nothing to upgrade.");
+                    Environment.Exit(0);
+                } else {
+                    throw new Exception($"Unity {metadata.version} already installed at '{existing.path}' (remove the 'Unity' package to install additional packages).");
+                }
+            }
+
+            // Find version to upgrade
+            if (upgrade) {
+                uninstall = installs
+                    .OrderByDescending(i => i.version)
+                    .FirstOrDefault(i => version.FuzzyMatches(i.version));
+                Console.WriteLine();
+                if (uninstall != null) {
+                    Console.WriteLine($"Will be upgrading Unity {uninstall.version} at path: {uninstall.path}");
+                } else {
+                    Console.WriteLine($"No installed version matches {version}, nothing to upgrade.");
+                }
             }
         }
 
@@ -764,6 +795,7 @@ public class InstallUnityCLI
         var downloadPath = installer.GetDownloadDirectory(metadata);
         Logger.LogInformation($"Downloading packages to '{downloadPath}'");
 
+        Installation installed = null;
         var queue = installer.CreateQueue(metadata, platform, downloadPath, resolved);
         if (installer.Configuration.progressBar) {
             var processTask = installer.Process(op, queue);
@@ -778,10 +810,12 @@ public class InstallUnityCLI
 
             if (processTask.IsFaulted) {
                 throw processTask.Exception;
+            } else {
+                installed = processTask.Result;
             }
         } else {
             Logger.LogInformation("Progress bar is disabled");
-            await installer.Process(op, queue);
+            installed = await installer.Process(op, queue);
         }
 
         if (dataPath == null) {
@@ -789,10 +823,15 @@ public class InstallUnityCLI
             installer.CleanUpDownloads(metadata, downloadPath, resolved);
         }
 
+        if (uninstall != null) {
+            await installer.Platform.Uninstall(uninstall);
+            await installer.Platform.MoveInstallation(installed, uninstall.path);
+        }
+
         if (op == UnityInstaller.InstallStep.Download) {
             WriteTitle($"Packages downloaded to '{downloadPath}'");
         } else {
-            WriteTitle($"Installation complete");
+            WriteTitle($"Unity {installed.version} installed to: {installed.path}");
         }
     }
 
