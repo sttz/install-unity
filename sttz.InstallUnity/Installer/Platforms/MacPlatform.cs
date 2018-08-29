@@ -178,7 +178,7 @@ public class MacPlatform : IInstallerPlatform
             upgradeOriginalPath = existingInstall.path;
 
             Logger.LogInformation($"Temporarily moving installation to upgrade from '{existingInstall}' to default install path");
-            await MoveInstallation(existingInstall, INSTALL_PATH, cancellation);
+            await Move(existingInstall.path, INSTALL_PATH, cancellation);
         }
     }
 
@@ -250,12 +250,13 @@ public class MacPlatform : IInstallerPlatform
         }
     }
 
-    public Task MoveInstallation(Installation installation, string newPath, CancellationToken cancellation = default)
+    public async Task MoveInstallation(Installation installation, string newPath, CancellationToken cancellation = default)
     {
         if (Directory.Exists(newPath) || File.Exists(newPath))
             throw new ArgumentException("Destination path already exists: " + newPath);
 
-        return Move(installation.path, newPath, cancellation);
+        await Move(installation.path, newPath, cancellation);
+        installation.path = newPath;
     }
 
     public async Task Uninstall(Installation installation, CancellationToken cancellation = default)
