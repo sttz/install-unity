@@ -123,7 +123,19 @@ public class Scraper
         if (!data.ContainsKey("official")) {
             Logger.LogWarning("Unity Hub JSON does not contain expected 'official' array.");
         } else {
-            foreach (var version in data["official"]) {
+            ParseVersions(cachePlatform, data["official"], result);
+        }
+
+        if (data.ContainsKey("beta")) {
+            ParseVersions(cachePlatform, data["beta"], result);
+        }
+
+        return result;
+    }
+
+    void ParseVersions(CachePlatform cachePlatform, HubUnityVersion[] versions, List<VersionMetadata> results)
+    {
+        foreach (var version in versions) {
                 var metadata = new VersionMetadata();
                 metadata.version = new UnityVersion(version.version);
 
@@ -160,13 +172,8 @@ public class Scraper
 
                 Logger.LogDebug($"Found version {metadata.version} with {platform.packages.Length} packages");
                 metadata.SetPlatform(cachePlatform, platform);
-                result.Add(metadata);
+                results.Add(metadata);
             }
-        }
-
-        // TODO: Betas
-
-        return result;
     }
 
     /// <summary>
