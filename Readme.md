@@ -97,10 +97,30 @@ You can pass [command line arguments](https://docs.unity3d.com/Manual/CommandLin
 ## CLI Help
 
 ````
+install-unity v2.0.0-beta2
+
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
 
 GLOBAL OPTIONS:
+ -h, --help       Show this help 
+     --version    Print the version of this program 
+ -v, --verbose    Increase verbosity of output, can be repeated 
+ -y, --yes        Don't prompt for confirmation (use with care) 
+ -u, --update     Force an update of the versions cache 
+     --data-path <path>  Store all data at the given path, also don't delete 
+                  packages after install 
+     --opt <name>=<value>  Set additional options. Use 'list' to show all 
+                  options and their default value and 'save' to create an 
+                  editable JSON config file. 
+
+
+---- :
+
+USAGE: install-unity [options]  [--help] [--version] [--verbose...] [--yes] 
+                     [--update] [--data-path <path>] [--opt <name>=<value>...] 
+
+OPTIONS:
  -h, --help       Show this help 
      --version    Print the version of this program 
  -v, --verbose    Increase verbosity of output, can be repeated 
@@ -142,8 +162,8 @@ OPTIONS:
      Download and install a version of Unity 
 
 USAGE: install-unity [options] install [--packages <name,name>...] [--download] 
-                     [--install] [--platform none|macos|windows|linux] 
-                     [<version>] 
+                     [--install] [--upgrade] 
+                     [--platform none|macos|windows|linux] [<version>] 
 
 OPTIONS:
  <version>        Pattern to match Unity version 
@@ -152,6 +172,8 @@ OPTIONS:
      --download   Only download the packages (requires '--data-path') 
      --install    Install previously downloaded packages (requires 
                   '--data-path') 
+     --upgrade    Replace existing matching Unity installation after successful 
+                  install 
      --platform none|macos|windows|linux  Platform to download the packages for 
                   (only valid with '--download', default = current platform) 
 
@@ -183,6 +205,11 @@ OPTIONS:
 ````
 
 # Changelog
+
+### 2.0.0-beta2 (2018-10-01)
+
+* Add `--upgrade` to `install` to replace existing version after installation
+* Don't update outdated cache when using `list --installed`
 
 ### 2.0.0-beta1 (2018-08-13)
 
