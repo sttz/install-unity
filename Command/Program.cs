@@ -493,7 +493,7 @@ public class InstallUnityCLI
 
     public async Task List()
     {
-        var version = await Setup();
+        var version = await Setup(avoidCacheUpate: installed);
 
         if (installed) {
             var installs = await installer.Platform.FindInstallations();
