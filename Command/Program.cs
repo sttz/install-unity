@@ -211,7 +211,7 @@ public class InstallUnityCLI
                 .Option((InstallUnityCLI t, bool v) => t.install = v, "install")
                     .Description("Install previously downloaded packages (requires '--data-path')")
                 .Option((InstallUnityCLI t, bool v) => t.upgrade = v, "upgrade")
-                    .Description("Uninstall matching Unity version before installing the new one")
+                    .Description("Replace existing matching Unity installation after successful install")
                 .Option((InstallUnityCLI t, CachePlatform v) => t.platform = v, "platform")
                     .Description("Platform to download the packages for (only valid with '--download', default = current platform)")
                 
