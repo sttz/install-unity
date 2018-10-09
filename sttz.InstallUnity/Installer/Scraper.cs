@@ -50,7 +50,7 @@ public class Scraper
     /// <summary>
     /// HTML release notes of final Unity releases (append a version without type or build number, e.g. 2018.2.1)
     /// </summary>
-    const string UNITY_RELEASE_NOTES_FINAL = "https://unity3d.com/unity/whats-new/unity-";
+    const string UNITY_RELEASE_NOTES_FINAL = "https://unity3d.com/unity/whatsnew/unity-";
 
     /// <summary>
     /// HTML release notes of beta Unity releases (append a full beta version string)
