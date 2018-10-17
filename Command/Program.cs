@@ -824,6 +824,7 @@ public class InstallUnityCLI
         }
 
         if (uninstall != null) {
+            Console.WriteLine($"Uninstalling old version...");
             await installer.Platform.Uninstall(uninstall);
             await installer.Platform.MoveInstallation(installed, uninstall.path);
         }
