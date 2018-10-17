@@ -804,7 +804,7 @@ public class InstallUnityCLI
             var statusInterval = installer.Configuration.statusRefreshEvery;
             var updateCount = 0L;
             while (!processTask.IsCompleted) {
-                WriteQueueStatus(queue, ++updateCount % statusInterval == 0);
+                WriteQueueStatus(queue, ++updateCount, statusInterval);
                 await Task.Delay(refreshInterval);
             }
 
@@ -838,7 +838,7 @@ public class InstallUnityCLI
 
     static readonly char[] SubProgress = new char[] { '▏', '▎', '▍', '▌', '▋', '▊', '▉', '█' };
 
-    void WriteQueueStatus(UnityInstaller.Queue queue, bool updateStatus)
+    void WriteQueueStatus(UnityInstaller.Queue queue, long updateCount, int statusInterval)
     {
         Console.Write(new string(' ', Console.BufferWidth));
 
@@ -859,7 +859,9 @@ public class InstallUnityCLI
                     Console.Write("WAIT");
                     break;
                 case UnityInstaller.QueueItem.State.Installing:
-                    Console.Write("INST");
+                    var pos = (int)((updateCount / statusInterval) % 4);
+                    var str = new string(' ', pos) + "·" + new string(' ', 3 - pos);
+                    Console.Write(str);
                     break;
                 case UnityInstaller.QueueItem.State.Complete:
                     Console.Write("CMPL");
@@ -875,7 +877,7 @@ public class InstallUnityCLI
             var progressWidth = Console.BufferWidth - longestName - 6; // 4 for status, 2 padding
             if (item.currentState == UnityInstaller.QueueItem.State.Hashing 
                     || item.currentState == UnityInstaller.QueueItem.State.Downloading) {
-                if (updateStatus || item.status == null) {
+                if (updateCount % statusInterval == 0 || item.status == null) {
                     var bytes = item.downloader.BytesProcessed;
                     var total = item.downloader.BytesTotal;
                     var speed = (long)item.downloader.BytesPerSecond;
