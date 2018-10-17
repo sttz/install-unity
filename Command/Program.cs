@@ -888,7 +888,7 @@ public class InstallUnityCLI
                 Console.Write("║");
                 Console.Write(new string('█', (int)fractionalWidth));
                 Console.Write(SubProgress[subIndex]);
-                Console.Write(new string('─', barLength - (int)fractionalWidth));
+                Console.Write(new string('·', barLength - (int)fractionalWidth));
                 Console.Write("║");
                 Console.Write(item.status);
             } else {
