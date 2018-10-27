@@ -97,7 +97,7 @@ You can pass [command line arguments](https://docs.unity3d.com/Manual/CommandLin
 ## CLI Help
 
 ````
-install-unity v2.0.0-beta2
+install-unity v2.0.0-beta3
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
@@ -153,7 +153,7 @@ USAGE: install-unity [options] details [--platform none|macos|windows|linux]
                      [<version>] 
 
 OPTIONS:
- <version>        Pattern to match Unity version 
+ <version>        Pattern to match Unity version or release notes url 
      --platform none|macos|windows|linux  Platform to show the details for 
                   (default = current platform) 
 
@@ -166,7 +166,7 @@ USAGE: install-unity [options] install [--packages <name,name>...] [--download]
                      [--platform none|macos|windows|linux] [<version>] 
 
 OPTIONS:
- <version>        Pattern to match Unity version 
+ <version>        Pattern to match Unity version or release notes url 
  -p, --packages <name,name>  Select pacakges to download and install ('all' 
                   selects all available, '~NAME' matches substrings) 
      --download   Only download the packages (requires '--data-path') 
@@ -205,6 +205,13 @@ OPTIONS:
 ````
 
 # Changelog
+
+### 2.0.0-beta3 (2018-10-27)
+
+* Accept url to release notes as version argument in `install` and `details`
+* Fix guessed release notes url for regular Unity releases
+* Add message when old Unity version is removed during an upgrade to avoid the program to appear stalled
+* Small visual tweaks to progress output
 
 ### 2.0.0-beta2 (2018-10-01)
 
