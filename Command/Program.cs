@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using sttz.NiceConsoleLogger;
@@ -193,7 +194,7 @@ public class InstallUnityCLI
                 
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
                     .ArgumentName("<version>")
-                    .Description("Pattern to match Unity version")
+                    .Description("Pattern to match Unity version or release notes url")
                 .Option((InstallUnityCLI t, CachePlatform v) => t.platform = v, "platform")
                     .Description("Platform to show the details for (default = current platform)")
                 
@@ -202,7 +203,7 @@ public class InstallUnityCLI
                 
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
                     .ArgumentName("<version>")
-                    .Description("Pattern to match Unity version")
+                    .Description("Pattern to match Unity version or release notes url")
                 .Option((InstallUnityCLI t, IList<string> v) => t.packages.AddRange(v), "p", "packages").Repeatable()
                     .ArgumentName("<name,name>")
                     .Description("Select pacakges to download and install ('all' selects all available, '~NAME' matches substrings)")
@@ -433,22 +434,42 @@ public class InstallUnityCLI
         return version;
     }
 
-    async Task<VersionMetadata> SelectAndLoad(UnityVersion version, bool installOnly)
+    static readonly Regex URL_REGEX = new Regex(@"^https?:\/\/", RegexOptions.IgnoreCase);
+
+    async Task<VersionMetadata> SelectAndLoad(UnityVersion version, string versionString, bool installOnly)
     {
-        // Locate version in cache or look it up
-        var metadata = installer.Versions.Find(version);
-        if (!metadata.version.IsValid) {
-            if (installOnly) {
-                throw new Exception("Could not find version matching input: " + version);
+        VersionMetadata metadata;
+        if (versionString != null && URL_REGEX.IsMatch(versionString)) {
+            // Got url as version, try to scrape url
+            Logger.LogInformation($"Got url instead of version, trying to find version at url...");
+            metadata = await installer.Scraper.LoadUrl(matchVersion);
+
+            if (!metadata.version.IsValid) {
+                throw new Exception("Could not find version at url: " + versionString);
             }
-            try {
-                Logger.LogInformation("Version {version} not found in cache, trying exact lookup");
-                metadata = await installer.Scraper.LoadExact(version);
+
+        } else {
+            // Locate version in cache or look it up
+            metadata = installer.Versions.Find(version);
+            if (!metadata.version.IsValid) {
+                if (installOnly) {
+                    throw new Exception("Could not find version matching input: " + version);
+                }
+
+                try {
+                    Logger.LogInformation($"Version {version} not found in cache, trying exact lookup");
+                    metadata = await installer.Scraper.LoadExact(version);
+                } catch (Exception e) {
+                    Logger.LogInformation("Failed exact lookup: " + e.Message);
+                }
+
+                if (!metadata.version.IsValid) {
+                    throw new Exception("Could not find version matching input: " + version);
+                }
+
                 installer.Versions.Add(metadata);
                 installer.Versions.Save();
                 Console.WriteLine($"Guessed release notes URL to discover {metadata.version}");
-            } catch {
-                throw new Exception("Could not find version matching input: " + version);
             }
         }
 
@@ -596,7 +617,7 @@ public class InstallUnityCLI
     public async Task Details()
     {
         var version = await Setup();
-        var metadata = await SelectAndLoad(version, false);
+        var metadata = await SelectAndLoad(version, matchVersion, false);
         ShowDetails(installer, metadata);
     }
 
@@ -686,7 +707,7 @@ public class InstallUnityCLI
             throw new Exception("The platform can only be set when only downloading.");
         }
 
-        var metadata = await SelectAndLoad(version, op == UnityInstaller.InstallStep.Install);
+        var metadata = await SelectAndLoad(version, matchVersion, op == UnityInstaller.InstallStep.Install);
         var platformMeta = metadata.GetPlatform(platform);
 
         // Determine packages to install (-p / --packages or defaultPackages option)

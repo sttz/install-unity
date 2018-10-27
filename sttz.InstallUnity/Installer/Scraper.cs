@@ -288,7 +288,19 @@ public class Scraper
             throw new ArgumentException("The Unity version type is not supported: " + version.type, nameof(version));
         }
 
-        Logger.LogInformation($"Trying to scrape guessed release notes url: {url}");
+        Logger.LogInformation($"Guessed release notes url for exact version {version}: {url}");
+        return await LoadUrl(url, cancellation);
+    }
+
+    /// <summary>
+    /// Try to load metadata from a version by scaping a custom URL.
+    /// </summary>
+    /// <param name="url">URL to a HTML page to look for Unity versions.</param>
+    /// <returns>The first Unity version found at URL or the default value if none could be found.</returns>
+    public async Task<VersionMetadata> LoadUrl(string url, CancellationToken cancellation = default)
+    {
+        Logger.LogInformation($"Trying to find Unity version at url: {url}");
+
         var response = await client.GetAsync(url, cancellation);
         if (!response.IsSuccessStatusCode) {
             return default;
