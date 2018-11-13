@@ -202,7 +202,10 @@ public class Scraper
 
         Logger.LogInformation($"Scraping latest releases for {type} from '{url}'");
         var response = await client.GetAsync(url, cancellation);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode) {
+            Logger.LogWarning($"Failed to scrape url '{url}' ({response.StatusCode})");
+            return Enumerable.Empty<VersionMetadata>();
+        }
 
         var html = await response.Content.ReadAsStringAsync();
         Logger.LogTrace($"Got response: {html}");
@@ -220,7 +223,10 @@ public class Scraper
             var betaUrl = UNITY_RELEASE_NOTES_BETA + version.ToString(false);
             Logger.LogInformation($"Scraping beta {version} from '{betaUrl}'");
             response = await client.GetAsync(betaUrl, cancellation);
-            response.EnsureSuccessStatusCode();
+            if (!response.IsSuccessStatusCode) {
+                Logger.LogWarning($"Could not load release notes at url '{betaUrl}' ({response.StatusCode})");
+                continue;
+            }
 
             html = await response.Content.ReadAsStringAsync();
             Logger.LogTrace($"Got response: {html}");
