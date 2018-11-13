@@ -55,7 +55,7 @@ public class Scraper
     /// <summary>
     /// HTML release notes of beta Unity releases (append a full beta version string)
     /// </summary>
-    const string UNITY_RELEASE_NOTES_BETA = "https://unity3d.com/unity/beta/unity";
+    const string UNITY_RELEASE_NOTES_BETA = "https://unity3d.com/unity/beta/";
 
     /// <summary>
     /// HTML release notes of patch Unity releases (append a full beta version string)
@@ -79,7 +79,7 @@ public class Scraper
     /// <summary>
     /// Regex to extract beta release note pages from beta archive.
     /// </summary>
-    static readonly Regex UNITY_BETA_RE = new Regex(@"/unity/beta/unity(\d+\.\d+\.\d+\w\d+)");
+    static readonly Regex UNITY_BETA_RE = new Regex(@"/unity/beta/(\d+\.\d+\.\d+\w\d+)");
 
     // -------- Scraper --------
 
