@@ -97,7 +97,7 @@ You can pass [command line arguments](https://docs.unity3d.com/Manual/CommandLin
 ## CLI Help
 
 ````
-install-unity v2.0.0-beta3
+install-unity v2.0.0
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
@@ -205,6 +205,11 @@ OPTIONS:
 ````
 
 # Changelog
+
+### 2.0.0 (2018-11-13)
+
+* Install alphas using their full version number or their release notes url
+* Fix scraping of beta releases
 
 ### 2.0.0-beta3 (2018-10-27)
 
