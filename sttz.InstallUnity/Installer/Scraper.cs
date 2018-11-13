@@ -53,6 +53,11 @@ public class Scraper
     const string UNITY_RELEASE_NOTES_FINAL = "https://unity3d.com/unity/whatsnew/unity-";
 
     /// <summary>
+    /// HTML release notes of alpha Unity releases (append a full alpha version string)
+    /// </summary>
+    const string UNITY_RELEASE_NOTES_ALPHA = "https://unity3d.com/unity/alpha/";
+
+    /// <summary>
     /// HTML release notes of beta Unity releases (append a full beta version string)
     /// </summary>
     const string UNITY_RELEASE_NOTES_BETA = "https://unity3d.com/unity/beta/";
@@ -457,6 +462,8 @@ public class Scraper
                 return UNITY_RELEASE_NOTES_PATCH + version.ToString(false);
             case UnityVersion.Type.Beta:
                 return UNITY_RELEASE_NOTES_BETA + version.ToString(false);
+            case UnityVersion.Type.Alpha:
+                return UNITY_RELEASE_NOTES_ALPHA + version.ToString(false);
             default:
                 return null;
         }
