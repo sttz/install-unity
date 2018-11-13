@@ -204,6 +204,10 @@ OPTIONS:
                   a project 
 ````
 
+# Legacy
+
+The old Python version of install-unity can be found in the [legacy](https://github.com/sttz/install-unity/tree/next) branch.
+
 # Changelog
 
 ### 2.0.0 (2018-11-13)
