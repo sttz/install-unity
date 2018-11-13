@@ -336,7 +336,7 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
             && patch == other.patch
             && type  == other.type
             && build == other.build
-            && hash  == other.hash;
+            && (hash == null || other.hash == null || hash  == other.hash);
     }
 
     // -------- Operators --------
