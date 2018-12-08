@@ -24,7 +24,7 @@ public static class Helpers
     /// <returns>Size formatted with appropriate size suffix (B, KB, MB, etc)</returns>
     public static string FormatSize(long bytes, string format = "{0:0.00} {1}")
     {
-        if (bytes <= 0) return "0 B";
+        if (bytes < 0) return "? B";
         else if (bytes < 1024) return bytes + " B";
 
         var size = bytes / 1024.0;

@@ -906,13 +906,19 @@ public class InstallUnityCLI
                 }
 
                 var barLength = progressWidth - item.status.Length - 3;
-                var progress = (float)item.downloader.BytesProcessed / item.downloader.BytesTotal;
-                var fractionalWidth = progress * barLength;
-                var subIndex = (int)((fractionalWidth % 1) * SubProgress.Length);
                 Console.Write("║");
-                Console.Write(new string('█', (int)fractionalWidth));
-                Console.Write(SubProgress[subIndex]);
-                Console.Write(new string('·', barLength - (int)fractionalWidth));
+
+                if (item.downloader.BytesTotal > 0) {
+                    var progress = (float)item.downloader.BytesProcessed / item.downloader.BytesTotal;
+                    var fractionalWidth = progress * barLength;
+                    var subIndex = (int)((fractionalWidth % 1) * SubProgress.Length);
+                    Console.Write(new string('█', (int)fractionalWidth));
+                    Console.Write(SubProgress[subIndex]);
+                    Console.Write(new string('·', barLength - (int)fractionalWidth));
+                } else {
+                    Console.Write(new string('~', barLength));
+                }
+
                 Console.Write("║");
                 Console.Write(item.status);
             } else {
