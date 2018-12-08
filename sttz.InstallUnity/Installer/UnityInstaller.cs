@@ -432,7 +432,7 @@ public class UnityInstaller
     /// <param name="steps">Which steps to perform.</param>
     /// <param name="queue">The queue to process</param>
     /// <param name="cancellation">Cancellation token</param>
-    public async Task<Installation> Process(InstallStep steps, Queue queue, CancellationToken cancellation = default)
+    public async Task<Installation> Process(InstallStep steps, Queue queue, bool skipChecks = false, CancellationToken cancellation = default)
     {
         if (queue == null) throw new ArgumentNullException(nameof(queue));
 
@@ -444,29 +444,32 @@ public class UnityInstaller
         Logger.LogDebug($"download = {download}, install = {install}");
 
         foreach (var item in queue.items) {
+            var size = skipChecks ? -1 : item.package.size;
+            var hash = skipChecks ? null : item.package.md5;
+
             if (!download) {
                 if (!File.Exists(item.filePath))
                     throw new InvalidOperationException($"File for package {item.package.name} not found at path: {item.filePath}");
 
-                if (item.package.md5 == null) {
+                if (hash == null) {
                     Logger.LogWarning($"File exists but cannot be checked for completeness: {item.filePath}");
                     item.currentState = QueueItem.State.WaitingForInstall;
                 } else {
                     item.downloader = new Downloader();
-                    item.downloader.Prepare(null, item.filePath, item.package.size, item.package.md5);
+                    item.downloader.Prepare(null, item.filePath, size, hash);
                     item.currentState = QueueItem.State.WaitingForDownload;
                 }
 
             } else {
                 // Some packages (Vistual Studio, Mono) have wrong size and no hash
-                if (item.package.md5 == null && File.Exists(item.filePath)) {
+                if (hash == null && File.Exists(item.filePath)) {
                     Logger.LogWarning($"File exists but cannot be checked for completeness: {item.filePath}");
                     item.currentState = install ? QueueItem.State.WaitingForInstall : QueueItem.State.Complete;
                 } else {
                     item.downloader = new Downloader();
                     item.downloader.Resume = Configuration.resumeDownloads;
                     item.downloader.Timeout = Configuration.requestTimeout;
-                    item.downloader.Prepare(item.downloadUrl, item.filePath, item.package.size, item.package.md5);
+                    item.downloader.Prepare(item.downloadUrl, item.filePath, size, hash);
                 }
             }
         }

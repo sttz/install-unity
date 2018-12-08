@@ -87,6 +87,10 @@ public class InstallUnityCLI
     /// Uninstall existing installation first.
     /// </summary>
     public bool upgrade;
+    /// <summary>
+    /// Skip size and hash checks for downloads.
+    /// </summary>
+    public bool yolo;
 
     // -- Run
 
@@ -215,6 +219,8 @@ public class InstallUnityCLI
                     .Description("Replace existing matching Unity installation after successful install")
                 .Option((InstallUnityCLI t, CachePlatform v) => t.platform = v, "platform")
                     .Description("Platform to download the packages for (only valid with '--download', default = current platform)")
+                .Option((InstallUnityCLI t, bool v) => t.yolo = v, "yolo")
+                    .Description("Skip size and hash checks of downloaded files")
                 
                 .Action("uninstall", (t, a) => t.action = a)
                     .Description("Remove a previously installed version of Unity")
@@ -780,7 +786,7 @@ public class InstallUnityCLI
 
         if (notFound.Count > 0) {
             Console.WriteLine();
-            Console.WriteLine("WARN: Following packages were not found: " + string.Join(", ", notFound.ToArray()));
+            Logger.LogWarning("Following packages were not found: " + string.Join(", ", notFound.ToArray()));
         }
 
         // Make user accept additional EULAs
@@ -819,7 +825,7 @@ public class InstallUnityCLI
         Installation installed = null;
         var queue = installer.CreateQueue(metadata, platform, downloadPath, resolved);
         if (installer.Configuration.progressBar) {
-            var processTask = installer.Process(op, queue);
+            var processTask = installer.Process(op, queue, yolo);
 
             var refreshInterval = installer.Configuration.progressRefreshInterval;
             var statusInterval = installer.Configuration.statusRefreshEvery;
@@ -836,7 +842,7 @@ public class InstallUnityCLI
             }
         } else {
             Logger.LogInformation("Progress bar is disabled");
-            installed = await installer.Process(op, queue);
+            installed = await installer.Process(op, queue, yolo);
         }
 
         if (dataPath == null) {
