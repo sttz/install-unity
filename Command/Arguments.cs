@@ -455,6 +455,8 @@ public class Arguments<T>
         // -- Actions
         if (actions.Count > 0) {
             foreach (var action in actions.Values) {
+                if (action.name == "") continue;
+                
                 sb.AppendLine($"---- {action.name.ToUpper()}:");
                 
                 if (action.description != null) {
