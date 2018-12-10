@@ -367,7 +367,7 @@ public class UnityInstaller
             if (resolved.name != null) {
                 if (addDependencies) {
                     foreach (var package in platform.packages) {
-                        if (package.sync == resolved.name) {
+                        if (package.sync == resolved.name && !metas.Any(p => p.name == package.name)) {
                             Logger.LogInformation($"Adding '{package.name}' which '{resolved.name}' is synced with");
                             metas.Add(package);
                         }
