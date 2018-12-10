@@ -870,6 +870,7 @@ public class InstallUnityCLI
         Console.Write(new string(' ', Console.BufferWidth));
 
         var longestName = queue.items.Max(i => i.package.name.Length);
+        var longestStatus = queue.items.Max(i => i.status?.Length ?? 37);
         foreach (var item in queue.items) {
             SetColors(ConsoleColor.White, ConsoleColor.DarkGray);
             switch (item.currentState) {
@@ -911,7 +912,7 @@ public class InstallUnityCLI
                     item.status = $" {Helpers.FormatSize(bytes),9} of {Helpers.FormatSize(total),9} @ {Helpers.FormatSize(speed),9}/s";
                 }
 
-                var barLength = progressWidth - item.status.Length - 3;
+                var barLength = progressWidth - Math.Max(longestStatus, item.status.Length) - 3;
                 Console.Write("║");
 
                 if (item.downloader.BytesTotal > 0) {
@@ -926,6 +927,7 @@ public class InstallUnityCLI
                 }
 
                 Console.Write("║");
+                Console.Write(new string(' ', Console.BufferWidth - Console.CursorLeft - item.status.Length));
                 Console.Write(item.status);
             } else {
                 Console.Write(new string(' ', progressWidth));
