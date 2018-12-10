@@ -97,30 +97,12 @@ You can pass [command line arguments](https://docs.unity3d.com/Manual/CommandLin
 ## CLI Help
 
 ````
-install-unity v2.0.0
+install-unity v2.0.1
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
 
 GLOBAL OPTIONS:
- -h, --help       Show this help 
-     --version    Print the version of this program 
- -v, --verbose    Increase verbosity of output, can be repeated 
- -y, --yes        Don't prompt for confirmation (use with care) 
- -u, --update     Force an update of the versions cache 
-     --data-path <path>  Store all data at the given path, also don't delete 
-                  packages after install 
-     --opt <name>=<value>  Set additional options. Use 'list' to show all 
-                  options and their default value and 'save' to create an 
-                  editable JSON config file. 
-
-
----- :
-
-USAGE: install-unity [options]  [--help] [--version] [--verbose...] [--yes] 
-                     [--update] [--data-path <path>] [--opt <name>=<value>...] 
-
-OPTIONS:
  -h, --help       Show this help 
      --version    Print the version of this program 
  -v, --verbose    Increase verbosity of output, can be repeated 
@@ -163,7 +145,7 @@ OPTIONS:
 
 USAGE: install-unity [options] install [--packages <name,name>...] [--download] 
                      [--install] [--upgrade] 
-                     [--platform none|macos|windows|linux] [<version>] 
+                     [--platform none|macos|windows|linux] [--yolo] [<version>] 
 
 OPTIONS:
  <version>        Pattern to match Unity version or release notes url 
@@ -176,6 +158,7 @@ OPTIONS:
                   install 
      --platform none|macos|windows|linux  Platform to download the packages for 
                   (only valid with '--download', default = current platform) 
+     --yolo       Skip size and hash checks of downloaded files 
 
 
 ---- UNINSTALL:
@@ -201,7 +184,7 @@ OPTIONS:
                   Unity options being parsed as install-unity options) 
  -d, --detach     Detach from the launched Unity instance 
  -a, --allow-newer none|patch|minor|all  Allow newer versions of Unity to open 
-                  a project 
+                  a project
 ````
 
 # Legacy
@@ -209,6 +192,13 @@ OPTIONS:
 The old Python version of install-unity can be found in the [legacy](https://github.com/sttz/install-unity/tree/next) branch.
 
 # Changelog
+
+### 2.0.1 (2018-12-10)
+
+* Add `--yolo` option to skip size and hash checks (required sometimes when Unity gets them wrong)
+* Fix package added twice when dependency has been selected manually
+* Fix exception when drawing progress bar
+* Minor output fixes
 
 ### 2.0.0 (2018-11-13)
 
