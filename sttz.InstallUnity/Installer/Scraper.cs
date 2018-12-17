@@ -279,6 +279,27 @@ public class Scraper
     }
 
     /// <summary>
+    /// Convert a UnityHub URL to a VersionMetadata struct.
+    /// </summary>
+    /// <remarks>
+    /// Conversion is completely offline, no http lookup is made.
+    /// </remarks>
+    public VersionMetadata UnityHubUrlToVersion(string url)
+    {
+        var match = UNITY_DOWNLOADS_RE.Match(url);
+        if (!match.Success) return default(VersionMetadata);
+
+        var version = new UnityVersion(match.Groups[1].Value);
+        version.hash = match.Groups[2].Value;
+
+        var metadata = new VersionMetadata();
+        metadata.version = version;
+        metadata.baseUrl = GetIniBaseUrl(version.type) + version.hash + "/";
+
+        return metadata;
+    }
+
+    /// <summary>
     /// Try to load the metadata from a version by guessing its release notes URL.
     /// </summary>
     /// <remarks>

@@ -389,6 +389,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
     void UpdateVersion(int index, VersionMetadata with)
     {
         var existing = cache.versions[index];
+        if (with.baseUrl != null) existing.baseUrl = with.baseUrl;
         if (with.macPackages != null) existing.macPackages = with.macPackages;
         if (with.winPackages != null) existing.macPackages = with.winPackages;
         if (with.linuxPackages != null) existing.macPackages = with.linuxPackages;

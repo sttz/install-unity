@@ -198,7 +198,7 @@ public class InstallUnityCLI
                 
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
                     .ArgumentName("<version>")
-                    .Description("Pattern to match Unity version or release notes url")
+                    .Description("Pattern to match Unity version or release notes / unity hub url")
                 .Option((InstallUnityCLI t, CachePlatform v) => t.platform = v, "platform")
                     .Description("Platform to show the details for (default = current platform)")
                 
@@ -207,7 +207,7 @@ public class InstallUnityCLI
                 
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
                     .ArgumentName("<version>")
-                    .Description("Pattern to match Unity version or release notes url")
+                    .Description("Pattern to match Unity version or release notes / unity hub url")
                 .Option((InstallUnityCLI t, IList<string> v) => t.packages.AddRange(v), "p", "packages").Repeatable()
                     .ArgumentName("<name,name>")
                     .Description("Select pacakges to download and install ('all' selects all available, '~NAME' matches substrings)")
@@ -440,18 +440,34 @@ public class InstallUnityCLI
         return version;
     }
 
-    static readonly Regex URL_REGEX = new Regex(@"^https?:\/\/", RegexOptions.IgnoreCase);
+    static readonly Regex URL_REGEX = new Regex(@"^(https?|unityhub):\/\/", RegexOptions.IgnoreCase);
 
     async Task<VersionMetadata> SelectAndLoad(UnityVersion version, string versionString, bool installOnly)
     {
         VersionMetadata metadata;
-        if (versionString != null && URL_REGEX.IsMatch(versionString)) {
-            // Got url as version, try to scrape url
-            Logger.LogInformation($"Got url instead of version, trying to find version at url...");
-            metadata = await installer.Scraper.LoadUrl(matchVersion);
 
-            if (!metadata.version.IsValid) {
-                throw new Exception("Could not find version at url: " + versionString);
+        Match urlMatch = null;
+        if (versionString != null) {
+            urlMatch = URL_REGEX.Match(versionString);
+        }
+
+        if (urlMatch != null && urlMatch.Success) {
+            var scheme = urlMatch.Groups[1].Value;
+            if (scheme.Equals("unityhub", StringComparison.OrdinalIgnoreCase)) {
+                // Got unityhub url as version
+                metadata = installer.Scraper.UnityHubUrlToVersion(matchVersion);
+                if (metadata.baseUrl == null) {
+                    throw new Exception("Could not parse Unity Hub URL: " + matchVersion);
+                }
+
+            } else {
+                // Got http url as version, try to scrape url
+                Logger.LogInformation($"Got url instead of version, trying to find version at url...");
+                metadata = await installer.Scraper.LoadUrl(matchVersion);
+
+                if (!metadata.version.IsValid) {
+                    throw new Exception("Could not find version at url: " + versionString);
+                }
             }
 
         } else {
