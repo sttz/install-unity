@@ -42,6 +42,11 @@ You can be as specific as you like, `2018.2.2f1`, `2018.2.2`, `2018.2`, `2018`, 
 
 Will show the available versions.
 
+In case install-unity fails to discover a release, it's also possible to pass a release notes or unity hub url instead of a version to `details` and `install`:
+
+    install-unity details https://unity3d.com/unity/whats-new/unity-2018.3.0
+    install-unity install unityhub://2018.3.0f2/6e9a27477296
+
 ### Patch Releases
 
 With the switch to LTS versions, Unity has stopped creating patch releases for Unity 2017.3 and newer. install-unity no longer scans for patch releases but you can still install them by specifying the full version number.
@@ -97,7 +102,7 @@ You can pass [command line arguments](https://docs.unity3d.com/Manual/CommandLin
 ## CLI Help
 
 ````
-install-unity v2.0.1
+install-unity v2.1.0
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
@@ -135,7 +140,8 @@ USAGE: install-unity [options] details [--platform none|macos|windows|linux]
                      [<version>] 
 
 OPTIONS:
- <version>        Pattern to match Unity version or release notes url 
+ <version>        Pattern to match Unity version or release notes / unity hub 
+                  url 
      --platform none|macos|windows|linux  Platform to show the details for 
                   (default = current platform) 
 
@@ -148,7 +154,8 @@ USAGE: install-unity [options] install [--packages <name,name>...] [--download]
                      [--platform none|macos|windows|linux] [--yolo] [<version>] 
 
 OPTIONS:
- <version>        Pattern to match Unity version or release notes url 
+ <version>        Pattern to match Unity version or release notes / unity hub 
+                  url 
  -p, --packages <name,name>  Select pacakges to download and install ('all' 
                   selects all available, '~NAME' matches substrings) 
      --download   Only download the packages (requires '--data-path') 
@@ -184,7 +191,7 @@ OPTIONS:
                   Unity options being parsed as install-unity options) 
  -d, --detach     Detach from the launched Unity instance 
  -a, --allow-newer none|patch|minor|all  Allow newer versions of Unity to open 
-                  a project
+                  a project 
 ````
 
 # Legacy
@@ -192,6 +199,12 @@ OPTIONS:
 The old Python version of install-unity can be found in the [legacy](https://github.com/sttz/install-unity/tree/next) branch.
 
 # Changelog
+
+### 2.1.0 (2018-12-17)
+
+* Use `unityhub://` urls for scraping, fixes discovery of 2018.3.0f2 and 2018.2.20f1
+* Allow passing `unityhub://` urls as version for `details` and `install` (like it's already possible with release notes urls)
+* Now `--upgrade` selects the next older installed version to remove, relative to the version being installed. Previously it would use the version pattern, which didn't work when using an exact version or an url.
 
 ### 2.0.1 (2018-12-10)
 
