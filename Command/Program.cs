@@ -442,7 +442,7 @@ public class InstallUnityCLI
 
     static readonly Regex URL_REGEX = new Regex(@"^(https?|unityhub):\/\/", RegexOptions.IgnoreCase);
 
-    async Task<VersionMetadata> SelectAndLoad(UnityVersion version, string versionString, bool installOnly)
+    async Task<(UnityVersion, VersionMetadata)> SelectAndLoad(UnityVersion version, string versionString, bool installOnly)
     {
         VersionMetadata metadata;
 
@@ -469,6 +469,8 @@ public class InstallUnityCLI
                     throw new Exception("Could not find version at url: " + versionString);
                 }
             }
+
+            version = metadata.version;
 
         } else {
             // Locate version in cache or look it up
@@ -512,7 +514,7 @@ public class InstallUnityCLI
             installer.Versions.Save();
         }
 
-        return metadata;
+        return (version, metadata);
     }
 
     void ListOptions(Configuration config)
@@ -636,7 +638,7 @@ public class InstallUnityCLI
     public async Task Details()
     {
         var version = await Setup();
-        var metadata = await SelectAndLoad(version, matchVersion, false);
+        (_, var metadata) = await SelectAndLoad(version, matchVersion, false);
         ShowDetails(installer, metadata);
     }
 
@@ -726,7 +728,8 @@ public class InstallUnityCLI
             throw new Exception("The platform can only be set when only downloading.");
         }
 
-        var metadata = await SelectAndLoad(version, matchVersion, op == UnityInstaller.InstallStep.Install);
+        VersionMetadata metadata;
+        (version, metadata) = await SelectAndLoad(version, matchVersion, op == UnityInstaller.InstallStep.Install);
         var packageMetadata = metadata.GetPackages(platform);
 
         // Determine packages to install (-p / --packages or defaultPackages option)
@@ -768,8 +771,9 @@ public class InstallUnityCLI
             // Find version to upgrade
             if (upgrade) {
                 uninstall = installs
+                    .Where(i => i.version <= version)
                     .OrderByDescending(i => i.version)
-                    .FirstOrDefault(i => version.FuzzyMatches(i.version));
+                    .FirstOrDefault();
                 Console.WriteLine();
                 if (uninstall != null) {
                     Console.WriteLine($"Will be upgrading Unity {uninstall.version} at path: {uninstall.path}");

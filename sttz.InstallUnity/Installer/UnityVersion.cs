@@ -289,22 +289,39 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
 
     public int CompareTo(UnityVersion other)
     {
-        var result = major.CompareTo(other.major);
-        if (result != 0) return result;
+        int result;
 
-        result = minor.CompareTo(other.minor);
-        if (result != 0) return result;
+        if (major >= 0 && other.major >= 0) {
+            result = major.CompareTo(other.major);
+            if (result != 0) return result;
+        }
 
-        result = patch.CompareTo(other.patch);
-        if (result != 0) return result;
+        if (minor >= 0 && other.minor >= 0) {
+            result = minor.CompareTo(other.minor);
+            if (result != 0) return result;
+        }
 
-        result = GetSortingForType(type).CompareTo(GetSortingForType(other.type));
-        if (result != 0) return result;
+        if (patch >= 0 && other.patch >= 0) {
+            result = patch.CompareTo(other.patch);
+            if (result != 0) return result;
+        }
 
-        result = build.CompareTo(other.build);
-        if (result != 0) return result;
+        if (type != Type.Undefined && other.type != Type.Undefined) {
+            result = GetSortingForType(type).CompareTo(GetSortingForType(other.type));
+            if (result != 0) return result;
+        }
 
-        return string.CompareOrdinal(hash, other.hash);
+        if (build >= 0 && other.build >= 0) {
+            result = build.CompareTo(other.build);
+            if (result != 0) return result;
+        }
+
+        if (hash != null && other.hash != null) {
+            result = string.CompareOrdinal(hash, other.hash);
+            if (result != 0) return result;
+        }
+
+        return 0;
     }
 
     // -------- IEquatable --------
