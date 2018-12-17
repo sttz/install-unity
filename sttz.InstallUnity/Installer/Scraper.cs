@@ -70,6 +70,16 @@ public class Scraper
     // -------- INIs --------
 
     /// <summary>
+    /// Base URL where INIs are located (append version hash).
+    /// </summary>
+    const string INI_BASE_URL = "https://download.unity3d.com/download_unity/";
+
+    /// <summary>
+    /// Base URL where INIs of beta/alpha versions are located (append version hash).
+    /// </summary>
+    const string INI_BETA_BASE_URL = "http://beta.unity3d.com/download/";
+
+    /// <summary>
     /// Name of INI file with packages information (replace {0} with version and {1} with osx or win).
     /// </summary>
     const string UNITY_INI_FILENAME = "unity-{0}-{1}.ini";
@@ -79,7 +89,7 @@ public class Scraper
     /// <summary>
     /// Regex to extract download links from HTML pages.
     /// </summary>
-    static readonly Regex UNIT_DOWNLOADS_RE = new Regex(@"(https?:\/\/[\w.-]+unity3d\.com\/[\w\/.-]+\/([0-9a-f]{12})\/)(?:([^\/]+)\/)[\w\/.-]+-(\d+\.\d+\.\d+\w\d+)[\w\/.-]+");
+    static readonly Regex UNITY_DOWNLOADS_RE = new Regex(@"unityhub:\/\/(\d+\.\d+\.\d+\w\d+)\/([0-9a-f]{12})");
 
     /// <summary>
     /// Regex to extract beta release note pages from beta archive.
@@ -144,9 +154,8 @@ public class Scraper
                 var metadata = new VersionMetadata();
                 metadata.version = new UnityVersion(version.version);
 
-                var platform = new VersionPlatformMetadata();
-                platform.packages = new PackageMetadata[version.modules.Length + 1];
-                platform.packages[0] = new PackageMetadata() {
+                var packages = new PackageMetadata[version.modules.Length + 1];
+                packages[0] = new PackageMetadata() {
                     name = "Unity ",
                     title = "Unity " + version.version,
                     description = "Unity Editor",
@@ -161,7 +170,7 @@ public class Scraper
 
                 var i = 1;
                 foreach (var module in version.modules) {
-                    platform.packages[i++] = new PackageMetadata() {
+                    packages[i++] = new PackageMetadata() {
                         name = module.id,
                         title = module.name,
                         description = module.description,
@@ -175,8 +184,8 @@ public class Scraper
                     };
                 }
 
-                Logger.LogDebug($"Found version {metadata.version} with {platform.packages.Length} packages");
-                metadata.SetPlatform(cachePlatform, platform);
+                Logger.LogDebug($"Found version {metadata.version} with {packages.Length} packages");
+                metadata.SetPackages(cachePlatform, packages);
                 results.Add(metadata);
             }
     }
@@ -236,40 +245,34 @@ public class Scraper
     }
 
     /// <summary>
+    /// Get the INI base URL for the given version type.
+    /// </summary>
+    string GetIniBaseUrl(UnityVersion.Type type)
+    {
+        if (type == UnityVersion.Type.Beta || type == UnityVersion.Type.Alpha) {
+            return INI_BETA_BASE_URL;
+        } else {
+            return INI_BASE_URL;
+        }
+    }
+
+    /// <summary>
     /// Extract the versions and the base URLs from the html string.
     /// </summary>
     Dictionary<UnityVersion, VersionMetadata> ExtractFromHtml(string html, Dictionary<UnityVersion, VersionMetadata> results = null)
     {
-        var matches = UNIT_DOWNLOADS_RE.Matches(html);
+        var matches = UNITY_DOWNLOADS_RE.Matches(html);
         results = results ?? new Dictionary<UnityVersion, VersionMetadata>();
         foreach (Match match in matches) {
-            var version = new UnityVersion(match.Groups[4].Value);
+            var version = new UnityVersion(match.Groups[1].Value);
             version.hash = match.Groups[2].Value;
-
-            var iniUrl = match.Groups[1].Value;
-            var componentName = match.Groups[3].Value;
-
-            CachePlatform cachePlatform;
-            if (componentName.Contains("Mac")) {
-                cachePlatform = CachePlatform.macOS;
-            } else if (componentName.Contains("Windows")) {
-                cachePlatform = CachePlatform.Windows;
-            } else if (componentName.Contains("Linux")) {
-                cachePlatform = CachePlatform.Linux;
-            } else {
-                Logger.LogDebug("Platform name not found in component name: " + componentName);
-                continue;
-            }
 
             VersionMetadata metadata = default;
             if (!results.TryGetValue(version, out metadata)) {
                 metadata.version = version;
             }
 
-            var platform = metadata.GetPlatform(cachePlatform);
-            platform.iniUrl = iniUrl;
-
-            metadata.SetPlatform(cachePlatform, platform);
+            metadata.baseUrl = GetIniBaseUrl(version.type) + version.hash + "/";
             results[version] = metadata;
         }
         return results;
@@ -350,13 +353,11 @@ public class Scraper
                 throw new NotImplementedException("Invalid platform name: " + cachePlatform);
         }
 
-        var platform = metadata.GetPlatform(cachePlatform);
-
-        if (string.IsNullOrEmpty(platform.iniUrl)) {
-            throw new ArgumentException("VersionPlatformMetadata.iniUrl is not set for " + cachePlatform, nameof(metadata));
+        if (string.IsNullOrEmpty(metadata.baseUrl)) {
+            throw new ArgumentException("VersionMetadata.baseUrl is not set for " + metadata.version, nameof(metadata));
         }
 
-        var url = platform.iniUrl + string.Format(UNITY_INI_FILENAME, metadata.version.ToString(false), platformName);
+        var url = metadata.baseUrl + string.Format(UNITY_INI_FILENAME, metadata.version.ToString(false), platformName);
         Logger.LogInformation($"Loading packages for {metadata.version} and {platformName} from '{url}'");
         var response = await client.GetAsync(url, cancellation);
         response.EnsureSuccessStatusCode();
@@ -448,10 +449,9 @@ public class Scraper
             packages[i++] = meta;
         }
 
-        platform.packages = packages;
-        Logger.LogInformation($"Found {platform.packages.Length} packages");
+        Logger.LogInformation($"Found {packages.Length} packages");
+        metadata.SetPackages(cachePlatform, packages);
 
-        metadata.SetPlatform(cachePlatform, platform);
         return metadata;
     }
 

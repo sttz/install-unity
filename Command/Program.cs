@@ -485,8 +485,8 @@ public class InstallUnityCLI
         }
 
         // Load packages ini if needed
-        var platformMeta = metadata.GetPlatform(platform);
-        if (platformMeta.packages == null) {
+        var packageMetadata = metadata.GetPackages(platform);
+        if (packageMetadata == null) {
             if (installOnly) {
                 throw new Exception("Packages not found in versions cache (install only): " + version);
             }
@@ -553,9 +553,6 @@ public class InstallUnityCLI
         foreach (var metadata in installer.Versions) {
             var other = metadata.version;
             if (!version.FuzzyMatches(other)) continue;
-
-            var platformMeta = metadata.GetPlatform(platform);
-            if (platformMeta.packages == null && platformMeta.iniUrl == null) continue;
 
             if (lastMinor < 0) lastMinor = other.minor;
             else if (lastMinor != other.minor) {
@@ -629,24 +626,24 @@ public class InstallUnityCLI
 
     void PackagesList(VersionMetadata metadata)
     {
-        var platformMeta = metadata.GetPlatform(platform);
-        var list = string.Join(", ", platformMeta.packages
+        var packageMetadata = metadata.GetPackages(platform);
+        var list = string.Join(", ", packageMetadata
             .Select(p => p.name + (p.install ? "*" : ""))
             .ToArray()
         );
-        Console.WriteLine(platformMeta.packages.Length + " Packages: " + list);
+        Console.WriteLine(packageMetadata.Length + " Packages: " + list);
         Console.WriteLine("* = default package");
         Console.WriteLine();
     }
 
     void ShowDetails(UnityInstaller installer, VersionMetadata metadata)
     {
-        var platformMeta = metadata.GetPlatform(platform);
+        var packageMetadata = metadata.GetPackages(platform);
 
         WriteBigTitle($"Details for Unity {metadata.version}");
 
-        if (platformMeta.iniUrl != null) {
-            Console.WriteLine("Base URL: " + platformMeta.iniUrl);
+        if (metadata.baseUrl != null) {
+            Console.WriteLine("Base URL: " + metadata.baseUrl);
         }
 
         var releaseNotes = installer.Scraper.GetReleaseNotesUrl(metadata.version);
@@ -659,7 +656,7 @@ public class InstallUnityCLI
         PackagesList(metadata);
 
         fieldWidth = 14;
-        foreach (var package in platformMeta.packages.OrderBy(p => p.name)) {
+        foreach (var package in packageMetadata.OrderBy(p => p.name)) {
             SetColors(ConsoleColor.DarkGray, ConsoleColor.DarkGray);
             Console.Write("--------------- ");
             SetForeground(ConsoleColor.White);
@@ -714,13 +711,13 @@ public class InstallUnityCLI
         }
 
         var metadata = await SelectAndLoad(version, matchVersion, op == UnityInstaller.InstallStep.Install);
-        var platformMeta = metadata.GetPlatform(platform);
+        var packageMetadata = metadata.GetPackages(platform);
 
         // Determine packages to install (-p / --packages or defaultPackages option)
         IEnumerable<string> selection = packages;
         if (string.Equals(selection.FirstOrDefault(), "all", StringComparison.OrdinalIgnoreCase)) {
             Logger.LogInformation("Found 'all', selecting all available packages");
-            selection = platformMeta.packages.Select(p => p.name);
+            selection = packageMetadata.Select(p => p.name);
         } else if (!selection.Any()) {
             Console.WriteLine();
             if (installer.Configuration.defaultPackages != null) {

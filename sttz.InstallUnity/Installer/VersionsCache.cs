@@ -31,77 +31,70 @@ public struct VersionMetadata
     public UnityVersion version;
 
     /// <summary>
-    /// macOS specific metadata.
+    /// Base URL of where INIs are stored.
     /// </summary>
-    public VersionPlatformMetadata mac;
+    public string baseUrl;
 
     /// <summary>
-    /// Windows specific metadata.
+    /// macOS packages.
     /// </summary>
-    public VersionPlatformMetadata win;
+    public PackageMetadata[] macPackages;
 
     /// <summary>
-    /// Linux specific metadata.
+    /// Windows packages.
     /// </summary>
-    public VersionPlatformMetadata linux;
+    public PackageMetadata[] winPackages;
 
     /// <summary>
-    /// Get platform specific metadata by platform name.
+    /// Linux packages.
+    /// </summary>
+    public PackageMetadata[] linuxPackages;
+
+    /// <summary>
+    /// Get platform specific packages.
     /// </summary>
     /// <param name="platform">Platform to get.</param>
-    public VersionPlatformMetadata GetPlatform(CachePlatform platform)
+    public PackageMetadata[] GetPackages(CachePlatform platform)
     {
         switch (platform) {
             case CachePlatform.macOS:
-                return mac;
+                return macPackages;
             case CachePlatform.Windows:
-                return win;
+                return winPackages;
             case CachePlatform.Linux:
-                return linux;
+                return linuxPackages;
             default:
                 throw new Exception("Invalid platform name: " + platform);
         }
     }
 
     /// <summary>
-    /// Set platform specific metadata by platform name.
+    /// Set platform specific packages.
     /// </summary>
     /// <param name="platform">Platform to set.</param>
-    public void SetPlatform(CachePlatform platform, VersionPlatformMetadata metadata)
+    public void SetPackages(CachePlatform platform, PackageMetadata[] packages)
     {
         switch (platform) {
             case CachePlatform.macOS:
-                mac = metadata;
+                macPackages = packages;
                 break;
             case CachePlatform.Windows:
-                win = metadata;
+                winPackages = packages;
                 break;
             case CachePlatform.Linux:
-                linux = metadata;
+                linuxPackages = packages;
                 break;
             default:
                 throw new Exception("Invalid platform name: " + platform);
         }
     }
-}
-
-public struct VersionPlatformMetadata
-{
-    /// <summary>
-    /// URL of the versions' INI file.
-    /// </summary>
-    public string iniUrl;
-
-    /// <summary>
-    /// Packages available for this version.
-    /// </summary>
-    public PackageMetadata[] packages;
 
     /// <summary>
     /// Find a package by name, ignoring case.
     /// </summary>
-    public PackageMetadata GetPackage(string name)
+    public PackageMetadata GetPackage(CachePlatform platform, string name)
     {
+        var packages = GetPackages(platform);
         foreach (var package in packages) {
             if (package.name.Equals(name, StringComparison.OrdinalIgnoreCase)) {
                 return package;
@@ -261,10 +254,16 @@ public class VersionsCache : IEnumerable<VersionMetadata>
     ILogger Logger = UnityInstaller.CreateLogger<VersionsCache>();
 
     /// <summary>
+    /// Version of cache format.
+    /// </summary>
+    const int CACHE_FORMAT = 2;
+
+    /// <summary>
     /// Data written out to JSON file.
     /// </summary>
     struct Cache
     {
+        public int format;
         public List<VersionMetadata> versions;
         public Dictionary<UnityVersion.Type, DateTime> updated;
     }
@@ -281,13 +280,20 @@ public class VersionsCache : IEnumerable<VersionMetadata>
             try {
                 var json = File.ReadAllText(dataFilePath);
                 cache = JsonConvert.DeserializeObject<Cache>(json);
-                SortVersions();
-                Logger.LogInformation($"Loaded versions cache from '{dataFilePath}'");
+                if (cache.format != CACHE_FORMAT) {
+                    Logger.LogInformation($"Cache format is outdated, resetting cache.");
+                    cache = new Cache();
+                } else {
+                    SortVersions();
+                    Logger.LogInformation($"Loaded versions cache from '{dataFilePath}'");
+                }
             } catch (Exception e) {
                 Console.Error.WriteLine("ERROR: Could not read versions database file: " + e.Message);
                 Console.Error.WriteLine(e.InnerException);
             }
         }
+
+        cache.format = CACHE_FORMAT;
 
         if (cache.versions == null) {
             Logger.LogInformation("Creating a new empty versions cache");
@@ -383,9 +389,9 @@ public class VersionsCache : IEnumerable<VersionMetadata>
     void UpdateVersion(int index, VersionMetadata with)
     {
         var existing = cache.versions[index];
-        if (with.mac.packages != null) existing.mac = with.mac;
-        if (with.win.packages != null) existing.win = with.win;
-        if (with.linux.packages != null) existing.linux = with.linux;
+        if (with.macPackages != null) existing.macPackages = with.macPackages;
+        if (with.winPackages != null) existing.macPackages = with.winPackages;
+        if (with.linuxPackages != null) existing.macPackages = with.linuxPackages;
         cache.versions[index] = existing;
     }
 
