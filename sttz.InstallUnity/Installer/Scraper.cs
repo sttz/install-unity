@@ -87,9 +87,14 @@ public class Scraper
     // -------- Reular Expressions --------
 
     /// <summary>
-    /// Regex to extract download links from HTML pages.
+    /// Regex to extract version information from unityhub URL.
     /// </summary>
-    static readonly Regex UNITY_DOWNLOADS_RE = new Regex(@"unityhub:\/\/(\d+\.\d+\.\d+\w\d+)\/([0-9a-f]{12})");
+    static readonly Regex UNITYHUB_RE = new Regex(@"unityhub:\/\/(\d+\.\d+\.\d+\w\d+)\/([0-9a-f]{12})");
+
+    /// <summary>
+    /// Regex to extract version information from installer download URL.
+    /// </summary>
+    static readonly Regex UNITY_DOWNLOAD_RE = new Regex(@"https?:\/\/[\w.-]+unity3d\.com\/[\w\/.-]+\/([0-9a-f]{12})\/(?:[^\/]+\/)[\w\/.-]+-(\d+\.\d+\.\d+\w\d+)[\w\/.-]+");
 
     /// <summary>
     /// Regex to extract beta release note pages from beta archive.
@@ -261,7 +266,7 @@ public class Scraper
     /// </summary>
     Dictionary<UnityVersion, VersionMetadata> ExtractFromHtml(string html, Dictionary<UnityVersion, VersionMetadata> results = null)
     {
-        var matches = UNITY_DOWNLOADS_RE.Matches(html);
+        var matches = UNITYHUB_RE.Matches(html);
         results = results ?? new Dictionary<UnityVersion, VersionMetadata>();
         foreach (Match match in matches) {
             var version = new UnityVersion(match.Groups[1].Value);
@@ -275,6 +280,21 @@ public class Scraper
             metadata.baseUrl = GetIniBaseUrl(version.type) + version.hash + "/";
             results[version] = metadata;
         }
+
+        matches = UNITY_DOWNLOAD_RE.Matches(html);
+        foreach (Match match in matches) {
+            var version = new UnityVersion(match.Groups[2].Value);
+            version.hash = match.Groups[1].Value;
+
+            VersionMetadata metadata = default;
+            if (!results.TryGetValue(version, out metadata)) {
+                metadata.version = version;
+            }
+
+            metadata.baseUrl = GetIniBaseUrl(version.type) + version.hash + "/";
+            results[version] = metadata;
+        }
+
         return results;
     }
 
@@ -286,7 +306,7 @@ public class Scraper
     /// </remarks>
     public VersionMetadata UnityHubUrlToVersion(string url)
     {
-        var match = UNITY_DOWNLOADS_RE.Match(url);
+        var match = UNITYHUB_RE.Match(url);
         if (!match.Success) return default(VersionMetadata);
 
         var version = new UnityVersion(match.Groups[1].Value);
