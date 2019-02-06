@@ -102,7 +102,7 @@ You can pass [command line arguments](https://docs.unity3d.com/Manual/CommandLin
 ## CLI Help
 
 ````
-install-unity v2.1.0
+install-unity v2.1.1
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
@@ -199,6 +199,10 @@ OPTIONS:
 The old Python version of install-unity can be found in the [legacy](https://github.com/sttz/install-unity/tree/next) branch.
 
 # Changelog
+
+### 2.1.1 (2019-02-06)
+
+* Fix automatic detection of beta releases
 
 ### 2.1.0 (2018-12-17)
 
