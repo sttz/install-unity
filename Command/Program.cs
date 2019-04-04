@@ -113,6 +113,7 @@ public class InstallUnityCLI
     public enum AllowNewer
     {
         None,
+        Build,
         Patch,
         Minor,
         All
@@ -1063,6 +1064,7 @@ public class InstallUnityCLI
             }
 
             var allowedVersion = version;
+            if (allowNewer >= AllowNewer.Build) allowedVersion.build = -1;
             if (allowNewer >= AllowNewer.Patch) allowedVersion.patch = -1;
             if (allowNewer >= AllowNewer.Minor) allowedVersion.minor = -1;
             if (allowNewer >= AllowNewer.All)   allowedVersion.major = -1;
