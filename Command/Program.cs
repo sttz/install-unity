@@ -329,6 +329,7 @@ public class InstallUnityCLI
 
     UnityInstaller installer;
     ILogger Logger;
+    HashSet<UnityVersion> newVersions;
 
     public CachePlatform GetCurrentPlatform()
     {
@@ -417,17 +418,18 @@ public class InstallUnityCLI
                 updateType = UnityVersion.Type.Final;
             }
         }
-        IEnumerable<VersionMetadata> newVersions;
+        
+        IEnumerable<VersionMetadata> newVersionsData;
         if (update || (!avoidCacheUpate && installer.IsCacheOutdated(updateType))) {
             WriteTitle("Updating Cache...");
-            newVersions = await installer.UpdateCache(platform, updateType);
+            newVersionsData = await installer.UpdateCache(platform, updateType);
 
-            var total = newVersions.Count();
+            var total = newVersionsData.Count();
             var maxVersions = 10;
             if (total == 0) {
                 Console.WriteLine("No new Unity versions");
             } else if (total == 1) {
-                Console.WriteLine("New Unity version: " + newVersions.First().version);
+                Console.WriteLine("New Unity version: " + newVersionsData.First().version);
             } else if (total > 0) {
                 Console.WriteLine("New Unity versions:");
                 foreach (var newVersion in newVersionsData.Take(maxVersions)) {
@@ -435,6 +437,13 @@ public class InstallUnityCLI
                 }
                 if (total - maxVersions > 0) {
                     Console.WriteLine($"And {total - maxVersions} more...");
+                }
+            }
+
+            if (total <= maxVersions) {
+                newVersions = new HashSet<UnityVersion>();
+                foreach (var newVersion in newVersionsData.Select(d => d.version)) {
+                    newVersions.Add(newVersion);
                 }
             }
         }
@@ -626,7 +635,14 @@ public class InstallUnityCLI
                         }
                         if (r >= majorRow[c].Count) continue;
                         Console.SetCursorPosition((c - columnOffset) * colWidth, Console.CursorTop);
-                        Console.Write(majorRow[c][r].version.ToString(verbose > 0));
+
+                        var v = majorRow[c][r].version;
+                        Console.Write(v.ToString(verbose > 0));
+                        if (newVersions != null && newVersions.Contains(v)) {
+                            SetColors(ConsoleColor.White, ConsoleColor.DarkGray);
+                            Console.Write(" ⬆︎");
+                            ResetColor();
+                        }
                     }
                     Console.WriteLine();
                 }
