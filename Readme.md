@@ -36,11 +36,13 @@ Most commands take a version as input, either to select the version to install o
 
 You can be as specific as you like, `2018.2.2f1`, `2018.2.2`, `2018.2`, `2018`, `f` or `2018.3b` are all valid version inputs.
 
-`install-unity` will scan for the available regular releases and the latest betas.
+`install-unity` will scan for the available regular releases as well as the latest betas and alphas.
 
     install-unity list
+    install-unity list a
+    install-unity list 2019.1
 
-Will show the available versions.
+Will show the available versions and the argument acts as a filter. Without an argument, only regular releases are loaded and displayed. Add an argument including `b` or `a` to load and display either beta or both beta and alpha versions as well.
 
 In case install-unity fails to discover a release, it's also possible to pass a release notes or unity hub url instead of a version to `details` and `install`:
 
@@ -102,7 +104,7 @@ You can pass [command line arguments](https://docs.unity3d.com/Manual/CommandLin
 ## CLI Help
 
 ````
-install-unity v2.1.1
+install-unity v2.2.0
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
@@ -199,6 +201,14 @@ OPTIONS:
 The old Python version of install-unity can be found in the [legacy](https://github.com/sttz/install-unity/tree/next) branch.
 
 # Changelog
+
+### 2.2.0 (2019-05-27)
+
+* Discover all available prerelease versions, including alphas
+* Fix `--allow-newer` not working when only the build number is increased (e.g. b1 to b2)
+* Fix release notes URL for regular releases
+* Indicate new versions in `list` command with ⬆︎
+* Increase maximum number of displayed new versions from 5 to 10
 
 ### 2.1.1 (2019-02-06)
 
