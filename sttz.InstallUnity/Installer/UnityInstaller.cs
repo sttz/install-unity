@@ -301,16 +301,33 @@ public class UnityInstaller
             Versions.Add(newVersions, added);
             Versions.SetLastUpdate(type, DateTime.Now);
         } else {
-            foreach (var t in UnityVersion.EnumerateMoreStableTypes(type)) {
-                if (t != UnityVersion.Type.Final && t != UnityVersion.Type.Beta)
-                    continue;
+            switch (type) {
+                case UnityVersion.Type.Final:
+                case UnityVersion.Type.Patch:
+                case UnityVersion.Type.Beta:
+                case UnityVersion.Type.Alpha:
+                    Logger.LogDebug($"Updating Final Unity Versions...");
+                    var newVersions = await Scraper.LoadFinal(cancellation);
+                    Logger.LogInformation($"Scraped {newVersions.Count()} versions of type Final");
+                    Versions.Add(newVersions, added);
+                    
+                    Versions.SetLastUpdate(UnityVersion.Type.Final, DateTime.Now);
+                    break;
+            }
 
-                Logger.LogDebug($"Updating {t} Unity Versions...");
-                var newVersions = await Scraper.Load(t, cancellation);
-                Logger.LogInformation($"Scraped {newVersions.Count()} versions of type {t}");
-
-                Versions.Add(newVersions, added);
-                Versions.SetLastUpdate(t, DateTime.Now);
+            switch (type) {
+                case UnityVersion.Type.Beta:
+                case UnityVersion.Type.Alpha:
+                    Logger.LogDebug($"Updating Prerelease Unity Versions...");
+                    var newVersions = await Scraper.LoadPrerelease(type == UnityVersion.Type.Alpha, cancellation);
+                    Logger.LogInformation($"Scraped {newVersions.Count()} versions of type Beta/Alpha");
+                    Versions.Add(newVersions, added);
+                    
+                    Versions.SetLastUpdate(UnityVersion.Type.Beta, DateTime.Now);
+                    if (type == UnityVersion.Type.Alpha) {
+                        Versions.SetLastUpdate(UnityVersion.Type.Alpha, DateTime.Now);
+                    }
+                    break;
             }
         }
         Versions.Save();

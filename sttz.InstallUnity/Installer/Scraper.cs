@@ -31,6 +31,11 @@ public class Scraper
     // -------- Version Indices --------
 
     /// <summary>
+    /// Base URL of Unity homepage.
+    /// </summary>
+    const string UNITY_BASE_URL = "https://unity3d.com";
+
+    /// <summary>
     /// Releases JSON used by Unity Hub ({0} should be either win32, darwin or linux).
     /// </summary>
     const string UNITY_HUB_RELEASES = "https://public-cdn.cloud.unity3d.com/hub/prod/releases-{0}.json";
@@ -41,9 +46,9 @@ public class Scraper
     const string UNITY_ARCHIVE = "https://unity3d.com/get-unity/download/archive";
 
     /// <summary>
-    /// HTML archive of Unity beta releases.
+    /// Landing page for Unity prereleases.
     /// </summary>
-    const string UNITY_BETA_ARCHIVE = "https://unity3d.com/unity/beta-download";
+    const string UNITY_PRERELEASES = "https://unity3d.com/unity/beta";
 
     // -------- Release Notes --------
 
@@ -97,9 +102,14 @@ public class Scraper
     static readonly Regex UNITY_DOWNLOAD_RE = new Regex(@"https?:\/\/[\w.-]+unity3d\.com\/[\w\/.-]+\/([0-9a-f]{12})\/(?:[^\/]+\/)[\w\/.-]+-(\d+\.\d+\.\d+\w\d+)[\w\/.-]+");
 
     /// <summary>
-    /// Regex to extract beta release note pages from beta archive.
+    /// Regey to extract available prerelease major versions from landing page.
     /// </summary>
-    static readonly Regex UNITY_BETA_RE = new Regex(@"/unity/beta/(\d+\.\d+\.\d+\w\d+)");
+    static readonly Regex UNITY_PRERELEASE_MAJOR_RE = new Regex(@"\/(alpha|beta)\/(\d{4}\.\d)");
+
+    /// <summary>
+    /// Regey to extract available prerelease major versions from landing page.
+    /// </summary>
+    static readonly Regex UNITY_PRERELEASE_RE = new Regex(@"\/unity\/(alpha|beta)\/(\d+\.\d+\.\d+\w\d+)");
 
     // -------- Scraper --------
 
@@ -196,55 +206,79 @@ public class Scraper
     }
 
     /// <summary>
-    /// Load the available versions of the given release type.
+    /// Load the available final versions.
     /// </summary>
     /// <param name="canellation"></param>
     /// <returns>Task returning the discovered versions</returns>
-    public async Task<IEnumerable<VersionMetadata>> Load(UnityVersion.Type type, CancellationToken cancellation = default)
+    public async Task<IEnumerable<VersionMetadata>> LoadFinal(CancellationToken cancellation = default)
     {
-        string url;
-        switch (type) {
-            case UnityVersion.Type.Final:
-                url = UNITY_ARCHIVE;
-                break;
-            case UnityVersion.Type.Beta:
-                url = UNITY_BETA_ARCHIVE;
-                break;
-            default:
-                throw new NotSupportedException("Discovering not supported for release type: " + type);
-        }
-
-        Logger.LogInformation($"Scraping latest releases for {type} from '{url}'");
-        var response = await client.GetAsync(url, cancellation);
+        Logger.LogInformation($"Scraping latest releases for {UnityVersion.Type.Final} from '{UNITY_ARCHIVE}'");
+        var response = await client.GetAsync(UNITY_ARCHIVE, cancellation);
         if (!response.IsSuccessStatusCode) {
-            Logger.LogWarning($"Failed to scrape url '{url}' ({response.StatusCode})");
+            Logger.LogWarning($"Failed to scrape url '{UNITY_ARCHIVE}' ({response.StatusCode})");
             return Enumerable.Empty<VersionMetadata>();
         }
 
         var html = await response.Content.ReadAsStringAsync();
         Logger.LogTrace($"Got response: {html}");
 
-        if (type == UnityVersion.Type.Final) {
-            return ExtractFromHtml(html).Values;
+        return ExtractFromHtml(html).Values;
+    }
+
+    /// <summary>
+    /// Load the available beta and/or alpha versions.
+    /// </summary>
+    /// <param name="canellation"></param>
+    /// <returns>Task returning the discovered versions</returns>
+    public async Task<IEnumerable<VersionMetadata>> LoadPrerelease(bool includeAlpha, CancellationToken cancellation = default)
+    {
+        // Load main prereleases page to discover which major versions are available as prerelease
+        Logger.LogInformation($"Scraping latest prereleases with includeAlpha={includeAlpha} from '{UNITY_PRERELEASES}'");
+        var response = await client.GetAsync(UNITY_PRERELEASES, cancellation);
+        if (!response.IsSuccessStatusCode) {
+            Logger.LogWarning($"Failed to scrape url '{UNITY_PRERELEASES}' ({response.StatusCode})");
+            return Enumerable.Empty<VersionMetadata>();
         }
 
-        var matches = UNITY_BETA_RE.Matches(html);
-        var results = new Dictionary<UnityVersion, VersionMetadata>();
-        foreach (Match match in matches) {
-            var version = new UnityVersion(match.Groups[1].Value);
-            if (results.ContainsKey(version)) continue;
+        var html = await response.Content.ReadAsStringAsync();
+        Logger.LogTrace($"Got response: {html}");
 
-            var betaUrl = UNITY_RELEASE_NOTES_BETA + version.ToString(false);
-            Logger.LogInformation($"Scraping beta {version} from '{betaUrl}'");
-            response = await client.GetAsync(betaUrl, cancellation);
+        var majorMatches = UNITY_PRERELEASE_MAJOR_RE.Matches(html);
+        var results = new Dictionary<UnityVersion, VersionMetadata>();
+        foreach (Match majorMatch in majorMatches) {
+            var isAlpha = majorMatch.Groups[1].Value == "alpha";
+            if (isAlpha && !includeAlpha) continue;
+
+            // Load major version's individual prerelease page to get individual versions
+            var archiveUrl = UNITY_BASE_URL + majorMatch.Value;
+            Logger.LogInformation($"Scraping latest releases for {majorMatch.Groups[2].Value} from '{archiveUrl}'");
+            response = await client.GetAsync(archiveUrl, cancellation);
             if (!response.IsSuccessStatusCode) {
-                Logger.LogWarning($"Could not load release notes at url '{betaUrl}' ({response.StatusCode})");
-                continue;
+                Logger.LogWarning($"Failed to scrape url '{archiveUrl}' ({response.StatusCode})");
+                return Enumerable.Empty<VersionMetadata>();
             }
 
             html = await response.Content.ReadAsStringAsync();
             Logger.LogTrace($"Got response: {html}");
-            ExtractFromHtml(html, results);
+
+            var versionMatches = UNITY_PRERELEASE_RE.Matches(html);
+            foreach (Match versionMatch in versionMatches) {
+                var version = new UnityVersion(versionMatch.Groups[2].Value);
+                if (results.ContainsKey(version)) continue;
+
+                // Load version's release notes to get download links
+                var prereleaseUrl = UNITY_BASE_URL + versionMatch.Value;
+                Logger.LogInformation($"Scraping {versionMatch.Groups[1].Value} {version} from '{prereleaseUrl}'");
+                response = await client.GetAsync(prereleaseUrl, cancellation);
+                if (!response.IsSuccessStatusCode) {
+                    Logger.LogWarning($"Could not load release notes at url '{prereleaseUrl}' ({response.StatusCode})");
+                    continue;
+                }
+
+                html = await response.Content.ReadAsStringAsync();
+                Logger.LogTrace($"Got response: {html}");
+                ExtractFromHtml(html, results);
+            }
         }
         return results.Values;
     }
