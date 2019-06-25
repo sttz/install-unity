@@ -548,13 +548,13 @@ public class InstallUnityCLI
     public async Task List()
     {
         var version = await Setup(avoidCacheUpate: installed);
+        var installs = await installer.Platform.FindInstallations();
 
         if (installed) {
-            var installs = await installer.Platform.FindInstallations();
             // Re-parse given version to get default undefined for type
             InstalledList(installer, new UnityVersion(matchVersion), installs);
         } else {
-            VersionsTable(installer, version);
+            VersionsTable(installer, version, installs);
         }
     }
 
@@ -566,10 +566,15 @@ public class InstallUnityCLI
         }
     }
 
-    public void VersionsTable(UnityInstaller installer, UnityVersion version)
+    public void VersionsTable(UnityInstaller installer, UnityVersion version, IEnumerable<Installation> installations = null)
     {
         if (version.type == UnityVersion.Type.Undefined) {
             version.type = UnityVersion.Type.Final;
+        }
+
+        HashSet<UnityVersion> installed = null;
+        if (installations != null) {
+            installed = installations.Select(i => i.version).ToHashSet();
         }
 
         // First sort versions into rows and columns based on major and minor version
@@ -636,9 +641,15 @@ public class InstallUnityCLI
 
                         var v = majorRow[c][r].version;
                         Console.Write(v.ToString(verbose > 0));
-                        if (newVersions != null && newVersions.Contains(v)) {
+
+                        var isNewVersion = (newVersions != null && newVersions.Contains(v));
+                        var isInstalled = (installed != null && installed.Contains(v));
+
+                        if (isNewVersion || isInstalled) {
                             SetColors(ConsoleColor.White, ConsoleColor.DarkGray);
-                            Console.Write(" ⬆︎");
+                            Console.Write(" ");
+                            if (isInstalled)  Console.Write("✓︎");
+                            if (isNewVersion) Console.Write("⬆︎");
                             ResetColor();
                         }
                     }
