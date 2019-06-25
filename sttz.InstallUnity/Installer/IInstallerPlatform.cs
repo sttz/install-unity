@@ -47,6 +47,11 @@ public interface IInstallerPlatform
     string GetDownloadDirectory();
 
     /// <summary>
+    /// Check wether the user is admin when installing.
+    /// </summary>
+    Task<bool> IsAdmin(CancellationToken cancellation = default);
+
+    /// <summary>
     /// Prompt for the admin password if it's necessary to install Unity.
     /// </summary>
     /// <returns>If the password was acquired successfully</returns>

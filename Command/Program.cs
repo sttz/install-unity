@@ -841,16 +841,24 @@ public class InstallUnityCLI
         }
 
         if (hasEula && !yes) {
-            var response = Helpers.ConsolePrompt($"Do you agree to the above EULA(s)?", "yN");
+            if (Console.IsOutputRedirected) {
+                throw new Exception("The above EULA(s) need to be accepted (run the command interactively or use the -y option to accept all prompts).");
+            } else {
+                var response = Helpers.ConsolePrompt($"Do you agree to the above EULA(s)?", "yN");
             if (response != 'y') {
                 Environment.Exit(1);
+                }
             }
         }
 
         // Request password before downoad so the download & installation can go on uninterrupted
-        if ((op & UnityInstaller.InstallStep.Install) > 0 && !await installer.Platform.PromptForPasswordIfNecessary()) {
-            Logger.LogInformation("Failed password prompt too many times");
-            Environment.Exit(1);
+        if ((op & UnityInstaller.InstallStep.Install) > 0) {
+            if (Console.IsOutputRedirected && !await installer.Platform.IsAdmin()) {
+                throw new Exception($"The command needs to be run as root when installing.");
+            } else if (!await installer.Platform.PromptForPasswordIfNecessary()) {
+                Logger.LogInformation("Failed password prompt too many times");
+                Environment.Exit(1);
+            }
         }
 
         // Do the magic
@@ -859,7 +867,7 @@ public class InstallUnityCLI
 
         Installation installed = null;
         var queue = installer.CreateQueue(metadata, platform, downloadPath, resolved);
-        if (installer.Configuration.progressBar) {
+        if (installer.Configuration.progressBar && !Console.IsOutputRedirected) {
             var processTask = installer.Process(op, queue, yolo);
 
             var refreshInterval = installer.Configuration.progressRefreshInterval;
@@ -1013,7 +1021,7 @@ public class InstallUnityCLI
             throw new Exception("No matching version found to uninstall.");
         }
 
-        if (!yes) {
+        if (!yes && !Console.IsOutputRedirected) {
             var response = Helpers.ConsolePrompt($"Uninstall Unity {uninstall.version} at '{uninstall.path}'?", "yN");
             if (response == 'N') {
                 Environment.Exit(1);

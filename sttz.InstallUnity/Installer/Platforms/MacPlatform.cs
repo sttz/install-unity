@@ -65,6 +65,11 @@ public class MacPlatform : IInstallerPlatform
         return Path.Combine(Path.GetTempPath(), UnityInstaller.PRODUCT_NAME);
     }
 
+    public Task<bool> IsAdmin(CancellationToken cancellation = default)
+    {
+        return CheckIsRoot(false, cancellation);
+    }
+
     public async Task<bool> PromptForPasswordIfNecessary(CancellationToken cancellation = default)
     {
         if (await CheckIsRoot(false, cancellation)) return true;
