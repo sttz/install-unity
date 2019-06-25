@@ -842,7 +842,7 @@ public class InstallUnityCLI
 
         if (hasEula && !yes) {
             var response = Helpers.ConsolePrompt($"Do you agree to the above EULA(s)?", "yN");
-            if (response == 'N') {
+            if (response != 'y') {
                 Environment.Exit(1);
             }
         }
