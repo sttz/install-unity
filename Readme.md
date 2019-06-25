@@ -104,7 +104,7 @@ You can pass [command line arguments](https://docs.unity3d.com/Manual/CommandLin
 ## CLI Help
 
 ````
-install-unity v2.2.0
+install-unity v2.3.0
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
@@ -201,6 +201,13 @@ OPTIONS:
 The old Python version of install-unity can be found in the [legacy](https://github.com/sttz/install-unity/tree/next) branch.
 
 # Changelog
+
+### 2.3.0 (2019-06-25)
+
+* Indicate installed version with a ✓︎ when using the list action
+* Fix using install-unity without a terminal
+* Fix EULA prompt defaulting to accept
+* Fix release notes URL not shown if there's only one update
 
 ### 2.2.0 (2019-05-27)
 
