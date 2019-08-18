@@ -366,9 +366,9 @@ public class Downloader
             if (blocks != null) {
                 bytesInWindow += read;
 
-                KeyValuePair<long, int> windowStart;
-                if (!blocks.TryPeek(out windowStart)) {
-                    windowStart = new KeyValuePair<long, int>();
+                KeyValuePair<long, int> windowStart = default;
+                if (blocks.Count > 0) {
+                    windowStart = blocks.Peek();
                 }
 
                 var windowLength = watch.ElapsedMilliseconds - windowStart.Key;

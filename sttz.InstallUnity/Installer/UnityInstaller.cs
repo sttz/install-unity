@@ -363,11 +363,11 @@ public class UnityInstaller
         var metas = new List<PackageMetadata>();
         foreach (var id in packages) {
             PackageMetadata resolved = default;
-            if (id.StartsWith('~')) {
+            if (id.StartsWith("~")) {
                 // Contains lookup
                 var str = id.Substring(1);
                 foreach (var package in packageMetadata) {
-                    if (package.name.Contains(str, StringComparison.OrdinalIgnoreCase)) {
+                    if (package.name.IndexOf(str, StringComparison.OrdinalIgnoreCase) >= 0) {
                         if (resolved.name == null) {
                             Logger.LogDebug($"Fuzzy lookup '{id}' matched package '{resolved.name}'");
                             resolved = package;

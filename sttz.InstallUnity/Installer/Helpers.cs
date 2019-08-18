@@ -192,6 +192,38 @@ public static class Helpers
             // Repeat on invalid input
         }
     }
+
+    /// <summary>
+    /// Replace with custom StringComparison (only available in .netstandard).
+    /// </summary>
+    /// <param name="input">The string to replace in</param>
+    /// <param name="oldValue">The old value to look for</param>
+    /// <param name="newValue">The new value to replace it with</param>
+    /// <param name="comparison">The comparison to use</param>
+    /// <returns></returns>
+    public static string Replace(string input, string oldValue, string newValue, StringComparison comparison)
+    {
+        if (input == null)
+            throw new ArgumentException("input cannot be null", "input");
+        if (string.IsNullOrEmpty(oldValue))
+            throw new ArgumentException("oldValue cannot be null or empty", "oldValue");
+        if (newValue == null)
+            throw new ArgumentException("newValue cannot be null", "newValue");
+
+        var output = "";
+        var start = 0;
+        while (start < input.Length) {
+            var index = input.IndexOf(oldValue, start, comparison);
+            if (index >= 0) {
+                output += input.Substring(start, index - start) + newValue;
+                start = index + oldValue.Length;
+            } else {
+                output += input.Substring(start);
+                break;
+            }
+        }
+        return output;
+    }
 }
 
 }

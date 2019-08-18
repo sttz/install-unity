@@ -1083,7 +1083,7 @@ public class InstallUnityCLI
                 throw new Exception($"ProjectVersion.txt not found at expected path: {versionPath}");
             }
 
-            var lines = await File.ReadAllLinesAsync(versionPath);
+            var lines = File.ReadAllLines(versionPath);
             foreach (var line in lines) {
                 if (line.StartsWith("m_EditorVersion:")) {
                     var colonIndex = line.IndexOf(':');
@@ -1139,7 +1139,7 @@ public class InstallUnityCLI
 
         var cmd = new System.Diagnostics.Process();
         cmd.StartInfo.FileName = installation.executable;
-        cmd.StartInfo.ArgumentList.AddRange(unityArguments);
+        cmd.StartInfo.Arguments = string.Join(" ", unityArguments);
         cmd.StartInfo.UseShellExecute = false;
 
         if (detach) {

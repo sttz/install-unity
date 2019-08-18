@@ -102,7 +102,7 @@ public class MacPlatform : IInstallerPlatform
             throw new Exception($"ERROR: failed to run mdfind: {findResult.error}");
         }
 
-        var lines = findResult.output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var lines = findResult.output.Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
         var installations = new List<Installation>(lines.Length);
         foreach (var appPath in lines) {
             if (!Directory.Exists(appPath)) {
@@ -365,15 +365,15 @@ public class MacPlatform : IInstallerPlatform
         string expanded = null;
         if (!string.IsNullOrEmpty(installationPaths)) {
             var comparison = StringComparison.OrdinalIgnoreCase;
-            var paths = installationPaths.Split(';', StringSplitOptions.RemoveEmptyEntries);
+            var paths = installationPaths.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var path in paths) {
-                expanded = path.Trim()
-                    .Replace("{major}", version.major.ToString(), comparison)
-                    .Replace("{minor}", version.minor.ToString(), comparison)
-                    .Replace("{patch}", version.patch.ToString(), comparison)
-                    .Replace("{type}",  ((char)version.type).ToString(), comparison)
-                    .Replace("{build}", version.build.ToString(), comparison)
-                    .Replace("{hash}",  version.hash, comparison);
+                expanded = path.Trim();
+                expanded = Helpers.Replace(expanded, "{major}", version.major.ToString(), comparison);
+                expanded = Helpers.Replace(expanded, "{minor}", version.minor.ToString(), comparison);
+                expanded = Helpers.Replace(expanded, "{patch}", version.patch.ToString(), comparison);
+                expanded = Helpers.Replace(expanded, "{type}",  ((char)version.type).ToString(), comparison);
+                expanded = Helpers.Replace(expanded, "{build}", version.build.ToString(), comparison);
+                expanded = Helpers.Replace(expanded, "{hash}",  version.hash, comparison);
                 
                 if (!Directory.Exists(expanded)) {
                     return expanded;

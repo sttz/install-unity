@@ -136,7 +136,7 @@ public class Configuration
         } else if (field.FieldType == typeof(int)) {
             parsed = int.Parse(value);
         } else if (field.FieldType == typeof(string[])) {
-            parsed = value.Split(":");
+            parsed = value.Split(':');
         } else {
             throw new Exception($"Field value type {field.FieldType} not yet supported.");
         }
@@ -157,7 +157,7 @@ public class Configuration
         if (field.FieldType == typeof(string[])) {
             var array = (string[])field.GetValue(this);
             if (array != null) {
-                return string.Join(':', array);
+                return string.Join(":", array);
             } else {
                 return "";
             }
