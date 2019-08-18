@@ -205,7 +205,7 @@ The old Python version of install-unity can be found in the [legacy](https://git
 ### 2.4.0 (2019-08-18)
 * Support .Net Framework for better compatibility with mono
 * Add experimental Homebrew formula, use with:<br/>
-  `brew install https://raw.githubusercontent.com/sttz/install-unity/next/Formula.rb`
+  `brew install https://raw.githubusercontent.com/sttz/install-unity/next/install-unity.rb`
 
 ### 2.3.0 (2019-06-25)
 
