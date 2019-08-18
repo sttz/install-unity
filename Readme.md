@@ -104,7 +104,7 @@ You can pass [command line arguments](https://docs.unity3d.com/Manual/CommandLin
 ## CLI Help
 
 ````
-install-unity v2.3.0
+install-unity v2.4.0
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
@@ -201,6 +201,11 @@ OPTIONS:
 The old Python version of install-unity can be found in the [legacy](https://github.com/sttz/install-unity/tree/next) branch.
 
 # Changelog
+
+### 2.4.0 (2019-08-18)
+* Support .Net Framework for better compatibility with mono
+* Add experimental Homebrew formula, use with:<br/>
+  `brew install https://raw.githubusercontent.com/sttz/install-unity/next/Formula.rb`
 
 ### 2.3.0 (2019-06-25)
 
