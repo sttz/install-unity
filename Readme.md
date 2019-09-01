@@ -26,6 +26,8 @@ The CLI is not compatible with v1. The interface should feel familiar but has be
 
 [Download the latest release here](https://github.com/sttz/install-unity/releases). install-unity is a self-contained executable and has no dependencies.
 
+Or you can install via [Homebrew](https://brew.sh) using [sttz/homebrew-tap](https://github.com/sttz/homebrew-tap), see the tap readme for instructions.
+
 Installing the latest version of Unity (release or beta) is as simple as:
 
     install-unity install b
@@ -204,8 +206,7 @@ The old Python version of install-unity can be found in the [legacy](https://git
 
 ### 2.4.0 (2019-08-18)
 * Support .Net Framework for better compatibility with mono
-* Add experimental Homebrew formula, use with:<br/>
-  `brew install https://raw.githubusercontent.com/sttz/install-unity/next/install-unity.rb`
+* Add experimental Homebrew formula, see [sttz/homebrew-tap](https://github.com/sttz/homebrew-tap).
 
 ### 2.3.0 (2019-06-25)
 
