@@ -94,6 +94,14 @@ public interface IInstallerPlatform
     /// Uninstall a Unity installation.
     /// </summary>
     Task Uninstall(Installation instalation, CancellationToken cancellation = default);
+
+    /// <summary>
+    /// Run a Unity installation with the given arguments.
+    /// </summary>
+    /// <param name="installation">Unity installation to run</param>
+    /// <param name="arguments">Arguments to pass to Unity</param>
+    /// <param name="child">Wether to run Unity as a child process and forward its standard input/error and log</param>
+    Task Run(Installation installation, IEnumerable<string> arguments, bool child);
 }
 
 }

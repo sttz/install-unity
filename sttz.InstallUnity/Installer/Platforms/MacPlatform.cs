@@ -269,6 +269,57 @@ public class MacPlatform : IInstallerPlatform
         await Delete(installation.path, cancellation);
     }
 
+    public async Task Run(Installation installation, IEnumerable<string> arguments, bool child)
+    {
+        if (!child) {
+            var cmd = new System.Diagnostics.Process();
+            cmd.StartInfo.FileName = "/usr/bin/open";
+            cmd.StartInfo.Arguments = $"-a \"{installation.executable}\" -n --args {string.Join(" ", arguments)}";
+            Logger.LogInformation($"$ {cmd.StartInfo.FileName} {cmd.StartInfo.Arguments}");
+            
+            cmd.Start();
+            
+            while (!cmd.HasExited) {
+                await Task.Delay(100);
+            }
+
+        } else {
+            if (!arguments.Contains("-logFile")) {
+                arguments = arguments.Append("-logFile").Append("-");
+            }
+
+            var cmd = new System.Diagnostics.Process();
+            cmd.StartInfo.FileName = installation.executable;
+            cmd.StartInfo.Arguments = string.Join(" ", arguments);
+            cmd.StartInfo.UseShellExecute = false;
+
+            cmd.StartInfo.RedirectStandardOutput = true;
+            cmd.StartInfo.RedirectStandardError = true;
+            cmd.EnableRaisingEvents = true;
+
+            cmd.OutputDataReceived += (s, a) => {
+                if (a.Data == null) return;
+                Logger.LogInformation(a.Data);
+            };
+            cmd.ErrorDataReceived += (s, a) => {
+                if (a.Data == null) return;
+                Logger.LogError(a.Data);
+            };
+
+            cmd.Start();
+            cmd.BeginOutputReadLine();
+            cmd.BeginErrorReadLine();
+
+            while (!cmd.HasExited) {
+                await Task.Delay(100);
+            }
+
+            cmd.WaitForExit(); // Let stdout and stderr flush
+            Logger.LogInformation($"Unity exited with code {cmd.ExitCode}");
+            Environment.Exit(cmd.ExitCode);
+        }
+    }
+
     // -------- Helpers --------
 
     ILogger Logger = UnityInstaller.CreateLogger<MacPlatform>();

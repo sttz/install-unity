@@ -95,9 +95,9 @@ public class InstallUnityCLI
     // -- Run
 
     /// <summary>
-    /// Detach from the launched Unity instance.
+    /// Run Unity as a child process.
     /// </summary>
-    public bool detach;
+    public bool child;
     /// <summary>
     /// Allow newer versions of Unity to open a project.
     /// </summary>
@@ -143,7 +143,7 @@ public class InstallUnityCLI
         if (install) cmd += " --install";
         if (upgrade) cmd += " --upgrade";
 
-        if (detach) cmd += " --detach";
+        if (child) cmd += " --child";
         if (allowNewer != AllowNewer.None) cmd += " --allow-newer " + allowNewer.ToString().ToLower();
         if (unityArguments.Count > 0) cmd += " -- " + string.Join(" ", unityArguments);
 
@@ -239,8 +239,8 @@ public class InstallUnityCLI
                 .Option((InstallUnityCLI t, string v) => t.unityArguments.Add(v), 1).Repeatable()
                     .ArgumentName("<unity-arguments>")
                     .Description("Arguments to launch Unity with (put a -- first to avoid Unity options being parsed as install-unity options)")
-                .Option((InstallUnityCLI t, bool v) => t.detach = v, "d", "detach")
-                    .Description("Detach from the launched Unity instance")
+                .Option((InstallUnityCLI t, bool v) => t.child = v, "c", "child")
+                    .Description("Run Unity as a child process and forward its log output (only errors, use -v to see the full log)")
                 .Option((InstallUnityCLI t, AllowNewer v) => t.allowNewer = v, "a", "allow-newer", "allownewer").OptionalArgument()
                     .ArgumentName("none|patch|minor|all")
                     .Description("Allow newer versions of Unity to open a project");
@@ -1137,40 +1137,7 @@ public class InstallUnityCLI
 
         Console.WriteLine($"Will run {installation.path} with arguments: '{string.Join(" ", unityArguments)}'");
 
-        var cmd = new System.Diagnostics.Process();
-        cmd.StartInfo.FileName = installation.executable;
-        cmd.StartInfo.Arguments = string.Join(" ", unityArguments);
-        cmd.StartInfo.UseShellExecute = false;
-
-        if (detach) {
-            cmd.Start();
-            return;
-        }
-
-        cmd.StartInfo.RedirectStandardOutput = true;
-        cmd.StartInfo.RedirectStandardError = true;
-        cmd.EnableRaisingEvents = true;
-
-        cmd.OutputDataReceived += (s, a) => {
-            if (a.Data == null) return;
-            Logger.LogInformation(a.Data);
-        };
-        cmd.ErrorDataReceived += (s, a) => {
-            if (a.Data == null) return;
-            Logger.LogError(a.Data);
-        };
-
-        cmd.Start();
-        cmd.BeginOutputReadLine();
-        cmd.BeginErrorReadLine();
-
-        while (!cmd.HasExited) {
-            await Task.Delay(100);
-        }
-
-        cmd.WaitForExit(); // Let stdout and stderr flush
-        Logger.LogInformation($"Unity exited with code {cmd.ExitCode}");
-        Environment.Exit(cmd.ExitCode);
+        await installer.Platform.Run(installation, unityArguments, child);
     }
 
     // -------- Console --------
