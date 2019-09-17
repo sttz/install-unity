@@ -89,7 +89,7 @@ public class Scraper
     /// </summary>
     const string UNITY_INI_FILENAME = "unity-{0}-{1}.ini";
 
-    // -------- Reular Expressions --------
+    // -------- Regular Expressions --------
 
     /// <summary>
     /// Regex to extract version information from unityhub URL.
@@ -102,12 +102,12 @@ public class Scraper
     static readonly Regex UNITY_DOWNLOAD_RE = new Regex(@"https?:\/\/[\w.-]+unity3d\.com\/[\w\/.-]+\/([0-9a-f]{12})\/(?:[^\/]+\/)[\w\/.-]+-(\d+\.\d+\.\d+\w\d+)[\w\/.-]+");
 
     /// <summary>
-    /// Regey to extract available prerelease major versions from landing page.
+    /// /// Regex to extract available prerelease major versions from landing page.
     /// </summary>
     static readonly Regex UNITY_PRERELEASE_MAJOR_RE = new Regex(@"\/(alpha|beta)\/(\d{4}\.\d)");
 
     /// <summary>
-    /// Regey to extract available prerelease major versions from landing page.
+    /// Regex to extract available prerelease major versions from landing page.
     /// </summary>
     static readonly Regex UNITY_PRERELEASE_RE = new Regex(@"\/unity\/(alpha|beta)\/(\d+\.\d+\.\d+\w\d+)");
 
@@ -121,7 +121,7 @@ public class Scraper
     /// Load the latest Unity releases, using the same JSON as Unity Hub.
     /// </summary>
     /// <param name="cachePlatform">Name of platform to load the JSON for</param>
-    /// <param name="canellation">Cancellation token</param>
+    /// <param name="cancellation">Cancellation token</param>
     /// <returns>Task returning the discovered versions</returns>
     public async Task<IEnumerable<VersionMetadata>> LoadLatest(CachePlatform cachePlatform, CancellationToken cancellation = default)
     {
@@ -208,7 +208,7 @@ public class Scraper
     /// <summary>
     /// Load the available final versions.
     /// </summary>
-    /// <param name="canellation"></param>
+    /// <param name="cancellation"></param>
     /// <returns>Task returning the discovered versions</returns>
     public async Task<IEnumerable<VersionMetadata>> LoadFinal(CancellationToken cancellation = default)
     {
@@ -228,7 +228,7 @@ public class Scraper
     /// <summary>
     /// Load the available beta and/or alpha versions.
     /// </summary>
-    /// <param name="canellation"></param>
+    /// <param name="cancellation"></param>
     /// <returns>Task returning the discovered versions</returns>
     public async Task<IEnumerable<VersionMetadata>> LoadPrerelease(bool includeAlpha, CancellationToken cancellation = default)
     {
@@ -382,7 +382,7 @@ public class Scraper
     }
 
     /// <summary>
-    /// Try to load metadata from a version by scaping a custom URL.
+    /// Try to load metadata from a version by scraping a custom URL.
     /// </summary>
     /// <param name="url">URL to a HTML page to look for Unity versions.</param>
     /// <returns>The first Unity version found at URL or the default value if none could be found.</returns>

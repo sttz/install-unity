@@ -29,7 +29,7 @@ public class InstallUnityCLI
     /// </summary>
     public bool help;
     /// <summary>
-    /// Wether to print the proram version.
+    /// Wether to print the program version.
     /// </summary>
     public bool version;
     /// <summary>
@@ -119,7 +119,7 @@ public class InstallUnityCLI
         All
     }
 
-    // -------- Arguments Defintion --------
+    // -------- Arguments Definition --------
 
     /// <summary>
     /// Convert the program back into a normalized arguments string.
@@ -211,7 +211,7 @@ public class InstallUnityCLI
                     .Description("Pattern to match Unity version or release notes / unity hub url")
                 .Option((InstallUnityCLI t, IList<string> v) => t.packages.AddRange(v), "p", "packages").Repeatable()
                     .ArgumentName("<name,name>")
-                    .Description("Select pacakges to download and install ('all' selects all available, '~NAME' matches substrings)")
+                    .Description("Select packages to download and install ('all' selects all available, '~NAME' matches substrings)")
                 .Option((InstallUnityCLI t, bool v) => t.download = v, "download")
                     .Description("Only download the packages (requires '--data-path')")
                 .Option((InstallUnityCLI t, bool v) => t.install = v, "install")
@@ -614,7 +614,7 @@ public class InstallUnityCLI
         var colWidth = (verbose > 0 ? ListVersionsWithHashColumnWith : ListVersionsColumnWidth);
         var maxColumns = Math.Max(Console.BufferWidth / colWidth, 1);
         foreach (var majorRow in majorRows) {
-            // Major version seperator / title
+            // Major version separator / title
             var major = majorRow[0][0].version.major;
             WriteBigTitle(major.ToString());
             
@@ -860,7 +860,7 @@ public class InstallUnityCLI
             }
         }
 
-        // Request password before downoad so the download & installation can go on uninterrupted
+        // Request password before download so the download & installation can go on uninterrupted
         if ((op & UnityInstaller.InstallStep.Install) > 0) {
             if (Console.IsOutputRedirected && !await installer.Platform.IsAdmin()) {
                 throw new Exception($"The command needs to be run as root when installing.");
@@ -898,7 +898,7 @@ public class InstallUnityCLI
         }
 
         if (dataPath == null) {
-            Logger.LogInformation("Cleaning up downloaded pacakges ('--data-path' not set)");
+            Logger.LogInformation("Cleaning up downloaded packages ('--data-path' not set)");
             installer.CleanUpDownloads(metadata, downloadPath, resolved);
         }
 

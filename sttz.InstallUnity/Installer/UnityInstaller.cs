@@ -116,7 +116,7 @@ public class UnityInstaller
     public class QueueItem
     {
         /// <summary>
-        /// Description of the item's curent state.
+        /// Description of the item's current state.
         /// </summary>
         public enum State {
             /// <summary>
@@ -211,7 +211,7 @@ public class UnityInstaller
 
         // Initialize platform-specific classes
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
-            Logger.LogDebug("Loading plaform integration for macOS");
+            Logger.LogDebug("Loading platform integration for macOS");
             Platform = new MacPlatform();
         } else {
             throw new NotImplementedException("Installer does not currently support the platform: " + RuntimeInformation.OSDescription);
@@ -478,7 +478,7 @@ public class UnityInstaller
                 }
 
             } else {
-                // Some packages (Vistual Studio, Mono) have wrong size and no hash
+                // Some packages (Visual Studio, Mono) have wrong size and no hash
                 if (hash == null && File.Exists(item.filePath)) {
                     Logger.LogWarning($"File exists but cannot be checked for completeness: {item.filePath}");
                     item.currentState = install ? QueueItem.State.WaitingForInstall : QueueItem.State.Complete;
@@ -599,7 +599,7 @@ public class UnityInstaller
     }
 
     /// <summary>
-    /// Delete downloaded data, checking to only delte expected files.
+    /// Delete downloaded data, checking to only delete expected files.
     /// </summary>
     /// <param name="downloadPath">Where downloads were stored.</param>
     /// <param name="metadata">The Unity version downloaded</param>

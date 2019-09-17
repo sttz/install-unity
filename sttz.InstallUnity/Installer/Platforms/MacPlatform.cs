@@ -27,12 +27,12 @@ public class MacPlatform : IInstallerPlatform
     const string INSTALL_PATH = "/Applications/Unity";
 
     /// <summary>
-    /// Path used to temporarily move exising installation out of the way.
+    /// Path used to temporarily move existing installation out of the way.
     /// </summary>
     const string INSTALL_PATH_TMP = "/Applications/Unity (Moved by " + UnityInstaller.PRODUCT_NAME + ")";
 
     /// <summary>
-    /// Match the mountpoint from hdiutil's output, e.g.:
+    /// Match the mount point from hdiutil's output, e.g.:
     /// /dev/disk4s2        	Apple_HFS                      	/private/tmp/dmg.0bDM7Q
     /// </summary>
     static Regex MOUNT_POINT_REGEX = new Regex(@"^(?:\/dev\/\w+)[\t ]+(?:\w+)[\t ]+(\/.*)$", RegexOptions.Multiline);

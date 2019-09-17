@@ -6,7 +6,7 @@ namespace sttz.InstallUnity
 {
 
 /// <summary>
-/// Class representing an existing Unity instalation.
+/// Class representing an existing Unity installation.
 /// </summary>
 public class Installation
 {

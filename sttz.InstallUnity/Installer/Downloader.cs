@@ -96,7 +96,7 @@ public class Downloader
         Downloading,
 
         /// <summary>
-        /// Error occured while downloading.
+        /// Error occurred while downloading.
         /// </summary>
         Error,
 

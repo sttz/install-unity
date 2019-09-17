@@ -110,7 +110,7 @@ public struct VersionMetadata
 public struct PackageMetadata
 {
     /// <summary>
-    /// Name of the main editor pacakge.
+    /// Name of the main editor package.
     /// </summary>
     public const string EDITOR_PACKAGE_NAME = "Unity";
 
@@ -397,7 +397,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
     }
 
     /// <summary>
-    /// Get a version from the databse.
+    /// /// Get a version from the database.
     /// </summary>
     /// <remarks>
     /// If the version is incomplete, the latest version matching will be returned.
