@@ -106,7 +106,7 @@ You can pass [command line arguments](https://docs.unity3d.com/Manual/CommandLin
 ## CLI Help
 
 ````
-install-unity v2.4.0
+install-unity v2.5.0
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
@@ -160,7 +160,7 @@ USAGE: install-unity [options] install [--packages <name,name>...] [--download]
 OPTIONS:
  <version>        Pattern to match Unity version or release notes / unity hub 
                   url 
- -p, --packages <name,name>  Select pacakges to download and install ('all' 
+ -p, --packages <name,name>  Select packages to download and install ('all' 
                   selects all available, '~NAME' matches substrings) 
      --download   Only download the packages (requires '--data-path') 
      --install    Install previously downloaded packages (requires 
@@ -185,7 +185,7 @@ OPTIONS:
      Execute a version of Unity or a Unity project, matching it to its Unity 
      version 
 
-USAGE: install-unity [options] run [--detach] 
+USAGE: install-unity [options] run [--child] 
                      [--allow-newer none|patch|minor|all] <version-or-path> 
                      [<unity-arguments>...] 
 
@@ -193,7 +193,8 @@ OPTIONS:
  <version-or-path> Pattern to match Unity version or path to a Unity project 
  <unity-arguments> Arguments to launch Unity with (put a -- first to avoid 
                   Unity options being parsed as install-unity options) 
- -d, --detach     Detach from the launched Unity instance 
+ -c, --child      Run Unity as a child process and forward its log output (only 
+                  errors, use -v to see the full log) 
  -a, --allow-newer none|patch|minor|all  Allow newer versions of Unity to open 
                   a project 
 ````
@@ -203,6 +204,15 @@ OPTIONS:
 The old Python version of install-unity can be found in the [legacy](https://github.com/sttz/install-unity/tree/next) branch.
 
 # Changelog
+
+### 2.5.0 (2019-09-18)
+* Support installing Documentation, Android SDK/NDK, OpenJDK and language packs
+* Better separation of hidden packages in `details` and automatically added packages in `install`
+* Prefix package name with = to skip adding its dependencies
+* Run detached is now default, use `--child` to run Unity as a child process
+* When running as child, Unity's log is forwarded to the console (use `-v` to see full log, not just errors)
+* Fix Unity's output leaking into the console when running Unity detached
+* Fix dependency getting added twice if it's been selected explicitly
 
 ### 2.4.0 (2019-08-18)
 * Support .Net Framework for better compatibility with mono
