@@ -51,10 +51,33 @@ public struct VersionMetadata
     public PackageMetadata[] linuxPackages;
 
     /// <summary>
-    /// Get platform specific packages.
+    /// Virtual packages, generated dynamically for the current platform.
+    /// </summary>
+    [NonSerialized]
+    public IEnumerable<PackageMetadata> virtualPackages;
+
+    /// <summary>
+    /// Callback to add virtual packages.
+    /// </summary>
+    /// <remarks>
+    /// Don't call <see cref="GetPackages"/> in the callback or you'll end up in
+    /// an infinite recursion. Use <see cref="GetRawPackages"/> instead.
+    /// </remarks>
+    public static Func<VersionMetadata, CachePlatform, IEnumerable<PackageMetadata>> OnGenerateVirtualPackages;
+
+    /// <summary>
+    /// Determine wether the packages metadata has been loaded.
+    /// </summary>
+    public bool HasPackagesMetadata(CachePlatform platform)
+    {
+        return GetRawPackages(platform) != null;
+    }
+
+    /// <summary>
+    /// Get platform specific packages without adding virtual packages.
     /// </summary>
     /// <param name="platform">Platform to get.</param>
-    public PackageMetadata[] GetPackages(CachePlatform platform)
+    public IEnumerable<PackageMetadata> GetRawPackages(CachePlatform platform)
     {
         switch (platform) {
             case CachePlatform.macOS:
@@ -63,6 +86,43 @@ public struct VersionMetadata
                 return winPackages;
             case CachePlatform.Linux:
                 return linuxPackages;
+            default:
+                throw new Exception("Invalid platform name: " + platform);
+        }
+    }
+
+    /// <summary>
+    /// Get platform specific packages.
+    /// </summary>
+    /// <param name="platform">Platform to get.</param>
+    public IEnumerable<PackageMetadata> GetPackages(CachePlatform platform)
+    {
+        // Generate virtual packages
+        if (virtualPackages == null) {
+            if (OnGenerateVirtualPackages != null) {
+                foreach (Func<VersionMetadata, CachePlatform, IEnumerable<PackageMetadata>> func in OnGenerateVirtualPackages.GetInvocationList()) {
+                    var result = func(this, platform);
+                    if (result != null) {
+                        if (virtualPackages == null) {
+                            virtualPackages = result;
+                        } else {
+                            virtualPackages = virtualPackages.Concat(result);
+                        }
+                    }
+                }
+            }
+            if (virtualPackages == null) {
+                virtualPackages = Enumerable.Empty<PackageMetadata>();
+            }
+        }
+
+        switch (platform) {
+            case CachePlatform.macOS:
+                return macPackages.Concat(virtualPackages);
+            case CachePlatform.Windows:
+                return winPackages.Concat(virtualPackages);
+            case CachePlatform.Linux:
+                return linuxPackages.Concat(virtualPackages);
             default:
                 throw new Exception("Invalid platform name: " + platform);
         }
@@ -87,6 +147,20 @@ public struct VersionMetadata
             default:
                 throw new Exception("Invalid platform name: " + platform);
         }
+    }
+
+    /// <summary>
+    /// Find a package by name, ignoring case and excluding virtual packages.
+    /// </summary>
+    public PackageMetadata GetRawPackage(CachePlatform platform, string name)
+    {
+        var packages = GetRawPackages(platform);
+        foreach (var package in packages) {
+            if (package.name.Equals(name, StringComparison.OrdinalIgnoreCase)) {
+                return package;
+            }
+        }
+        return default;
     }
 
     /// <summary>
@@ -214,32 +288,58 @@ public struct PackageMetadata
     /// </summary>
     public string eulaurl2;
 
+    // -------- Fields used by virtual packages --------
+
+    /// <summary>
+    /// Where the archive should be extracted to (does not apply to installers).
+    /// </summary>
+    public string destination;
+
+    /// <summary>
+    /// Rename the extracted archive from this path.
+    /// </summary>
+    public string renameFrom;
+
+    /// <summary>
+    ///  Rename the extracted archive to this path.
+    /// </summary>
+    public string renameTo;
+
+    /// <summary>
+    /// Target file name.
+    /// </summary>
+    public string fileName;
+
     /// <summary>
     /// Get the file name to use for the package.
     /// </summary>
     public string GetFileName()
     {
-        string fileName;
+        if (!string.IsNullOrEmpty(fileName)) {
+            return fileName;
+        }
+
+        string guessedName;
 
         // Try to get file name from URL
         var uri = new Uri(url, UriKind.RelativeOrAbsolute);
         if (uri.IsAbsoluteUri) {
-            fileName = uri.Segments.Last();
+            guessedName = uri.Segments.Last();
         } else {
-            fileName = Path.GetFileName(url);
+            guessedName = Path.GetFileName(url);
         }
 
         // Fallback to given extension if the url doesn't match
         if (extension != null 
-                && !string.Equals(Path.GetExtension(fileName), "." + extension, StringComparison.OrdinalIgnoreCase)) {
-            fileName = name + "." + extension;
+                && !string.Equals(Path.GetExtension(guessedName), "." + extension, StringComparison.OrdinalIgnoreCase)) {
+            guessedName = name + "." + extension;
         
         // Force an extension for older versions that don't provide one
-        } else if (Path.GetExtension(fileName) == "") {
-            fileName = name + ".pkg";
+        } else if (Path.GetExtension(guessedName) == "") {
+            guessedName = name + ".pkg";
         }
 
-        return fileName;
+        return guessedName;
     }
 }
 

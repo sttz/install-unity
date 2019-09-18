@@ -376,6 +376,9 @@ public class InstallUnityCLI
             platform = GetCurrentPlatform();
         }
 
+        // Enable generating virtual packages
+        VirtualPackages.Enable();
+
         // Parse version argument (--unity-version or positional argument)
         var version = new UnityVersion(matchVersion);
         if (version.type == UnityVersion.Type.Undefined && version.hash == null) {
@@ -512,8 +515,7 @@ public class InstallUnityCLI
         }
 
         // Load packages ini if needed
-        var packageMetadata = metadata.GetPackages(platform);
-        if (packageMetadata == null) {
+        if (!metadata.HasPackagesMetadata(platform)) {
             if (installOnly) {
                 throw new Exception("Packages not found in versions cache (install only): " + version);
             }
@@ -676,7 +678,7 @@ public class InstallUnityCLI
             .Select(p => p.name + (p.install ? "*" : ""))
             .ToArray()
         );
-        Console.WriteLine(packageMetadata.Length + " Packages: " + list);
+        Console.WriteLine(packageMetadata.Count() + " Packages: " + list);
         Console.WriteLine("* = default package");
         Console.WriteLine();
     }

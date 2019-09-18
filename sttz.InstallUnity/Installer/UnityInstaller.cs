@@ -428,7 +428,7 @@ public class UnityInstaller
         
         var packageMetadata = metadata.GetPackages(cachePlatform);
 
-        if (packageMetadata == null || packageMetadata.Length == 0)
+        if (packageMetadata == null || !packageMetadata.Any())
             throw new ArgumentException("VersionMetadata.packages cannot be null or empty", nameof(metadata));
         
         var items = new List<QueueItem>();

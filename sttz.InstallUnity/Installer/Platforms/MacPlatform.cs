@@ -22,6 +22,11 @@ public class MacPlatform : IInstallerPlatform
     const string BUNDLE_ID = "com.unity3d.UnityEditor5.x";
 
     /// <summary>
+    /// Volume where the packages will be installed to.
+    /// </summary>
+    const string INSTALL_VOLUME = "/";
+
+    /// <summary>
     /// Default installation path.
     /// </summary>
     const string INSTALL_PATH = "/Applications/Unity";
@@ -195,9 +200,13 @@ public class MacPlatform : IInstallerPlatform
 
         var extentsion = Path.GetExtension(item.filePath).ToLower();
         if (extentsion == ".pkg") {
-            await InstallPkg(item.package.name, item.filePath, "/", cancellation);
+            await InstallPkg(item.filePath, cancellation);
         } else if (extentsion == ".dmg") {
-            await InstallDmg(item.package.name, item.filePath, "/", cancellation);
+            await InstallDmg(item.filePath, cancellation);
+        } else if (extentsion == ".zip") {
+            await InstallZip(item.filePath, item.package.destination, item.package.renameFrom, item.package.renameTo, cancellation);
+        } else if (extentsion == ".po") {
+            await InstallFile(item.filePath, item.package.destination, cancellation);
         } else {
             throw new Exception("Cannot install package of type: " + extentsion);
         }
@@ -348,9 +357,9 @@ public class MacPlatform : IInstallerPlatform
     /// <summary>
     /// Install a PKG package using the `installer` command.
     /// </summary>
-    async Task InstallPkg(string packageId, string packagePath, string target, CancellationToken cancellation = default)
+    async Task InstallPkg(string filePath, CancellationToken cancellation = default)
     {
-        var result = await Sudo("/usr/sbin/installer", $"-pkg \"{packagePath}\" -target \"{target}\" -verbose", cancellation);
+        var result = await Sudo("/usr/sbin/installer", $"-pkg \"{filePath}\" -target \"{INSTALL_VOLUME}\" -verbose", cancellation);
         if (result.exitCode != 0) {
             throw new Exception($"ERROR: failed to run installer: {result.error}");
         }
@@ -359,10 +368,10 @@ public class MacPlatform : IInstallerPlatform
     /// <summary>
     /// Install a DMG package by mounting it and copying the app bundle.
     /// </summary>
-    async Task InstallDmg(string packageId, string packagePath, string target, CancellationToken cancellation = default)
+    async Task InstallDmg(string filePath, CancellationToken cancellation = default)
     {
         // Mount DMG
-        var result = await Command.Run("/usr/bin/hdiutil", $"attach -nobrowse -mountrandom /tmp \"{packagePath}\"", cancellation: cancellation);
+        var result = await Command.Run("/usr/bin/hdiutil", $"attach -nobrowse -mountrandom /tmp \"{filePath}\"", cancellation: cancellation);
         if (result.exitCode != 0) {
             throw new Exception($"ERROR: failed to run hdiutil: {result.error}");
         }
@@ -386,7 +395,7 @@ public class MacPlatform : IInstallerPlatform
                 throw new Exception("No app bundles found in DMG.");
             }
             
-            var targetDir = Path.Combine(target, "Applications");
+            var targetDir = Path.Combine(INSTALL_VOLUME, "Applications");
             foreach (var app in apps) {
                 var dst = Path.Combine(targetDir, Path.GetFileName(app));
                 if (Directory.Exists(dst) || File.Exists(dst)) {
@@ -400,6 +409,62 @@ public class MacPlatform : IInstallerPlatform
             if (result.exitCode != 0) {
                 Logger.LogError($"Failed to run hdiutil: {result.error}");
             }
+        }
+    }
+
+    /// <summary>
+    /// Copy a file without doing anything with it.
+    /// </summary>
+    async Task InstallFile(string filePath, string destination, CancellationToken cancellation = default)
+    {
+        if (string.IsNullOrEmpty(destination)) {
+            throw new Exception($"Cannot install {filePath}: File packages must have a destination set.");
+        }
+
+        var targetDir = destination.Replace("{UNITY_PATH}", INSTALL_PATH);
+        var dst = Path.Combine(targetDir, Path.GetFileName(filePath));
+        await Copy(filePath, dst, cancellation);
+    }
+
+    /// <summary>
+    /// Unpack a Zip file to the given destination.
+    /// </summary>
+    async Task InstallZip(string filePath, string destination, string renameFrom, string renameTo, CancellationToken cancellation = default)
+    {
+        if (string.IsNullOrEmpty(destination)) {
+            throw new Exception($"Cannot install {filePath}: Zip packages must have a destination set.");
+        }
+
+        var target = destination.Replace("{UNITY_PATH}", INSTALL_PATH);
+        var retryWithRoot = false;
+        (int exitCode, string output, string error) result;
+        try {
+            result = await Command.Run("/usr/bin/unzip", $"\"{filePath}\" -d \"{target}\"", cancellation: cancellation);
+            if (result.exitCode != 0) {
+                throw new Exception($"ERROR: failed to run unzip: {result.error}");
+            }
+        } catch (Exception e) {
+            Logger.LogInformation($"Unzip as user failed, trying as root... ({e.Message})");
+            retryWithRoot = true;
+        }
+
+        if (retryWithRoot) {
+            result = await Sudo("/usr/bin/unzip", $"\"{filePath}\" -d \"{target}\"", cancellation);
+            if (result.exitCode != 0) {
+                throw new Exception($"ERROR: failed to run unzip: {result.error}");
+            }
+        }
+
+        // Fix permissions, some files are not readable if installed with root
+        await Sudo("/bin/chmod", $"-R o+rX \"{target}\"", cancellation);
+
+        if (!string.IsNullOrEmpty(renameFrom) && !string.IsNullOrEmpty(renameTo)) {
+            var from = renameFrom.Replace("{UNITY_PATH}", INSTALL_PATH);
+            var to = renameTo.Replace("{UNITY_PATH}", INSTALL_PATH);
+            if (!Directory.Exists(from) && !File.Exists(from)) {
+                throw new Exception($"{filePath}: renameFrom path does not exist: {from}");
+            }
+            await Move(from, to, cancellation);
         }
     }
 
