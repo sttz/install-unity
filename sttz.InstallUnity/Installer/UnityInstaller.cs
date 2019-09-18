@@ -382,22 +382,35 @@ public class UnityInstaller
             }
 
             if (resolved.name != null) {
-                if (addDependencies) {
-                    foreach (var package in packageMetadata) {
-                        if (package.sync == resolved.name && !metas.Any(p => p.name == package.name)) {
-                            Logger.LogInformation($"Adding '{package.name}' which '{resolved.name}' is synced with");
-                            metas.Add(package);
-                        }
-                    }
-                }
-
-                metas.Add(resolved);
-
+                AddPackageWithDependencies(packageMetadata, metas, resolved, addDependencies);
             } else if (notFound != null) {
                 notFound.Add(id);
             }
         }
         return metas;
+    }
+
+    /// <summary>
+    /// Recursive method to add package and dependencies.
+    /// </summary>
+    void AddPackageWithDependencies(
+        IEnumerable<PackageMetadata> packages, 
+        List<PackageMetadata> selected, 
+        PackageMetadata package, 
+        bool addDependencies
+    ) {
+        if (selected.Contains(package)) return;
+
+        selected.Add(package);
+
+        if (!addDependencies) return;
+
+        foreach (var dep in packages) {
+            if (dep.sync == package.name && !selected.Contains(dep)) {
+                Logger.LogInformation($"Adding '{dep.name}' which '{package.name}' is synced with");
+                AddPackageWithDependencies(packages, selected, dep, addDependencies);
+            }
+        }
     }
 
     /// <summary>
