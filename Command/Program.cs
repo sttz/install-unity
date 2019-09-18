@@ -837,6 +837,7 @@ public class InstallUnityCLI
         var deps = packageList.Where(p => p.addedAutomatically);
         if (deps.Any()) {
             WriteTitle("Additional dependencies:");
+            Console.WriteLine("Dependencies are added automatically, prefix a package with = to install only that package.");
             foreach (var package in deps) {
                 totalSpace += package.installedsize;
                 totalDownload += package.size;

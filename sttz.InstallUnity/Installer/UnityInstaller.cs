@@ -356,23 +356,33 @@ public class UnityInstaller
         VersionMetadata metadata, 
         CachePlatform cachePlatform,
         IEnumerable<string> packages, 
-        IList<string> notFound = null,
-        bool addDependencies = true
+        IList<string> notFound = null
     ) {
         var packageMetadata = metadata.GetPackages(cachePlatform);
         var metas = new List<PackageMetadata>();
-        foreach (var id in packages) {
+        foreach (var pattern in packages) {
+            var id = pattern;
+            bool fuzzy = false, addDependencies = true;
+            while (id.StartsWith("~") || id.StartsWith("=")) {
+                if (id.StartsWith("~")) {
+                    fuzzy = true;
+                    id = id.Substring(1);
+                } else if (id.StartsWith("=")) {
+                    addDependencies = false;
+                    id = id.Substring(1);
+                }
+            }
+
             PackageMetadata resolved = default;
-            if (id.StartsWith("~")) {
+            if (fuzzy) {
                 // Contains lookup
-                var str = id.Substring(1);
                 foreach (var package in packageMetadata) {
-                    if (package.name.IndexOf(str, StringComparison.OrdinalIgnoreCase) >= 0) {
+                    if (package.name.IndexOf(id, StringComparison.OrdinalIgnoreCase) >= 0) {
                         if (resolved.name == null) {
-                            Logger.LogDebug($"Fuzzy lookup '{id}' matched package '{resolved.name}'");
+                            Logger.LogDebug($"Fuzzy lookup '{pattern}' matched package '{resolved.name}'");
                             resolved = package;
                         } else {
-                            throw new Exception($"Fuzzy package match '{id}' is ambiguous between '{package.name}' and '{resolved.name}'");
+                            throw new Exception($"Fuzzy package match '{pattern}' is ambiguous between '{package.name}' and '{resolved.name}'");
                         }
                     }
                 }
