@@ -919,10 +919,12 @@ public class InstallUnityCLI
 
     void WriteQueueStatus(UnityInstaller.Queue queue, long updateCount, int statusInterval)
     {
+        var longestName = Math.Max(queue.items.Max(i => i.package.name.Length), 12);
+        var longestStatus = queue.items.Max(i => i.status?.Length ?? 37);
+
         Console.Write(new string(' ', Console.BufferWidth));
 
-        var longestName = queue.items.Max(i => i.package.name.Length);
-        var longestStatus = queue.items.Max(i => i.status?.Length ?? 37);
+        var barStartCol = 4 + 1 + longestName + 1;
         foreach (var item in queue.items) {
             SetColors(ConsoleColor.White, ConsoleColor.DarkGray);
             switch (item.currentState) {
@@ -951,8 +953,7 @@ public class InstallUnityCLI
 
             Console.Write(" ");
             Console.Write(item.package.name);
-            Console.Write(new string(' ', longestName - item.package.name.Length));
-            Console.Write(" ");
+            Console.Write(new string(' ', barStartCol - Console.CursorLeft));
 
             var progressWidth = Console.BufferWidth - longestName - 6; // 4 for status, 2 padding
             if (item.currentState == UnityInstaller.QueueItem.State.Hashing 
