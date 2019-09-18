@@ -671,10 +671,11 @@ public class InstallUnityCLI
         ShowDetails(installer, metadata);
     }
 
-    void PackagesList(VersionMetadata metadata)
+    void ShortPackagesList(VersionMetadata metadata)
     {
         var packageMetadata = metadata.GetPackages(platform);
         var list = string.Join(", ", packageMetadata
+            .Where(p => !p.hidden)
             .Select(p => p.name + (p.install ? "*" : ""))
             .ToArray()
         );
@@ -683,27 +684,10 @@ public class InstallUnityCLI
         Console.WriteLine();
     }
 
-    void ShowDetails(UnityInstaller installer, VersionMetadata metadata)
+    void DetailedPackagesList(IEnumerable<PackageMetadata> packages)
     {
-        var packageMetadata = metadata.GetPackages(platform);
-
-        WriteBigTitle($"Details for Unity {metadata.version}");
-
-        if (metadata.baseUrl != null) {
-            Console.WriteLine("Base URL: " + metadata.baseUrl);
-        }
-
-        var releaseNotes = installer.Scraper.GetReleaseNotesUrl(metadata.version);
-        if (releaseNotes != null) {
-            Console.WriteLine("Release notes: " + releaseNotes);
-        }
-
-        Console.WriteLine();
-
-        PackagesList(metadata);
-
         fieldWidth = 14;
-        foreach (var package in packageMetadata.OrderBy(p => p.name)) {
+        foreach (var package in packages) {
             SetColors(ConsoleColor.DarkGray, ConsoleColor.DarkGray);
             Console.Write("--------------- ");
             SetForeground(ConsoleColor.White);
@@ -726,6 +710,35 @@ public class InstallUnityCLI
             WriteField("MD5", package.md5);
 
             Console.WriteLine();
+        }
+    }
+
+    void ShowDetails(UnityInstaller installer, VersionMetadata metadata)
+    {
+        var packageMetadata = metadata.GetPackages(platform);
+
+        WriteBigTitle($"Details for Unity {metadata.version}");
+
+        if (metadata.baseUrl != null) {
+            Console.WriteLine("Base URL: " + metadata.baseUrl);
+        }
+
+        var releaseNotes = installer.Scraper.GetReleaseNotesUrl(metadata.version);
+        if (releaseNotes != null) {
+            Console.WriteLine("Release notes: " + releaseNotes);
+        }
+
+        Console.WriteLine();
+
+        ShortPackagesList(metadata);
+
+        DetailedPackagesList(packageMetadata.Where(p => !p.hidden).OrderBy(p => p.name));
+
+        var hidden = packageMetadata.Where(p => p.hidden).OrderBy(p => p.name);
+        if (hidden.Any()) {
+            WriteTitle("Hidden Packages");
+            Console.WriteLine();
+            DetailedPackagesList(hidden);
         }
     }
 
@@ -814,10 +827,21 @@ public class InstallUnityCLI
 
         WriteTitle("Selected packages:");
         long totalSpace = 0, totalDownload = 0;
-        foreach (var package in resolved) {
+        var packageList = resolved.OrderBy(p => p.name);
+        foreach (var package in packageList.Where(p => !p.addedAutomatically)) {
             totalSpace += package.installedsize;
             totalDownload += package.size;
             Console.WriteLine($"- {package.name} ({Helpers.FormatSize(package.size)})");
+        }
+
+        var deps = packageList.Where(p => p.addedAutomatically);
+        if (deps.Any()) {
+            WriteTitle("Additional dependencies:");
+            foreach (var package in deps) {
+                totalSpace += package.installedsize;
+                totalDownload += package.size;
+                Console.WriteLine($"- {package.name} ({Helpers.FormatSize(package.size)}) [from {package.sync}]");
+            }
         }
 
         Console.WriteLine();

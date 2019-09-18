@@ -397,10 +397,12 @@ public class UnityInstaller
         IEnumerable<PackageMetadata> packages, 
         List<PackageMetadata> selected, 
         PackageMetadata package, 
-        bool addDependencies
+        bool addDependencies,
+        bool isDependency = false
     ) {
         if (selected.Contains(package)) return;
 
+        package.addedAutomatically = isDependency;
         selected.Add(package);
 
         if (!addDependencies) return;
@@ -408,7 +410,7 @@ public class UnityInstaller
         foreach (var dep in packages) {
             if (dep.sync == package.name && !selected.Contains(dep)) {
                 Logger.LogInformation($"Adding '{dep.name}' which '{package.name}' is synced with");
-                AddPackageWithDependencies(packages, selected, dep, addDependencies);
+                AddPackageWithDependencies(packages, selected, dep, addDependencies, true);
             }
         }
     }

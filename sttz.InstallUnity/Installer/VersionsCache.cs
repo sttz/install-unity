@@ -311,6 +311,11 @@ public struct PackageMetadata
     public string fileName;
 
     /// <summary>
+    /// Used to track automatically added dependencies.
+    /// </summary>
+    [NonSerialized] public bool addedAutomatically;
+
+    /// <summary>
     /// Get the file name to use for the package.
     /// </summary>
     public string GetFileName()
