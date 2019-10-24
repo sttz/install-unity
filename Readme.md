@@ -1,16 +1,8 @@
-# install-unity 2
+# install-unity
 
-This is the next version of install-unity, a utility to install any recent version of Unity without having to download a separate installer for each.
+A command-line utility to install any recent version of Unity.
 
-## What's New
-
-Version 2 is written in C# and AOT-compiled with CoreRT, turning it into a self-contained executable with no dependencies. The CLI is backed by a library, which can be integrated into any .Net project.
-
-The downloading is now parallelized, downloading multiple packages at once and allowing the installation to start while downloads are still in progress. Cursory testing shows the installation to complete 10% - 20% faster.
-
-The biggest additions are the ability to support other platforms than macOS as well as uninstalling and running existing Unity installations. See the [full changelog](#changelog) for the many smaller changes and improvements.
-
-The CLI is not compatible with v1. The interface should feel familiar but has been cleaned up and split into different actions.
+Currently only supports macOS but support for Windows/Linux is possible, PRs welcome.
 
 ## Table of Contents
 
@@ -28,9 +20,9 @@ The CLI is not compatible with v1. The interface should feel familiar but has be
 
 Or you can install via [Homebrew](https://brew.sh) using [sttz/homebrew-tap](https://github.com/sttz/homebrew-tap), see the tap readme for instructions.
 
-Installing the latest version of Unity (release or beta) is as simple as:
+Installing the latest release version of Unity is as simple as:
 
-    install-unity install b
+    install-unity install f
 
 ## Versions
 
@@ -106,7 +98,7 @@ You can pass [command line arguments](https://docs.unity3d.com/Manual/CommandLin
 ## CLI Help
 
 ````
-install-unity v2.5.0
+install-unity v2.5.1
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
@@ -202,85 +194,3 @@ OPTIONS:
 # Legacy
 
 The old Python version of install-unity can be found in the [legacy](https://github.com/sttz/install-unity/tree/next) branch.
-
-# Changelog
-
-### 2.5.0 (2019-09-18)
-* Support installing Documentation, Android SDK/NDK, OpenJDK and language packs
-* Better separation of hidden packages in `details` and automatically added packages in `install`
-* Prefix package name with = to skip adding its dependencies
-* Run detached is now default, use `--child` to run Unity as a child process
-* When running as child, Unity's log is forwarded to the console (use `-v` to see full log, not just errors)
-* Fix Unity's output leaking into the console when running Unity detached
-* Fix dependency getting added twice if it's been selected explicitly
-
-### 2.4.0 (2019-08-18)
-* Support .Net Framework for better compatibility with mono
-* Add experimental Homebrew formula, see [sttz/homebrew-tap](https://github.com/sttz/homebrew-tap).
-
-### 2.3.0 (2019-06-25)
-
-* Indicate installed version with a ✓︎ when using the list action
-* Fix using install-unity without a terminal
-* Fix EULA prompt defaulting to accept
-* Fix release notes URL not shown if there's only one update
-
-### 2.2.0 (2019-05-27)
-
-* Discover all available prerelease versions, including alphas
-* Fix `--allow-newer` not working when only the build number is increased (e.g. b1 to b2)
-* Fix release notes URL for regular releases
-* Indicate new versions in `list` command with ⬆︎
-* Increase maximum number of displayed new versions from 5 to 10
-
-### 2.1.1 (2019-02-06)
-
-* Fix automatic detection of beta releases
-
-### 2.1.0 (2018-12-17)
-
-* Use `unityhub://` urls for scraping, fixes discovery of 2018.3.0f2 and 2018.2.20f1
-* Allow passing `unityhub://` urls as version for `details` and `install` (like it's already possible with release notes urls)
-* Now `--upgrade` selects the next older installed version to remove, relative to the version being installed. Previously it would use the version pattern, which didn't work when using an exact version or an url.
-
-### 2.0.1 (2018-12-10)
-
-* Add `--yolo` option to skip size and hash checks (required sometimes when Unity gets them wrong)
-* Fix package added twice when dependency has been selected manually
-* Fix exception when drawing progress bar
-* Minor output fixes
-
-### 2.0.0 (2018-11-13)
-
-* Install alphas using their full version number or their release notes url
-* Fix scraping of beta releases
-
-### 2.0.0-beta3 (2018-10-27)
-
-* Accept url to release notes as version argument in `install` and `details`
-* Fix guessed release notes url for regular Unity releases
-* Add message when old Unity version is removed during an upgrade to avoid the program to appear stalled
-* Small visual tweaks to progress output
-
-### 2.0.0-beta2 (2018-10-01)
-
-* Add `--upgrade` to `install` to replace existing version after installation
-* Don't update outdated cache when using `list --installed`
-
-### 2.0.0-beta1 (2018-08-13)
-
-* Rewritten as a library in C#
-* Improved command line interface and output
-* Faster installs thanks to parallelization
-* List installed versions and uninstall them
-* Substring package name matching (using `~NAME`)
-* Automatic selection of dependent packages
-* Better cleanup of aborted installs
-* Support for differentiating versions based on build hash
-* Retry downloads
-* Support for installing DMGs on macOS (Visual Studio for Mac)
-* Discover installations outside of `/Applications` on macOS
-* Select and run Unity with command line arguments
-* Patch releases only supported with full version number
-* Still a single executable without dependencies
-* Planned Windows and Linux support (help welcome)

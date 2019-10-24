@@ -2,12 +2,15 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>netcoreapp2.1;net472</TargetFrameworks>
+    <TargetFrameworks>netcoreapp3.0;net472</TargetFrameworks>
     <LangVersion>7.1</LangVersion>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <PropertyGroup Label="Package">
-    <Version>2.5.0</Version>
+    <Version>2.5.1</Version>
     <Authors>Adrian Stutz (sttz.ch)</Authors>
     <Product>install-unity CLI</Product>
     <Description>CLI for install-unity unofficial Unity installer library</Description>
@@ -17,10 +20,6 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>CLI;Unity;Installer</PackageTags>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="1.0.0-*" />
-  </ItemGroup>
 
   <ItemGroup>
     <RdXmlFile Include="rd.xml" />
