@@ -1148,19 +1148,23 @@ public class InstallUnityCLI
                         throw new Exception("-projectPath has no argument.");
                     }
                     Logger.LogWarning($"-projectPath already set, overwriting with '{projectPath}'");
-                    unityArguments[i + 1] = Helpers.EscapeArgument(projectPath);
+                    unityArguments[i + 1] = projectPath;
                     projectPathSet = true;
                     break;
                 }
             }
             if (!projectPathSet) {
                 unityArguments.Add("-projectPath");
-                unityArguments.Add(Helpers.EscapeArgument(projectPath));
+                unityArguments.Add(projectPath);
             }
         }
 
         if (installation == null) {
             throw new Exception($"Could not run Unity {version}: Not installed");
+        }
+
+        for (int i = 0; i < unityArguments.Count; i++) {
+            unityArguments[i] = Helpers.EscapeArgument(unityArguments[i]);
         }
 
         Console.WriteLine($"Will run {installation.path} with arguments: '{string.Join(" ", unityArguments)}'");
