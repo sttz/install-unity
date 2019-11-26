@@ -955,6 +955,7 @@ public class InstallUnityCLI
                 WriteQueueStatus(queue, ++updateCount, statusInterval);
                 await Task.Delay(refreshInterval);
             }
+            ClearQueueStatus(queue);
 
             if (processTask.IsFaulted) {
                 throw processTask.Exception;
@@ -992,6 +993,9 @@ public class InstallUnityCLI
         var longestStatus = queue.items.Max(i => i.status?.Length ?? 37);
 
         Console.Write(new string(' ', Console.BufferWidth));
+        if (Console.CursorLeft != 0) {
+            Console.WriteLine();
+        }
 
         var barStartCol = 4 + 1 + longestName + 1;
         foreach (var item in queue.items) {
@@ -1054,10 +1058,31 @@ public class InstallUnityCLI
             } else {
                 Console.Write(new string(' ', progressWidth));
             }
+
+            if (Console.CursorLeft != 0) {
+                Console.WriteLine();
+            }
+        }
+
+        Console.Write(new string(' ', Console.BufferWidth));
+        if (Console.CursorLeft != 0) {
             Console.WriteLine();
         }
 
-        Console.SetCursorPosition(0, Console.CursorTop - queue.items.Count - 1);
+        var lines = 2 + queue.items.Count;
+        Console.SetCursorPosition(0, Console.CursorTop - lines);
+    }
+
+    void ClearQueueStatus(UnityInstaller.Queue queue)
+    {
+        var lines = 2 + queue.items.Count;
+        for (int i = 0; i < lines; i++) {
+            Console.Write(new string(' ', Console.BufferWidth));
+            if (Console.CursorLeft != 0) {
+                Console.WriteLine();
+            }
+        }
+        Console.SetCursorPosition(0, Console.CursorTop - lines);
     }
 
     // -------- Uninstall --------
