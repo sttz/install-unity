@@ -475,7 +475,7 @@ public class InstallUnityCLI
                 Console.WriteLine("No new Unity versions");
             } else if (total > 0) {
                 Console.WriteLine($"New Unity version{(total > 1 ? "s" : "")}:");
-                foreach (var newVersion in newVersionsData.Take(maxVersions)) {
+                foreach (var newVersion in newVersionsData.OrderByDescending(m => m.version).Take(maxVersions)) {
                     Console.WriteLine($"- {newVersion.version} ({installer.Scraper.GetReleaseNotesUrl(newVersion.version)})");
                 }
                 if (total - maxVersions > 0) {
