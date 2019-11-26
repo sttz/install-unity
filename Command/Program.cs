@@ -1265,7 +1265,12 @@ public class InstallUnityCLI
 
         if (projectType == CreateProjectType.Minimal) {
             // Create an empty manifest to prevent setup of default packages/modules
-            var packagesPath = Path.Combine(fullPath, "Packages");
+            string packagesPath;
+            if (installation.version.major >= 2018) {
+                packagesPath = Path.Combine(fullPath, "Packages");
+            } else {
+                packagesPath = Path.Combine(fullPath, "UnityPackageManager");
+            }
             if (!Directory.Exists(packagesPath)) {
                 Directory.CreateDirectory(packagesPath);
             }
