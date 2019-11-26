@@ -119,6 +119,30 @@ public class InstallUnityCLI
         All
     }
 
+    // -- Create
+
+    /// <summary>
+    /// Path to create the new project at.
+    /// </summary>
+    public string projectPath;
+    /// <summary>
+    /// Type of project to create.
+    /// </summary>
+    public CreateProjectType projectType;
+    /// <summary>
+    /// Immediately open the new project.
+    /// </summary>
+    public bool openProject;
+
+    /// <summary>
+    /// The type of project to create.
+    /// </summary>
+    public enum CreateProjectType
+    {
+        Basic,
+        Minimal
+    }
+
     // -------- Arguments Definition --------
 
     /// <summary>
@@ -241,10 +265,25 @@ public class InstallUnityCLI
                     .Description("Arguments to launch Unity with (put a -- first to avoid Unity options being parsed as install-unity options)")
                 .Option((InstallUnityCLI t, bool v) => t.child = v, "c", "child")
                     .Description("Run Unity as a child process and forward its log output (only errors, use -v to see the full log)")
-                .Option((InstallUnityCLI t, AllowNewer v) => t.allowNewer = v, "a", "allow-newer", "allownewer").OptionalArgument()
-                    .ArgumentName("none|patch|minor|all")
-                    .Description("Allow newer versions of Unity to open a project");
+                .Option((InstallUnityCLI t, AllowNewer v) => t.allowNewer = v, "a", "allow-newer", "allownewer")
+                    .ArgumentName("none|build|patch|minor|all")
+                    .Description("Allow newer versions of Unity to open a project")
                 
+                .Action("create", (t, a) => t.action = a)
+                    .Description("Create a new empty Unity project")
+                
+                .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0).Required()
+                    .ArgumentName("<version>")
+                    .Description("Pattern to match the Unity version to create the project with")
+                .Option((InstallUnityCLI t, string v) => t.projectPath = v, 1).Required()
+                    .ArgumentName("<path>")
+                    .Description("Path to the new Unity project")
+                .Option((InstallUnityCLI t, CreateProjectType v) => t.projectType = v, "type")
+                    .ArgumentName("<basic|minimal>")
+                    .Description("Type of project to create (basic = standard project, minimal = no packages/modules)")
+                .Option((InstallUnityCLI t, bool v) => t.openProject = v, "o", "open")
+                    .Description("Open the new project in the editor");
+
                 return _arguments;
         }
     }
@@ -286,6 +325,9 @@ public class InstallUnityCLI
                     break;
                 case "run":
                     await cli.Run();
+                    break;
+                case "create":
+                    await cli.Create();
                     break;
                 default:
                     throw new Exception("Unknown action: " + cli.action);
@@ -379,7 +421,7 @@ public class InstallUnityCLI
         // Enable generating virtual packages
         VirtualPackages.Enable();
 
-        // Parse version argument (--unity-version or positional argument)
+        // Parse version argument (positional argument)
         var version = new UnityVersion(matchVersion);
         if (version.type == UnityVersion.Type.Undefined && version.hash == null) {
             version.type = UnityVersion.Type.Final;
@@ -1170,6 +1212,84 @@ public class InstallUnityCLI
         Console.WriteLine($"Will run {installation.path} with arguments: '{string.Join(" ", unityArguments)}'");
 
         await installer.Platform.Run(installation, unityArguments, child);
+    }
+
+    // -------- Create --------
+
+    public async Task Create()
+    {
+        await Setup();
+
+        var installs = await installer.Platform.FindInstallations();
+        if (!installs.Any()) {
+            throw new Exception("Could not find any installed versions of Unity");
+        }
+
+        // Determine Unity installation to create project with
+        var version = new UnityVersion(matchVersion);
+        if (!version.IsValid) {
+            throw new Exception("Not a valid Unity version pattern: " + matchVersion);
+        }
+
+        Installation installation = null;
+        foreach (var install in installs.OrderByDescending(i => i.version)) {
+            if (version.FuzzyMatches(install.version)) {
+                if (installation != null) {
+                    if (!version.IsFullVersion) continue;
+                    throw new Exception($"Version {version} is ambiguous between\n"
+                        + $"{installation.version} at '{installation.path}' and\n"
+                        + $"{install.version} at '{install.path}'\n"
+                        + "(use exact version).");
+                }
+                installation = install;
+            }
+        }
+        if (installation == null) {
+            throw new Exception($"Could not run Unity {version}: Not installed");
+        }
+
+        // Check project path
+        var fullPath = Path.GetFullPath(projectPath);
+        var assetsPath = Path.Combine(fullPath, "Assets");
+        var settingsPath = Path.Combine(fullPath, "ProjectSettings");
+        if (!Directory.Exists(fullPath)) {
+            Directory.CreateDirectory(fullPath);
+        } else if (Directory.Exists(assetsPath) || Directory.Exists(settingsPath)) {
+            throw new Exception($"Cannot overwrite existing project at: {projectPath}");
+        }
+
+        // Setup project
+        Console.WriteLine($"Creating new Unity {version.ToString(false)} project at path: {fullPath}");
+        Directory.CreateDirectory(assetsPath);
+        Directory.CreateDirectory(settingsPath);
+
+        if (projectType == CreateProjectType.Minimal) {
+            // Create an empty manifest to prevent setup of default packages/modules
+            var packagesPath = Path.Combine(fullPath, "Packages");
+            if (!Directory.Exists(packagesPath)) {
+                Directory.CreateDirectory(packagesPath);
+            }
+            var manifestPath = Path.Combine(packagesPath, "manifest.json");
+            File.WriteAllText(manifestPath, @"{ ""dependencies"": { } }");
+        }
+
+        var versionPath = Path.Combine(settingsPath, "ProjectVersion.txt");
+        File.WriteAllText(versionPath, $"m_EditorVersion: {installation.version.ToString(false)}");
+
+        // Let Unity create project
+        var arguments = new List<string>();
+        arguments.Add("-projectPath");
+        arguments.Add(Helpers.EscapeArgument(fullPath));
+
+        if (openProject) {
+            Console.WriteLine($"Opening new project");
+            await installer.Platform.Run(installation, arguments, false);
+        } else {
+            arguments.Add("-quit");
+            arguments.Add("-batchmode");
+            await installer.Platform.Run(installation, arguments, true);
+            Console.WriteLine($"Created new project");
+        }
     }
 
     // -------- Console --------
