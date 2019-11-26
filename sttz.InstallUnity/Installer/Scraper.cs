@@ -230,7 +230,7 @@ public class Scraper
     /// </summary>
     /// <param name="cancellation"></param>
     /// <returns>Task returning the discovered versions</returns>
-    public async Task<IEnumerable<VersionMetadata>> LoadPrerelease(bool includeAlpha, CancellationToken cancellation = default)
+    public async Task<IEnumerable<VersionMetadata>> LoadPrerelease(bool includeAlpha, IEnumerable<UnityVersion> knownVersions = null, CancellationToken cancellation = default)
     {
         // Load main prereleases page to discover which major versions are available as prerelease
         Logger.LogInformation($"Scraping latest prereleases with includeAlpha={includeAlpha} from '{UNITY_PRERELEASES}'");
@@ -265,6 +265,7 @@ public class Scraper
             foreach (Match versionMatch in versionMatches) {
                 var version = new UnityVersion(versionMatch.Groups[2].Value);
                 if (results.ContainsKey(version)) continue;
+                if (knownVersions != null && knownVersions.Contains(version)) continue;
 
                 // Load version's release notes to get download links
                 var prereleaseUrl = UNITY_BASE_URL + versionMatch.Value;

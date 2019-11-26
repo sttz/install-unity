@@ -319,7 +319,7 @@ public class UnityInstaller
                 case UnityVersion.Type.Beta:
                 case UnityVersion.Type.Alpha:
                     Logger.LogDebug($"Updating Prerelease Unity Versions...");
-                    var newVersions = await Scraper.LoadPrerelease(type == UnityVersion.Type.Alpha, cancellation);
+                    var newVersions = await Scraper.LoadPrerelease(type == UnityVersion.Type.Alpha, Versions.Select(m => m.version), cancellation);
                     Logger.LogInformation($"Scraped {newVersions.Count()} versions of type Beta/Alpha");
                     Versions.Add(newVersions, added);
                     
