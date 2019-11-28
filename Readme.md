@@ -98,7 +98,7 @@ You can pass [command line arguments](https://docs.unity3d.com/Manual/CommandLin
 ## CLI Help
 
 ````
-install-unity v2.5.1
+install-unity v2.6.0
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
@@ -178,8 +178,8 @@ OPTIONS:
      version 
 
 USAGE: install-unity [options] run [--child] 
-                     [--allow-newer none|patch|minor|all] <version-or-path> 
-                     [<unity-arguments>...] 
+                     [--allow-newer none|build|patch|minor|all] 
+                     <version-or-path> [<unity-arguments>...] 
 
 OPTIONS:
  <version-or-path> Pattern to match Unity version or path to a Unity project 
@@ -187,8 +187,22 @@ OPTIONS:
                   Unity options being parsed as install-unity options) 
  -c, --child      Run Unity as a child process and forward its log output (only 
                   errors, use -v to see the full log) 
- -a, --allow-newer none|patch|minor|all  Allow newer versions of Unity to open 
-                  a project 
+ -a, --allow-newer none|build|patch|minor|all  Allow newer versions of Unity to 
+                  open a project 
+
+
+---- CREATE:
+     Create a new empty Unity project 
+
+USAGE: install-unity [options] create [--type <basic|minimal>] [--open] 
+                     <version> <path> 
+
+OPTIONS:
+ <version>        Pattern to match the Unity version to create the project with 
+ <path>           Path to the new Unity project 
+     --type <basic|minimal>  Type of project to create (basic = standard 
+                  project, minimal = no packages/modules) 
+ -o, --open       Open the new project in the editor 
 ````
 
 # Legacy

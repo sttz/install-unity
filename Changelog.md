@@ -1,5 +1,11 @@
 # Changelog
 
+### 2.6.0 (2019-11-28)
+* Add `create` command to create a basic Unity project
+* Reduce number of requests when loading beta/alpha releases by not loading release note pages for known versions
+* Fix sorting in list of new Unity versions
+* Fix status bars sliding down and properly clear them when complete
+
 ### 2.5.1 (2019-10-24)
 * Fix scraping of 2020.1 alpha releases
 * Fix run action not escaping arguments passed on to Unity
