@@ -476,7 +476,7 @@ public class InstallUnityCLI
             } else if (total > 0) {
                 Console.WriteLine($"New Unity version{(total > 1 ? "s" : "")}:");
                 foreach (var newVersion in newVersionsData.OrderByDescending(m => m.version).Take(maxVersions)) {
-                    Console.WriteLine($"- {newVersion.version} ({installer.Scraper.GetReleaseNotesUrl(newVersion.version)})");
+                    Console.WriteLine($"- {newVersion.version} ({installer.Scraper.GetReleaseNotesUrl(newVersion.version, newVersion.isPrerelease)})");
                 }
                 if (total - maxVersions > 0) {
                     Console.WriteLine($"And {total - maxVersions} more...");
@@ -627,8 +627,8 @@ public class InstallUnityCLI
         var currentList = new List<VersionMetadata>();
         int lastMajor = -1, lastMinor = -1;
         foreach (var metadata in installer.Versions) {
+            if (!metadata.IsFuzzyMatchedBy(version)) continue;
             var other = metadata.version;
-            if (!version.FuzzyMatches(other)) continue;
 
             if (lastMinor < 0) lastMinor = other.minor;
             else if (lastMinor != other.minor) {
@@ -657,6 +657,7 @@ public class InstallUnityCLI
         // Write the generated columns line by line, wrapping to buffer size
         var colWidth = (verbose > 0 ? ListVersionsWithHashColumnWith : ListVersionsColumnWidth);
         var maxColumns = Math.Max(Console.BufferWidth / colWidth, 1);
+        var hasReleaseCandidate = false;
         foreach (var majorRow in majorRows) {
             // Major version separator / title
             var major = majorRow[0][0].version.major;
@@ -683,11 +684,15 @@ public class InstallUnityCLI
                         if (r >= majorRow[c].Count) continue;
                         Console.SetCursorPosition((c - columnOffset) * colWidth, Console.CursorTop);
 
-                        var v = majorRow[c][r].version;
-                        Console.Write(v.ToString(verbose > 0));
+                        var m = majorRow[c][r];
+                        Console.Write(m.version.ToString(verbose > 0));
+                        if (m.IsReleaseCandidate) {
+                            hasReleaseCandidate = true;
+                            Console.Write("*");
+                        }
 
-                        var isNewVersion = (newVersions != null && newVersions.Contains(v));
-                        var isInstalled = (installed != null && installed.Contains(v));
+                        var isNewVersion = (newVersions != null && newVersions.Contains(m.version));
+                        var isInstalled = (installed != null && installed.Contains(m.version));
 
                         if (isNewVersion || isInstalled) {
                             SetColors(ConsoleColor.White, ConsoleColor.DarkGray);
@@ -701,6 +706,10 @@ public class InstallUnityCLI
                 }
                 Console.WriteLine();
             }
+        }
+
+        if (hasReleaseCandidate) {
+            Console.WriteLine("* indicates a release candidate, it will only be selected by an exact match or as a beta version.");
         }
     }
 
@@ -761,11 +770,19 @@ public class InstallUnityCLI
 
         WriteBigTitle($"Details for Unity {metadata.version}");
 
+        if (metadata.IsReleaseCandidate) {
+            ConsoleLogger.WriteLine(
+                "<white bg=darkgray>This is a release candidate:</white> "
+                + "Even though it has an f version, it will only be selected " 
+                + "by an exact match or as a beta version.");
+            Console.WriteLine();
+        }
+
         if (metadata.baseUrl != null) {
             Console.WriteLine("Base URL: " + metadata.baseUrl);
         }
 
-        var releaseNotes = installer.Scraper.GetReleaseNotesUrl(metadata.version);
+        var releaseNotes = installer.Scraper.GetReleaseNotesUrl(metadata.version, metadata.isPrerelease);
         if (releaseNotes != null) {
             Console.WriteLine("Release notes: " + releaseNotes);
         }

@@ -31,6 +31,26 @@ public struct VersionMetadata
     public UnityVersion version;
 
     /// <summary>
+    /// Wether version was scraped from a beta/alpha page.
+    /// </summary>
+    /// <remarks>
+    /// Release candidates appear on the beta page but have versions that
+    /// are indistinguishable from regular releases, we mark them here to
+    /// distinguish between them.
+    /// </remarks>
+    public bool isPrerelease;
+
+    /// <summary>
+    /// Returns wether the metadata represents a release candidate.
+    /// (A final version published on the prerelease pages.)
+    /// </summary>
+    public bool IsReleaseCandidate {
+        get {
+            return isPrerelease && version.type == UnityVersion.Type.Final;
+        }
+    }
+
+    /// <summary>
     /// Base URL of where INIs are stored.
     /// </summary>
     public string baseUrl;
@@ -64,6 +84,19 @@ public struct VersionMetadata
     /// an infinite recursion. Use <see cref="GetRawPackages"/> instead.
     /// </remarks>
     public static Func<VersionMetadata, CachePlatform, IEnumerable<PackageMetadata>> OnGenerateVirtualPackages;
+
+    /// <summary>
+    /// Wrapper of <see cref="UnityVersion.FuzzyMatches"/> that also checks that
+    /// final versions don't match release candidates.
+    /// </summary>
+    public bool IsFuzzyMatchedBy(UnityVersion query)
+    {
+        if (query.type == UnityVersion.Type.Final && isPrerelease) {
+            return false;
+        }
+
+        return query.FuzzyMatches(version);
+    }
 
     /// <summary>
     /// Determine wether the packages metadata has been loaded.
@@ -494,6 +527,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
     void UpdateVersion(int index, VersionMetadata with)
     {
         var existing = cache.versions[index];
+        existing.isPrerelease = with.isPrerelease;
         if (with.baseUrl != null) existing.baseUrl = with.baseUrl;
         if (with.macPackages != null) existing.macPackages = with.macPackages;
         if (with.winPackages != null) existing.macPackages = with.winPackages;
@@ -521,7 +555,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
 
         // Do fuzzy match
         foreach (var metadata in cache.versions) {
-            if (version.FuzzyMatches(metadata.version)) {
+            if (metadata.IsFuzzyMatchedBy(version)) {
                 return metadata;
             }
         }

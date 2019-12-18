@@ -278,7 +278,7 @@ public class Scraper
 
                 html = await response.Content.ReadAsStringAsync();
                 Logger.LogTrace($"Got response: {html}");
-                ExtractFromHtml(html, results);
+                ExtractFromHtml(html, true, results);
             }
         }
         return results.Values;
@@ -299,7 +299,7 @@ public class Scraper
     /// <summary>
     /// Extract the versions and the base URLs from the html string.
     /// </summary>
-    Dictionary<UnityVersion, VersionMetadata> ExtractFromHtml(string html, Dictionary<UnityVersion, VersionMetadata> results = null)
+    Dictionary<UnityVersion, VersionMetadata> ExtractFromHtml(string html, bool prerelease = false, Dictionary<UnityVersion, VersionMetadata> results = null)
     {
         var matches = UNITYHUB_RE.Matches(html);
         results = results ?? new Dictionary<UnityVersion, VersionMetadata>();
@@ -313,6 +313,7 @@ public class Scraper
             }
 
             metadata.baseUrl = GetIniBaseUrl(version.type) + version.hash + "/";
+            metadata.isPrerelease = prerelease;
             results[version] = metadata;
         }
 
@@ -327,6 +328,7 @@ public class Scraper
             }
 
             metadata.baseUrl = GetIniBaseUrl(version.type) + version.hash + "/";
+            metadata.isPrerelease = prerelease;
             results[version] = metadata;
         }
 
@@ -534,8 +536,13 @@ public class Scraper
     /// <summary>
     /// Guess the release notes URL for a version.
     /// </summary>
-    public string GetReleaseNotesUrl(UnityVersion version)
+    public string GetReleaseNotesUrl(UnityVersion version, bool isPrerelease = false)
     {
+        // Release candidates have a final version but are still on the beta page
+        if (version.type == UnityVersion.Type.Final && isPrerelease) {
+            return UNITY_RELEASE_NOTES_BETA + version.ToString(false);
+        }
+
         switch (version.type) {
             case UnityVersion.Type.Undefined:
             case UnityVersion.Type.Final:
