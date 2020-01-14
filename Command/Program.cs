@@ -586,8 +586,8 @@ public class InstallUnityCLI
 
     // -------- List Versions --------
 
-   const int ListVersionsColumnWidth = 15;
-   const int ListVersionsWithHashColumnWith = 30;
+   const int ListVersionsColumnWidth = 16;
+   const int ListVersionsWithHashColumnWith = 31;
 
     public async Task List()
     {
