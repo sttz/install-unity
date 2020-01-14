@@ -104,7 +104,7 @@ public class MacPlatform : IInstallerPlatform
     {
         var findResult = await Command.Run("/usr/bin/mdfind", $"kMDItemCFBundleIdentifier = '{BUNDLE_ID}'", null, cancellation);
         if (findResult.exitCode != 0) {
-            throw new Exception($"ERROR: failed to run mdfind: {findResult.error}");
+            throw new Exception($"ERROR: {findResult.error}");
         }
 
         var lines = findResult.output.Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
@@ -126,7 +126,7 @@ public class MacPlatform : IInstallerPlatform
 
             var versionResult = await Command.Run("/usr/bin/defaults", $"read \"{appPath}/Contents/Info\" CFBundleVersion", null, cancellation);
             if (versionResult.exitCode != 0) {
-                throw new Exception($"ERROR: failed to run defaults: {versionResult.error}");
+                throw new Exception($"ERROR: {versionResult.error}");
             }
 
             var version = new UnityVersion(versionResult.output.Trim());
@@ -137,7 +137,7 @@ public class MacPlatform : IInstallerPlatform
 
             var hashResult = await Command.Run("/usr/bin/defaults", $"read \"{appPath}/Contents/Info\" UnityBuildNumber", null, cancellation);
             if (hashResult.exitCode != 0) {
-                throw new Exception($"ERROR: failed to run defaults: {hashResult.error}");
+                throw new Exception($"ERROR: {hashResult.error}");
             }
 
             version.hash = hashResult.output.Trim();
@@ -361,7 +361,7 @@ public class MacPlatform : IInstallerPlatform
     {
         var result = await Sudo("/usr/sbin/installer", $"-pkg \"{filePath}\" -target \"{INSTALL_VOLUME}\" -verbose", cancellation);
         if (result.exitCode != 0) {
-            throw new Exception($"ERROR: failed to run installer: {result.error}");
+            throw new Exception($"ERROR: {result.error}");
         }
     }
 
@@ -373,7 +373,7 @@ public class MacPlatform : IInstallerPlatform
         // Mount DMG
         var result = await Command.Run("/usr/bin/hdiutil", $"attach -nobrowse -mountrandom /tmp \"{filePath}\"", cancellation: cancellation);
         if (result.exitCode != 0) {
-            throw new Exception($"ERROR: failed to run hdiutil: {result.error}");
+            throw new Exception($"ERROR: {result.error}");
         }
 
         var matches = MOUNT_POINT_REGEX.Matches(result.output);
@@ -407,7 +407,7 @@ public class MacPlatform : IInstallerPlatform
             // Unmount dmg
             result = await Command.Run("/usr/bin/hdiutil", $"detach \"{mountPoint}\"", cancellation: cancellation);
             if (result.exitCode != 0) {
-                Logger.LogError($"Failed to run hdiutil: {result.error}");
+                Logger.LogError($"ERROR: {result.error}");
             }
         }
     }
@@ -441,7 +441,7 @@ public class MacPlatform : IInstallerPlatform
         try {
             result = await Command.Run("/usr/bin/unzip", $"\"{filePath}\" -d \"{target}\"", cancellation: cancellation);
             if (result.exitCode != 0) {
-                throw new Exception($"ERROR: failed to run unzip: {result.error}");
+                throw new Exception($"ERROR: {result.error}");
             }
         } catch (Exception e) {
             Logger.LogInformation($"Unzip as user failed, trying as root... ({e.Message})");
@@ -451,7 +451,7 @@ public class MacPlatform : IInstallerPlatform
         if (retryWithRoot) {
             result = await Sudo("/usr/bin/unzip", $"\"{filePath}\" -d \"{target}\"", cancellation);
             if (result.exitCode != 0) {
-                throw new Exception($"ERROR: failed to run unzip: {result.error}");
+                throw new Exception($"ERROR: {result.error}");
             }
         }
 
@@ -524,12 +524,12 @@ public class MacPlatform : IInstallerPlatform
         // Try again with admin privileges
         var result = await Sudo("/bin/mkdir", $"-p \"{baseDst}\"", cancellation);
         if (result.exitCode != 0) {
-            throw new Exception($"ERROR: failed to run mkdir: {result.error}");
+            throw new Exception($"ERROR: {result.error}");
         }
 
         result = await Sudo("/bin/mv", $"\"{sourcePath}\" \"{newPath}\"", cancellation);
         if (result.exitCode != 0) {
-            throw new Exception($"ERROR: failed to run mv: {result.error}");
+            throw new Exception($"ERROR: {result.error}");
         }
     }
 
@@ -544,12 +544,12 @@ public class MacPlatform : IInstallerPlatform
         try {
             result = await Command.Run("/bin/mkdir", $"-p \"{baseDst}\"", cancellation: cancellation);
             if (result.exitCode != 0) {
-                throw new Exception($"ERROR: failed to run mkdir: {result.error}");
+                throw new Exception($"ERROR: {result.error}");
             }
 
             result = await Command.Run("/bin/cp", $"-R \"{sourcePath}\" \"{newPath}\"", cancellation: cancellation);
             if (result.exitCode != 0) {
-                throw new Exception($"ERROR: failed to run cp: {result.error}");
+                throw new Exception($"ERROR: {result.error}");
             }
 
             return;
@@ -560,12 +560,12 @@ public class MacPlatform : IInstallerPlatform
         // Try again with admin privileges
         result = await Sudo("/bin/mkdir", $"-p \"{baseDst}\"", cancellation);
         if (result.exitCode != 0) {
-            throw new Exception($"ERROR: failed to run mkdir: {result.error}");
+            throw new Exception($"ERROR: {result.error}");
         }
 
         result = await Sudo("/bin/mv", $"\"{sourcePath}\" \"{newPath}\"", cancellation);
         if (result.exitCode != 0) {
-            throw new Exception($"ERROR: failed to run mv: {result.error}");
+            throw new Exception($"ERROR: {result.error}");
         }
     }
 
@@ -585,7 +585,7 @@ public class MacPlatform : IInstallerPlatform
         // Try again with admin privileges
         var result = await Sudo("/bin/rm", $"-rf \"{deletePath}\"", cancellation);
         if (result.exitCode != 0) {
-            throw new Exception($"ERROR: failed to run rm: {result.error}");
+            throw new Exception($"ERROR: {result.error}");
         }
     }
 
@@ -603,13 +603,13 @@ public class MacPlatform : IInstallerPlatform
                 if (result.exitCode == 1 && result.error.Contains("Sorry, try again.")) {
                     return false;
                 } else {
-                    throw new Exception($"ERROR: failed to run id: {result.error}");
+                    throw new Exception($"ERROR: {result.error}");
                 }
             }
         } else {
             result = await Command.Run(command, arguments, cancellation: cancellation);
             if (result.exitCode != 0) {
-                throw new Exception($"ERROR: failed to run id: {result.error}");
+                throw new Exception($"ERROR: {result.error}");
             }
         }
 
