@@ -17,6 +17,9 @@ public class Configuration
     [Description("After how many seconds the cache is considered to be outdated.")]
     public int cacheLifetime = 60 * 60 * 24; // 24 hours
 
+    [Description("Delay between requests when scraping.")]
+    public int scrapeDelayMs = 50;
+
     [Description("The default list of packages to install (null = use Unity's default).")]
     public string[] defaultPackages = null;
 

@@ -230,10 +230,11 @@ public class Scraper
     /// </summary>
     /// <param name="cancellation"></param>
     /// <returns>Task returning the discovered versions</returns>
-    public async Task<IEnumerable<VersionMetadata>> LoadPrerelease(bool includeAlpha, IEnumerable<UnityVersion> knownVersions = null, CancellationToken cancellation = default)
+    public async Task<IEnumerable<VersionMetadata>> LoadPrerelease(bool includeAlpha, IEnumerable<UnityVersion> knownVersions = null, int scrapeDelay = 50, CancellationToken cancellation = default)
     {
         // Load main prereleases page to discover which major versions are available as prerelease
         Logger.LogInformation($"Scraping latest prereleases with includeAlpha={includeAlpha} from '{UNITY_PRERELEASES}'");
+        await Task.Delay(scrapeDelay);
         var response = await client.GetAsync(UNITY_PRERELEASES, cancellation);
         if (!response.IsSuccessStatusCode) {
             Logger.LogWarning($"Failed to scrape url '{UNITY_PRERELEASES}' ({response.StatusCode})");
@@ -252,6 +253,7 @@ public class Scraper
             // Load major version's individual prerelease page to get individual versions
             var archiveUrl = UNITY_BASE_URL + majorMatch.Value;
             Logger.LogInformation($"Scraping latest releases for {majorMatch.Groups[2].Value} from '{archiveUrl}'");
+            await Task.Delay(scrapeDelay);
             response = await client.GetAsync(archiveUrl, cancellation);
             if (!response.IsSuccessStatusCode) {
                 Logger.LogWarning($"Failed to scrape url '{archiveUrl}' ({response.StatusCode})");
@@ -271,6 +273,7 @@ public class Scraper
                 // Load version's release notes to get download links
                 var prereleaseUrl = UNITY_BASE_URL + versionMatch.Value;
                 Logger.LogInformation($"Scraping {versionMatch.Groups[1].Value} {version} from '{prereleaseUrl}'");
+                await Task.Delay(scrapeDelay);
                 response = await client.GetAsync(prereleaseUrl, cancellation);
                 if (!response.IsSuccessStatusCode) {
                     Logger.LogWarning($"Could not load release notes at url '{prereleaseUrl}' ({response.StatusCode})");
