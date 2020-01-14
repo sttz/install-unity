@@ -872,7 +872,7 @@ public class InstallUnityCLI
             // Find version to upgrade
             if (upgrade) {
                 uninstall = installs
-                    .Where(i => i.version <= version)
+                    .Where(i => i.version <= metadata.version)
                     .OrderByDescending(i => i.version)
                     .FirstOrDefault();
                 Console.WriteLine();
