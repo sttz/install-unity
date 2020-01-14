@@ -1,5 +1,11 @@
 # Changelog
 
+### 2.7.0 (2020-01-14)
+* Improve handling of release candidates
+* Add delay when scraping, attempting to avoid network errors
+* Fix alpha releases sometimes getting scraped when scraping only beta releases
+* Switch back to CoreRT builds and sign/notraize them
+
 ### 2.6.0 (2019-11-28)
 * Add `create` command to create a basic Unity project
 * Reduce number of requests when loading beta/alpha releases by not loading release note pages for known versions

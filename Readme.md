@@ -98,7 +98,7 @@ You can pass [command line arguments](https://docs.unity3d.com/Manual/CommandLin
 ## CLI Help
 
 ````
-install-unity v2.6.0
+install-unity v2.7.0
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
