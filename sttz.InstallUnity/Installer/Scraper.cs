@@ -265,6 +265,7 @@ public class Scraper
             foreach (Match versionMatch in versionMatches) {
                 var version = new UnityVersion(versionMatch.Groups[2].Value);
                 if (results.ContainsKey(version)) continue;
+                if (version.type == UnityVersion.Type.Alpha && !includeAlpha) continue;
                 if (knownVersions != null && knownVersions.Contains(version)) continue;
 
                 // Load version's release notes to get download links
