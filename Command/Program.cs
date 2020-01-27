@@ -1195,6 +1195,10 @@ public class InstallUnityCLI
                 throw new Exception($"ProjectVersion.txt not found at expected path: {versionPath}");
             }
 
+            // Use full path, Unity doesn't properly recognize short relative paths
+            // (as of Unity 2019.3)
+            projectPath = Path.GetFullPath(projectPath);
+
             var lines = File.ReadAllLines(versionPath);
             foreach (var line in lines) {
                 if (line.StartsWith("m_EditorVersion:")) {
