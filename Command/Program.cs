@@ -1106,7 +1106,7 @@ public class InstallUnityCLI
 
     public async Task Uninstall()
     {
-        await Setup();
+        await Setup(avoidCacheUpate: true);
 
         var installs = await installer.Platform.FindInstallations();
         if (!installs.Any()) {
@@ -1157,7 +1157,7 @@ public class InstallUnityCLI
 
     public async Task Run()
     {
-        await Setup();
+        await Setup(avoidCacheUpate: true);
 
         var installs = await installer.Platform.FindInstallations();
         if (!installs.Any()) {
@@ -1264,7 +1264,7 @@ public class InstallUnityCLI
 
     public async Task Create()
     {
-        await Setup();
+        await Setup(avoidCacheUpate: true);
 
         var installs = await installer.Platform.FindInstallations();
         if (!installs.Any()) {
