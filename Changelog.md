@@ -1,5 +1,9 @@
 # Changelog
 
+### 2.7.1 (2020-02-04)
+* Always use full path for Unity's `-projectPath`, since it doesn't recognize short relative paths
+* Fix cache getting updated for commands that don't need it (`uninstall`, `run` and `create`)
+
 ### 2.7.0 (2020-01-14)
 * Improve handling of release candidates
 * Add delay when scraping, attempting to avoid network errors
