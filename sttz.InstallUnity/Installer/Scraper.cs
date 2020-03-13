@@ -245,8 +245,11 @@ public class Scraper
         Logger.LogTrace($"Got response: {html}");
 
         var majorMatches = UNITY_PRERELEASE_MAJOR_RE.Matches(html);
+        var visitedMajorVersions = new HashSet<string>();
         var results = new Dictionary<UnityVersion, VersionMetadata>();
         foreach (Match majorMatch in majorMatches) {
+            if (!visitedMajorVersions.Add(majorMatch.Groups[2].Value)) continue;
+
             var isAlpha = majorMatch.Groups[1].Value == "alpha";
             if (isAlpha && !includeAlpha) continue;
 
