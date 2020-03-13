@@ -11,6 +11,7 @@ Currently only supports macOS but support for Windows/Linux is possible, PRs wel
 * [Packages](#packages)
 * [Offline Install](#offline-install)
 * [Run](#run)
+* [Create](#create)
 * [CLI Help](#cli-help)
 * [Changelog](#changelog)
 
@@ -79,13 +80,13 @@ You can download and install only a subset of the available packages.
 
 To select a Unity version from all the installed ones, use the run command.
 
-    install-unity run --detach f
+    install-unity run f
 
 Will open the latest version of Unity installed.
 
 You can also use the path to a Unity project and install-unity will open it with the corresponding Unity version.
 
-    install-unity run --detach ~/Desktop/my-project
+    install-unity run ~/Desktop/my-project
 
 It will only open with the exact version of Unity the project is set to. You can optionally allow it to be opened with a newer patch, minor or any version:
 
@@ -94,6 +95,20 @@ It will only open with the exact version of Unity the project is set to. You can
 You can pass [command line arguments](https://docs.unity3d.com/Manual/CommandLineArguments.html) along to Unity, e.g. to create a build from the command line (note the `--` to separate install-unity options from the ones passed on the Unity).
 
     install-unity run ~/Desktop/my-project -- -quit -batchmode -buildOSX64Player ~/Desktop/my-build
+
+By default, Unity is started as a separate process and install-unity will exit after Unity has been launched. To wait for Unity to quit and forward Unity's log output through install-unity, use the `--child` option:
+
+    install-unity run ~/Desktop/my-project --child -v -- -quit -batchmode -buildOSX64Player ~/Desktop/my-build
+
+## Create
+
+To start a basic Unity project, use the create command. The version pattern will select an installed Unity version and create a new project using it.
+
+    install-unity create 2020.1 ~/Desktop/my-project
+
+The project will use Unity's default setup, including packages. Alternatively, you can create a minimal project that will start with an empty ´Packages/manifest.json`:
+
+    install-unity create --type minimal 2020.1 ~/Desktop/my-project
 
 ## CLI Help
 
