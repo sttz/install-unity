@@ -104,7 +104,7 @@ public class Scraper
     /// <summary>
     /// /// Regex to extract available prerelease major versions from landing page.
     /// </summary>
-    static readonly Regex UNITY_PRERELEASE_MAJOR_RE = new Regex(@"\/(alpha|beta)\/(\d{4}\.\d[a-f]?)");
+    static readonly Regex UNITY_PRERELEASE_MAJOR_RE = new Regex(@"(?<!unity)\/(alpha|beta)\/(\d{4}\.\d[a-f]?)");
 
     /// <summary>
     /// Regex to extract available prerelease major versions from landing page.
