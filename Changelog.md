@@ -1,5 +1,9 @@
 # Changelog
 
+### 2.7.2 (2020-02-04)
+* Fix scraping of 2020.1 beta
+* Fix only load prerelease landing page once
+
 ### 2.7.1 (2020-02-04)
 * Always use full path for Unity's `-projectPath`, since it doesn't recognize short relative paths
 * Fix cache getting updated for commands that don't need it (`uninstall`, `run` and `create`)
