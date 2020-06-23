@@ -1274,6 +1274,7 @@ public class InstallUnityCLI
         }
 
         Installation installation = null;
+        string projectPath = null;
         if (new UnityVersion(matchVersion).IsValid) {
             // Argument is version pattern
             foreach (var install in installs.OrderByDescending(i => i.version)) {
@@ -1293,7 +1294,7 @@ public class InstallUnityCLI
             // Argument is path to project
             version = default;
 
-            var projectPath = matchVersion;
+            projectPath = matchVersion;
             if (!Directory.Exists(projectPath)) {
                 throw new Exception($"Project path '{projectPath}' does not exist.");
             }
@@ -1356,15 +1357,37 @@ public class InstallUnityCLI
             }
         }
 
-        if (installation == null) {
-            throw new Exception($"Could not run Unity {version}: Not installed");
+        if (projectPath != null) {
+            var projectName = Path.GetFileName(projectPath);
+            if (installation == null) {
+                Logger.LogError($"Could not run project '{projectName}', Unity {version} not installed");
+                
+                var next = installs.Where(i => i.version > version).OrderBy(i => i.version).FirstOrDefault();
+                if (next.version.IsValid) {
+                    var allow = "all";
+                    if (next.version.minor != version.minor) allow = "minor";
+                    else if (next.version.patch != version.patch || next.version.type != version.type) allow = "patch";
+                    else if (next.version.build != version.build) allow = "build";
+                    else allow = "hash";
+                    Console.WriteLine($"Use '--allow-newer {allow}' to run with the newer installed version {next.version}");
+                }
+                
+                Environment.Exit(1);
+            }
+            Console.WriteLine($"Will run project '{projectName}' with Unity {installation.version.ToString(verbose > 0)} at path '{installation.path}'");
+        } else {
+            if (installation == null) {
+                Logger.LogError($"Could not run Unity {version}: Not matching version installed");
+                Environment.Exit(1);
+            }
+            Console.WriteLine($"Will run Unity {installation.version.ToString(verbose > 0)} at path '{installation.path}'");
         }
 
         for (int i = 0; i < unityArguments.Count; i++) {
             unityArguments[i] = Helpers.EscapeArgument(unityArguments[i]);
         }
 
-        Console.WriteLine($"Will run {installation.path} with arguments: '{string.Join(" ", unityArguments)}'");
+        Logger.LogInformation($"Unity arguments: '{string.Join(" ", unityArguments)}'");
 
         await installer.Platform.Run(installation, unityArguments, child);
     }
