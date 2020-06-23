@@ -113,6 +113,7 @@ public class InstallUnityCLI
     public enum AllowNewer
     {
         None,
+        Hash,
         Build,
         Patch,
         Minor,
@@ -266,7 +267,7 @@ public class InstallUnityCLI
                 .Option((InstallUnityCLI t, bool v) => t.child = v, "c", "child")
                     .Description("Run Unity as a child process and forward its log output (only errors, use -v to see the full log)")
                 .Option((InstallUnityCLI t, AllowNewer v) => t.allowNewer = v, "a", "allow-newer", "allownewer")
-                    .ArgumentName("none|build|patch|minor|all")
+                    .ArgumentName("none|hash|build|patch|minor|all")
                     .Description("Allow newer versions of Unity to open a project")
                 
                 .Action("create", (t, a) => t.action = a)
@@ -1309,11 +1310,11 @@ public class InstallUnityCLI
 
             var lines = File.ReadAllLines(versionPath);
             foreach (var line in lines) {
-                if (line.StartsWith("m_EditorVersion:")) {
+                if (line.StartsWith("m_EditorVersion:") || line.StartsWith("m_EditorVersionWithRevision:")) {
                     var colonIndex = line.IndexOf(':');
                     var versionString = line.Substring(colonIndex + 1).Trim();
                     version = new UnityVersion(versionString);
-                    break;
+                    if (version.hash != null) break;
                 }
             }
 
@@ -1322,6 +1323,7 @@ public class InstallUnityCLI
             }
 
             var allowedVersion = version;
+            if (allowNewer >= AllowNewer.Hash)  allowedVersion.hash = null;
             if (allowNewer >= AllowNewer.Build) allowedVersion.build = -1;
             if (allowNewer >= AllowNewer.Patch) allowedVersion.patch = -1;
             if (allowNewer >= AllowNewer.Minor) allowedVersion.minor = -1;

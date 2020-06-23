@@ -72,7 +72,7 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
     /// Regex used to parse Unity version strings.
     /// Everything except the major version is optional.
     /// </summary>
-    static readonly Regex VERSION_REGEX = new Regex(@"^(\d+)?(?:\.(\d+)(?:\.(\d+))?)?(?:(\w)(?:(\d+))?)?$");
+    static readonly Regex VERSION_REGEX = new Regex(@"^(\d+)?(?:\.(\d+)(?:\.(\d+))?)?(?:(\w)(?:(\d+))?)?(?: \(([0-9a-f]{12})\))?$");
 
     /// <summary>
     /// Regex to match a Unity version hash.
@@ -177,6 +177,10 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
                 if (!Enum.IsDefined(typeof(Type), type)) {
                     type = Type.Undefined;
                 }
+            }
+
+            if (match.Groups[6].Success) {
+                hash = match.Groups[6].Value;
             }
         } else {
             match = HASH_REGEX.Match(version);
