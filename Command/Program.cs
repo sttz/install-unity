@@ -1266,7 +1266,7 @@ public class InstallUnityCLI
 
     public async Task Run()
     {
-        await Setup(avoidCacheUpate: true);
+        var version = await Setup(avoidCacheUpate: true);
 
         var installs = await installer.Platform.FindInstallations();
         if (!installs.Any()) {
@@ -1274,8 +1274,7 @@ public class InstallUnityCLI
         }
 
         Installation installation = null;
-        var version = new UnityVersion(matchVersion);
-        if (version.IsValid) {
+        if (new UnityVersion(matchVersion).IsValid) {
             // Argument is version pattern
             foreach (var install in installs.OrderByDescending(i => i.version)) {
                 if (version.FuzzyMatches(install.version)) {
