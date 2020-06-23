@@ -308,8 +308,7 @@ public class InstallUnityCLI
 
             switch (cli.action) {
                 case "":
-                    await cli.Setup();
-                    cli.PrintHelp();
+                    await cli.ListUpdates();
                     break;
                 case "list":
                     await cli.List();
@@ -582,6 +581,115 @@ public class InstallUnityCLI
 
         Console.WriteLine();
         Console.WriteLine("To persist options, use '--opt save' and then edit the generated config file.");
+    }
+
+    // -------- Updates --------
+
+    static bool IsNewerPatch(UnityVersion version, UnityVersion installed)
+    {
+        if (version.major != installed.major || version.minor != installed.minor)
+            return false;
+        
+        if (version.patch > installed.patch)
+            return true;
+        else if (version.patch != installed.patch)
+            return false;
+        
+        var versionType = UnityVersion.GetSortingForType(version.type);
+        var installedType = UnityVersion.GetSortingForType(installed.type);
+        if (versionType > installedType)
+            return true;
+        else if (versionType != installedType)
+            return false;
+        
+        if (version.build > installed.build)
+            return true;
+        else
+            return false;
+    }
+
+    public async Task ListUpdates()
+    {
+        Console.WriteLine($"{PROGRAM_NAME} v{GetVersion()}, use --help to show usage");
+
+        // Force scanning for prerelease versions
+        matchVersion = "a";
+
+        var version = await Setup();
+        var installs = await installer.Platform.FindInstallations();
+
+        if (!installs.Any()) {
+            var latest = installer.Versions
+                .Where(m => m.IsFinalRelease)
+                .OrderByDescending(m => m.version)
+                .FirstOrDefault();
+            
+            Console.WriteLine("No installed Unity versions found.");
+
+            if (latest.version.IsValid) {
+                Console.WriteLine();
+                Console.WriteLine($"The latest Unity version available is {latest.version.ToString(verbose > 0)}.");
+            }
+
+        } else {
+            // Find updates to installed minor Unity versions
+            var updates = new List<(Installation install, VersionMetadata update)>();
+            foreach (var install in installs.OrderByDescending(i => i.version)) {
+                var newerPatch = installer.Versions
+                    .Where(m => IsNewerPatch(m.version, install.version))
+                    .FirstOrDefault();
+                if (newerPatch.version.IsValid) {
+                    updates.Add((install, newerPatch));
+                }
+            }
+
+            if (updates.Count == 0) {
+                Console.WriteLine("No minor updates to installed Unity versions.");
+            } else {
+                WriteTitle("Minor updates to installed Unity versions:");
+                foreach (var update in updates) {
+                    Console.WriteLine($"- {update.install.version.ToString(verbose > 0)} ➤ {update.update.version.ToString(verbose > 0)}");
+                }
+            }
+
+            // Compile latest version for each major.minor release
+            var mms = installer.Versions
+                .OrderByDescending(m => m.version)
+                .GroupBy(m => (major: m.version.major, minor: m.version.minor))
+                .Select(g => g.First())
+                .Reverse();
+
+            // Find major/minor new Unity versions not yet installed
+            var latest = installs.OrderByDescending(i => i.version).First();
+            var newer = mms
+                .Where(m => m.IsFinalRelease && m.version > latest.version);
+
+            if (newer.Any()) {
+                WriteTitle("New major Unity versions:");
+                foreach (var m in newer) {
+                    if (verbose > 0) {
+                        Console.WriteLine($"- {m.version}");
+                    } else {
+                        Console.WriteLine($"- {m.version.major}.{m.version.minor}");
+                    }
+                }
+            }
+
+            // Find alpha/beta/RC versions not yet installed
+            var abs = mms
+                .Where(m => m.IsPrerelease && m.version > latest.version);
+            
+            if (abs.Any()) {
+                WriteTitle("New Unity release candidates, betas and alphas:");
+                foreach (var m in abs) {
+                    if (verbose > 0) {
+                        Console.WriteLine($"- {m.version}");
+                    } else {
+                        Console.WriteLine($"- {m.version.major}.{m.version.minor}{(char)m.version.type}");
+                    }
+                }
+            }
+        }
     }
 
     // -------- List Versions --------
