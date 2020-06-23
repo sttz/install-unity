@@ -1355,6 +1355,10 @@ public class InstallUnityCLI
                 unityArguments.Add("-projectPath");
                 unityArguments.Add(projectPath);
             }
+
+            if (allowNewer != AllowNewer.None) {
+                unityArguments.Add("-skipUpgradeDialogs");
+            }
         }
 
         if (projectPath != null) {
