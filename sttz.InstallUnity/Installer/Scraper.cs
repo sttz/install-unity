@@ -320,7 +320,7 @@ public class Scraper
             }
 
             metadata.baseUrl = GetIniBaseUrl(version.type) + version.hash + "/";
-            metadata.isPrerelease = prerelease;
+            metadata.prerelease = prerelease;
             results[version] = metadata;
         }
 
@@ -335,7 +335,7 @@ public class Scraper
             }
 
             metadata.baseUrl = GetIniBaseUrl(version.type) + version.hash + "/";
-            metadata.isPrerelease = prerelease;
+            metadata.prerelease = prerelease;
             results[version] = metadata;
         }
 
@@ -541,15 +541,23 @@ public class Scraper
     }
 
     /// <summary>
-    /// Guess the release notes URL for a version.
+    /// Guess the release notes URL for a version metadata.
     /// </summary>
-    public string GetReleaseNotesUrl(UnityVersion version, bool isPrerelease = false)
+    public string GetReleaseNotesUrl(VersionMetadata metadata)
     {
         // Release candidates have a final version but are still on the beta page
-        if (version.type == UnityVersion.Type.Final && isPrerelease) {
-            return UNITY_RELEASE_NOTES_BETA + version.ToString(false);
+        if (metadata.IsReleaseCandidate) {
+            return UNITY_RELEASE_NOTES_BETA + metadata.version.ToString(false);
         }
 
+        return GetReleaseNotesUrl(metadata.version);
+    }
+
+    /// <summary>
+    /// Guess the release notes URL for a version.
+    /// </summary>
+    public string GetReleaseNotesUrl(UnityVersion version)
+    {
         switch (version.type) {
             case UnityVersion.Type.Undefined:
             case UnityVersion.Type.Final:

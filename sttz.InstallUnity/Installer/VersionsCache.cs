@@ -38,7 +38,7 @@ public struct VersionMetadata
     /// are indistinguishable from regular releases, we mark them here to
     /// distinguish between them.
     /// </remarks>
-    public bool isPrerelease;
+    public bool prerelease;
 
     /// <summary>
     /// Returns wether the metadata represents a release candidate.
@@ -46,7 +46,29 @@ public struct VersionMetadata
     /// </summary>
     public bool IsReleaseCandidate {
         get {
-            return isPrerelease && version.type == UnityVersion.Type.Final;
+            return prerelease && version.type == UnityVersion.Type.Final;
+        }
+    }
+
+    /// <summary>
+    /// Returns wether the metadata represents a regular Unity release,
+    /// excluding release candidates.
+    /// </summary>
+    public bool IsFinalRelease {
+        get {
+            return version.type == UnityVersion.Type.Final && !prerelease;
+        }
+    }
+
+    /// <summary>
+    /// Returns wether the metadata represents a Unity prerelease,
+    /// including alpha, beta and release candidates.
+    /// </summary>
+    public bool IsPrerelease {
+        get {
+            return version.type == UnityVersion.Type.Alpha 
+                || version.type == UnityVersion.Type.Beta
+                || prerelease;
         }
     }
 
@@ -91,7 +113,7 @@ public struct VersionMetadata
     /// </summary>
     public bool IsFuzzyMatchedBy(UnityVersion query)
     {
-        if (query.type == UnityVersion.Type.Final && isPrerelease) {
+        if (query.type == UnityVersion.Type.Final && prerelease) {
             return false;
         }
 
@@ -527,7 +549,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
     void UpdateVersion(int index, VersionMetadata with)
     {
         var existing = cache.versions[index];
-        existing.isPrerelease = with.isPrerelease;
+        existing.prerelease = with.prerelease;
         if (with.baseUrl != null) existing.baseUrl = with.baseUrl;
         if (with.macPackages != null) existing.macPackages = with.macPackages;
         if (with.winPackages != null) existing.macPackages = with.winPackages;
@@ -536,7 +558,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
     }
 
     /// <summary>
-    /// /// Get a version from the database.
+    /// Get a version from the database.
     /// </summary>
     /// <remarks>
     /// If the version is incomplete, the latest version matching will be returned.

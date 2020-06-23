@@ -476,7 +476,7 @@ public class InstallUnityCLI
             } else if (total > 0) {
                 Console.WriteLine($"New Unity version{(total > 1 ? "s" : "")}:");
                 foreach (var newVersion in newVersionsData.OrderByDescending(m => m.version).Take(maxVersions)) {
-                    Console.WriteLine($"- {newVersion.version} ({installer.Scraper.GetReleaseNotesUrl(newVersion.version, newVersion.isPrerelease)})");
+                    Console.WriteLine($"- {newVersion.version} ({installer.Scraper.GetReleaseNotesUrl(newVersion)})");
                 }
                 if (total - maxVersions > 0) {
                     Console.WriteLine($"And {total - maxVersions} more...");
@@ -782,7 +782,7 @@ public class InstallUnityCLI
             Console.WriteLine("Base URL: " + metadata.baseUrl);
         }
 
-        var releaseNotes = installer.Scraper.GetReleaseNotesUrl(metadata.version, metadata.isPrerelease);
+        var releaseNotes = installer.Scraper.GetReleaseNotesUrl(metadata);
         if (releaseNotes != null) {
             Console.WriteLine("Release notes: " + releaseNotes);
         }
