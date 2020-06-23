@@ -1325,7 +1325,7 @@ public class InstallUnityCLI
             var allowedVersion = version;
             if (allowNewer >= AllowNewer.Hash)  allowedVersion.hash = null;
             if (allowNewer >= AllowNewer.Build) allowedVersion.build = -1;
-            if (allowNewer >= AllowNewer.Patch) allowedVersion.patch = -1;
+            if (allowNewer >= AllowNewer.Patch) { allowedVersion.patch = -1; allowedVersion.type = UnityVersion.Type.Undefined; }
             if (allowNewer >= AllowNewer.Minor) allowedVersion.minor = -1;
             if (allowNewer >= AllowNewer.All)   allowedVersion.major = -1;
             foreach (var install in installs.OrderByDescending(i => i.version)) {
@@ -1334,7 +1334,7 @@ public class InstallUnityCLI
                     installation = install;
                 }
                 // Fuzzy match only newest version
-                if (installation == null && allowedVersion.FuzzyMatches(install.version)) {
+                if (installation == null && allowedVersion.FuzzyMatches(install.version, allowTypeUpgrade: false)) {
                     installation = install;
                 }
             }

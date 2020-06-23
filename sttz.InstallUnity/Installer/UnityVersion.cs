@@ -232,13 +232,18 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
     /// higher priority types of the `other` version. i.e. type Beta also matches 
     /// Patch and Final types but Final type does not match any other.
     /// </remarks>
-    public bool FuzzyMatches(UnityVersion other)
+    public bool FuzzyMatches(UnityVersion other, bool allowTypeUpgrade = true)
     {
         if (major >= 0 && other.major >= 0 && major != other.major) return false;
         if (minor >= 0 && other.minor >= 0 && minor != other.minor) return false;
         if (patch >= 0 && other.patch >= 0 && patch != other.patch) return false;
-        if (type != Type.Undefined && other.type != Type.Undefined 
-            && GetSortingForType(type) > GetSortingForType(other.type)) return false;
+        if (type != Type.Undefined && other.type != Type.Undefined) {
+            if (allowTypeUpgrade) {
+                if (GetSortingForType(type) > GetSortingForType(other.type)) return false;
+            } else {
+                if (type != other.type) return false;
+            }
+        }
         if (build >= 0 && other.build >= 0 && build != other.build) return false;
         if (hash != null && other.hash != null && hash != other.hash) return false;
         return true;
