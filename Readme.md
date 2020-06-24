@@ -113,7 +113,7 @@ The project will use Unity's default setup, including packages. Alternatively, y
 ## CLI Help
 
 ````
-install-unity v2.7.2
+install-unity v2.8.0
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
@@ -193,7 +193,7 @@ OPTIONS:
      version 
 
 USAGE: install-unity [options] run [--child] 
-                     [--allow-newer none|build|patch|minor|all] 
+                     [--allow-newer none|hash|build|patch|minor|all] 
                      <version-or-path> [<unity-arguments>...] 
 
 OPTIONS:
@@ -202,8 +202,8 @@ OPTIONS:
                   Unity options being parsed as install-unity options) 
  -c, --child      Run Unity as a child process and forward its log output (only 
                   errors, use -v to see the full log) 
- -a, --allow-newer none|build|patch|minor|all  Allow newer versions of Unity to 
-                  open a project 
+ -a, --allow-newer none|hash|build|patch|minor|all  Allow newer versions of 
+                  Unity to open a project 
 
 
 ---- CREATE:

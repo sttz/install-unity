@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp2.1;net472</TargetFrameworks>
+    <TargetFrameworks>netcoreapp3.0;net472</TargetFrameworks>
     <LangVersion>7.1</LangVersion>
     <RootNamespace>sttz.InstallUnity</RootNamespace>
   </PropertyGroup>
 
   <PropertyGroup Label="Package">
-    <Version>2.7.2</Version>
+    <Version>2.8.0</Version>
     <Authors>Adrian Stutz (sttz.ch)</Authors>
     <Product>install-unity</Product>
     <Description>install-unity unofficial Unity installer library</Description>

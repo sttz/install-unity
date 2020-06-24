@@ -1,5 +1,13 @@
 # Changelog
 
+### 2.8.0 (2020-06-23)
+* Calling install-unity without a command shows patch updates and not installed newer minor versions
+* Run checks that the Unity version hash of the project and installation match
+* Run with --allow-newer skips Unity's project upgrade dialog
+* Improve output of run command, show next installed version to upgrade project to
+* Fix run not properly checking the build type of project and installation
+* Fix run with version argument not defaulting to final, now a/b is required to select alpha/beta
+
 ### 2.7.2 (2020-02-04)
 * Fix scraping of 2020.1 beta
 * Fix only load prerelease landing page once
