@@ -1392,6 +1392,9 @@ public class InstallUnityCLI
                 
                 Environment.Exit(1);
             }
+            if (version != installation.version) {
+                Logger.LogWarning($"Upgrading project from Unity {version.ToString(verbose > 0)} to {installation.version.ToString(verbose > 0)}");
+            }
             Console.WriteLine($"Will run project '{projectName}' with Unity {installation.version.ToString(verbose > 0)} at path '{installation.path}'");
         } else {
             if (installation == null) {
