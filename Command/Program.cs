@@ -1079,19 +1079,24 @@ public class InstallUnityCLI
         if (installer.Configuration.progressBar && !Console.IsOutputRedirected) {
             var processTask = installer.Process(op, queue, yolo);
 
-            var refreshInterval = installer.Configuration.progressRefreshInterval;
-            var statusInterval = installer.Configuration.statusRefreshEvery;
-            var updateCount = 0L;
-            while (!processTask.IsCompleted) {
-                WriteQueueStatus(queue, ++updateCount, statusInterval);
-                await Task.Delay(refreshInterval);
-            }
-            ClearQueueStatus(queue);
+            try {
+                var refreshInterval = installer.Configuration.progressRefreshInterval;
+                var statusInterval = installer.Configuration.statusRefreshEvery;
+                var updateCount = 0L;
+                while (!processTask.IsCompleted) {
+                    WriteQueueStatus(queue, ++updateCount, statusInterval);
+                    await Task.Delay(refreshInterval);
+                }
+                ClearQueueStatus(queue);
 
-            if (processTask.IsFaulted) {
-                throw processTask.Exception;
-            } else {
-                installed = processTask.Result;
+                if (processTask.IsFaulted) {
+                    throw processTask.Exception;
+                } else {
+                    installed = processTask.Result;
+                }
+            } catch (Exception e) {
+                Logger.LogWarning($"Progress bar disabled due to exception during rendering: {e}");
+                installed = await processTask;
             }
         } else {
             Logger.LogInformation("Progress bar is disabled");
