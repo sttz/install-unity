@@ -1,5 +1,11 @@
 # Changelog
 
+### 2.8.1 (2020-07-11)
+* Add a warning when a project is upgraded with the run command
+* Fix prereleases showing up in overview under "New …" even if they're installed
+* Fix exception during progress bar rendering when resizing console or console is small
+* Disable progress bar when exception occurs during rendering instead of stopping installation
+
 ### 2.8.0 (2020-06-23)
 * Calling install-unity without a command shows patch updates and not installed newer minor versions
 * Run checks that the Unity version hash of the project and installation match

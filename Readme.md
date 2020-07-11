@@ -113,7 +113,7 @@ The project will use Unity's default setup, including packages. Alternatively, y
 ## CLI Help
 
 ````
-install-unity v2.8.0
+install-unity v2.8.1
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
