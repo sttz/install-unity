@@ -678,7 +678,12 @@ public class InstallUnityCLI
 
             // Find alpha/beta/RC versions not yet installed
             var abs = mms
-                .Where(m => m.IsPrerelease && m.version > latest.version);
+                .Where(m => 
+                    m.IsPrerelease 
+                    && m.version > latest.version 
+                    && (m.version.major != latest.version.major
+                    || m.version.minor != latest.version.minor)
+                );
             
             if (abs.Any()) {
                 WriteTitle("New Unity release candidates, betas and alphas:");
