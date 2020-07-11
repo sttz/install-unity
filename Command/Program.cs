@@ -1157,37 +1157,41 @@ public class InstallUnityCLI
 
             Console.Write(" ");
             Console.Write(item.package.name);
-            Console.Write(new string(' ', barStartCol - Console.CursorLeft));
+            Console.Write(new string(' ', Math.Max(barStartCol - Console.CursorLeft, 0)));
 
             var progressWidth = Console.BufferWidth - longestName - 6; // 4 for status, 2 padding
-            if (item.currentState == UnityInstaller.QueueItem.State.Hashing 
-                    || item.currentState == UnityInstaller.QueueItem.State.Downloading) {
-                if (updateCount % statusInterval == 0 || item.status == null) {
-                    var bytes = item.downloader.BytesProcessed;
-                    var total = item.downloader.BytesTotal;
-                    var speed = (long)item.downloader.BytesPerSecond;
-                    item.status = $" {Helpers.FormatSize(bytes),9} of {Helpers.FormatSize(total),9} @ {Helpers.FormatSize(speed),9}/s";
-                }
+            if (progressWidth > 38) {
+                if (item.currentState == UnityInstaller.QueueItem.State.Hashing 
+                        || item.currentState == UnityInstaller.QueueItem.State.Downloading) {
+                    if (updateCount % statusInterval == 0 || item.status == null) {
+                        var bytes = item.downloader.BytesProcessed;
+                        var total = item.downloader.BytesTotal;
+                        var speed = (long)item.downloader.BytesPerSecond;
+                        item.status = $" {Helpers.FormatSize(bytes),9} of {Helpers.FormatSize(total),9} @ {Helpers.FormatSize(speed),9}/s";
+                    }
 
-                var barLength = progressWidth - Math.Max(longestStatus, item.status.Length) - 3;
-                Console.Write("║");
+                    var barLength = progressWidth - Math.Max(longestStatus, item.status.Length) - 3;
+                    if (barLength >= 10) {
+                        Console.Write("║");
 
-                if (item.downloader.BytesTotal > 0) {
-                    var progress = (float)item.downloader.BytesProcessed / item.downloader.BytesTotal;
-                    var fractionalWidth = progress * barLength;
-                    var subIndex = (int)((fractionalWidth % 1) * SubProgress.Length);
-                    Console.Write(new string('█', (int)fractionalWidth));
-                    Console.Write(SubProgress[subIndex]);
-                    Console.Write(new string('·', barLength - (int)fractionalWidth));
+                        if (item.downloader.BytesTotal > 0) {
+                            var progress = (float)item.downloader.BytesProcessed / item.downloader.BytesTotal;
+                            var fractionalWidth = progress * barLength;
+                            var subIndex = (int)((fractionalWidth % 1) * SubProgress.Length);
+                            Console.Write(new string('█', (int)fractionalWidth));
+                            Console.Write(SubProgress[subIndex]);
+                            Console.Write(new string('·', barLength - (int)fractionalWidth));
+                        } else {
+                            Console.Write(new string('~', barLength));
+                        }
+
+                        Console.Write("║");
+                        Console.Write(new string(' ', Math.Max(Console.BufferWidth - Console.CursorLeft - item.status.Length, 0)));
+                    }
+                    Console.Write(item.status);
                 } else {
-                    Console.Write(new string('~', barLength));
+                    Console.Write(new string(' ', progressWidth));
                 }
-
-                Console.Write("║");
-                Console.Write(new string(' ', Console.BufferWidth - Console.CursorLeft - item.status.Length));
-                Console.Write(item.status);
-            } else {
-                Console.Write(new string(' ', progressWidth));
             }
 
             if (Console.CursorLeft != 0) {
