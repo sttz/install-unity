@@ -1,5 +1,10 @@
 # Changelog
 
+### 2.8.2 (2020-11-10)
+* Don't add Documentation package for alpha releases
+* Use Android SDK Platforms 29 for 2019.3+
+* Use Android NDK r21d for 2021.1+
+
 ### 2.8.1 (2020-07-11)
 * Add a warning when a project is upgraded with the run command
 * Fix prereleases showing up in overview under "New …" even if they're installed
