@@ -53,7 +53,9 @@ public static class VirtualPackages
         var v = version.version;
 
         // Documentation
-        if (v.major >= 2018 && version.GetRawPackage(platform, "Documentation").name == null) {
+        if (v.major >= 2018 
+                && version.GetRawPackage(platform, "Documentation").name == null
+                && version.version.type != UnityVersion.Type.Alpha) {
             yield return new PackageMetadata() {
                 name = "Documentation",
                 description = "Offline Documentation",
@@ -129,18 +131,33 @@ public static class VirtualPackages
                 renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/build-tools/28.0.3"
             };
 
-            yield return new PackageMetadata() {
-                name = "Android SDK Platforms",
-                description = "Android SDK Platforms 28 r06",
-                url = $"https://dl.google.com/android/repository/platform-28_r06.zip",
-                destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms",
-                size = 61 * 1024 * 1024,
-                installedsize = 121 * 1024 * 1024,
-                hidden = true,
-                sync = "Android SDK & NDK Tools",
-                renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-9",
-                renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-28"
-            };
+            if (v.major == 2019 && v.minor <= 3) {
+                yield return new PackageMetadata() {
+                    name = "Android SDK Platforms",
+                    description = "Android SDK Platforms 28 r06",
+                    url = $"https://dl.google.com/android/repository/platform-28_r06.zip",
+                    destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms",
+                    size = 61 * 1024 * 1024,
+                    installedsize = 121 * 1024 * 1024,
+                    hidden = true,
+                    sync = "Android SDK & NDK Tools",
+                    renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-9",
+                    renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-28"
+                };
+            } else {
+                yield return new PackageMetadata() {
+                    name = "Android SDK Platforms",
+                    description = "Android SDK Platforms 29 r05",
+                    url = $"https://dl.google.com/android/repository/platform-29_r05.zip",
+                    destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms",
+                    size = 78 * 1024 * 1024,
+                    installedsize = 153 * 1024 * 1024,
+                    hidden = true,
+                    sync = "Android SDK & NDK Tools",
+                    renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-10",
+                    renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-29"
+                };
+            }
 
             if (v.major == 2019 && v.minor <= 2) {
                 yield return new PackageMetadata() {
@@ -155,7 +172,7 @@ public static class VirtualPackages
                     renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/android-ndk-r16b",
                     renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/NDK"
                 };
-            } else {
+            } else if (v.major <= 2020) {
                 yield return new PackageMetadata() {
                     name = "Android NDK 19",
                     description = "Android NDK r19",
@@ -166,6 +183,19 @@ public static class VirtualPackages
                     hidden = true,
                     sync = "Android SDK & NDK Tools",
                     renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/android-ndk-r19",
+                    renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/NDK"
+                };
+            } else {
+                yield return new PackageMetadata() {
+                    name = "Android NDK 21d",
+                    description = "Android NDK r21d",
+                    url = $"https://dl.google.com/android/repository/android-ndk-r21d-darwin-x86_64.zip",
+                    destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer",
+                    size = 1065 * 1024 * 1024,
+                    installedsize = 3922L * 1024 * 1024,
+                    hidden = true,
+                    sync = "Android SDK & NDK Tools",
+                    renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/android-ndk-r21d",
                     renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/NDK"
                 };
             }
