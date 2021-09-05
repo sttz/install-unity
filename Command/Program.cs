@@ -205,8 +205,8 @@ public class InstallUnityCLI
                     .Description("Store all data at the given path, also don't delete packages after install")
                 .Option((InstallUnityCLI t, IList<string> v) => t.options.AddRange(v), "opt").Repeatable()
                     .ArgumentName("<name>=<value>")
-                    .Description("Set additional options. Use 'list' to show all options and their default value"
-                    + " and 'save' to create an editable JSON config file.")
+                    .Description("Set additional options. Use '--opt list' to show all options and their default value"
+                    + " and '--opt save' to create an editable JSON config file.")
 
                 .Action("list", (t, a) => t.action = a)
                     .Description("Get an overview of available or installed Unity versions")
