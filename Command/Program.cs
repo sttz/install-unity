@@ -1383,16 +1383,30 @@ public class InstallUnityCLI
                 Logger.LogError($"Could not run project '{projectName}', Unity {version} not installed");
                 
                 var next = installs.Where(i => i.version > version).OrderBy(i => i.version).FirstOrDefault();
-                if (next.version.IsValid) {
-                    var allow = "all";
-                    if (next.version.minor != version.minor) allow = "minor";
-                    else if (next.version.patch != version.patch || next.version.type != version.type) allow = "patch";
-                    else if (next.version.build != version.build) allow = "build";
-                    else allow = "hash";
-                    Console.WriteLine($"Use '--allow-newer {allow}' to run with the newer installed version {next.version}");
+                if (!next.version.IsValid) {
+                    Environment.Exit(1);
+                } else {
+                    var allowUpgrade = false;
+                    if (Console.LargestWindowWidth > 0 && !Console.IsInputRedirected && !Console.IsOutputRedirected) {
+                        Console.Write($"Do you want to open the project with the next available version {next.version}? [Ny] ");
+                        if (string.Equals(Console.ReadLine(), "y", StringComparison.OrdinalIgnoreCase)) {
+                            allowUpgrade = true;
+                        }
+                    }
+
+                    if (allowUpgrade) {
+                        installation = next;
+                    } else {
+                        var allow = "all";
+                        if (next.version.minor != version.minor) allow = "minor";
+                        else if (next.version.patch != version.patch || next.version.type != version.type) allow = "patch";
+                        else if (next.version.build != version.build) allow = "build";
+                        else allow = "hash";
+
+                        Console.WriteLine($"Use '--allow-newer {allow}' to run with the newer installed version {next.version}");
+                        Environment.Exit(1);
+                    }
                 }
-                
-                Environment.Exit(1);
             }
             if (version != installation.version) {
                 Logger.LogWarning($"Upgrading project from Unity {version.ToString(verbose > 0)} to {installation.version.ToString(verbose > 0)}");
