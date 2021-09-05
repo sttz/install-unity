@@ -1,7 +1,7 @@
 #!/bin/bash
 
 PROJECT="Command/Command.csproj"
-TARGET="netcoreapp3.1"
+TARGET="net5.0"
 ARCH="osx-x64"
 SIGN_IDENTITY="Developer ID Application: Feist GmbH (DHNHQKSSYT)"
 ENTITLEMENTS="Build/notarization.entitlements"
@@ -50,3 +50,7 @@ zip "../install-unity-$VERSION.zip" "install-unity" || exit 1
 popd
 
 xcrun altool --notarize-app --primary-bundle-id "$BUNDLE_ID" --asc-provider "$ASC_PROVIDER" --username "$ASC_USER" --file "$ZIPARCHIVE" || exit 1
+
+# Shasum for Homebrew
+
+shasum -a 256 "$ZIPARCHIVE"
