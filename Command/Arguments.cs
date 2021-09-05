@@ -1,8 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace sttz.InstallUnity
 {
@@ -76,6 +78,18 @@ public class Arguments<T>
 
         definedOption = null;
 
+        return this;
+    }
+
+    /// <summary>
+    /// Make the current action the default action (used when no action is explicitly set).
+    /// </summary>
+    public Arguments<T> DefaultAction()
+    {
+        if (definedAction == null) {
+            throw new InvalidOperationException($"No current action set to make default");
+        }
+        defaultAction = definedAction.name;
         return this;
     }
 
@@ -263,10 +277,11 @@ public class Arguments<T>
     public void Parse(T target, string[] args)
     {
         var hasActions = actions.Count > 0;
+        var explicitAction = false;
         var argPos = -1;
         var processOptions = true;
 
-        parsedAction = null;
+        parsedAction = defaultAction;
 
         for (int i = 0; i < args.Length; i++) {
             var arg = args[i];
@@ -324,10 +339,11 @@ public class Arguments<T>
 
                 // First positional argument is parsed as action
                 if (hasActions && argPos == 0 && actions.ContainsKey(arg)) {
+                    explicitAction = true;
                     parsedAction = arg;
 
                 } else {
-                    var pos = argPos - (parsedAction != null ? 1 : 0);
+                    var pos = argPos - (explicitAction ? 1 : 0);
                     var opt = FindOption(parsedAction, pos);
                     if (opt != null) {
                         CallOption(opt, target, arg);
@@ -454,43 +470,15 @@ public class Arguments<T>
 
         // -- Actions
         if (actions.Count > 0) {
-            foreach (var action in actions.Values) {
-                if (action.name == "") continue;
-                
-                sb.AppendLine($"---- {action.name.ToUpper()}:");
-                
-                if (action.description != null) {
-                    prefix = "     ";
-                    sb.Append(prefix);
-                    WordWrappedAppend(sb, prefix, prefix.Length, width, action.description);
-                    sb.AppendLine();
-                }
+            sb.AppendLine($"ACTIONS:\n");
 
-                sb.AppendLine();
+            if (defaultAction != null && actions.TryGetValue(defaultAction, out var defaultActionDef)) {
+                ActionUsage(sb, defaultActionDef, command, width);
+            }
 
-                // Action Usage
-                pos = 0;
-                pos = Append(sb, pos, "USAGE: ");
-                pos = Append(sb, pos, command);
-                pos = Append(sb, pos, " [options] ");
-                pos = Append(sb, pos, action.name);
-                pos = Append(sb, pos, " ");
-
-                prefix = new string(' ', 8 + command.Length);
-                pos = OptionUsage(sb, prefix, pos, width, (option) => string.Equals(option.action, action.name, ActionComp));
-                pos = ArgumentUsage(sb, prefix, pos, width, (option) => string.Equals(option.action, action.name, ActionComp));
-                sb.AppendLine();
-
-                sb.AppendLine();
-
-                // Action options
-                if (options.Count(option => string.Equals(option.action, action.name, ActionComp)) > 0) {
-                    sb.AppendLine("OPTIONS:");
-                    ListOptions(sb, width, (option) => string.Equals(option.action, action.name, ActionComp));
-                    sb.AppendLine();
-                }
-
-                sb.AppendLine();
+            foreach (var actionDef in actions.Values) {
+                if (actionDef.name == "" || actionDef.name == defaultAction) continue;
+                ActionUsage(sb, actionDef, command, width);
             }
         }
 
@@ -500,6 +488,45 @@ public class Arguments<T>
         }
 
         return sb.ToString();
+    }
+
+    void ActionUsage(StringBuilder sb, ActionDef action, string command, int width)
+    {
+        sb.AppendLine($"---- {action.name.ToUpper()}{(defaultAction == action.name ? " (default)" : "")}:");
+
+        string prefix;
+        if (action.description != null) {
+            prefix = "     ";
+            sb.Append(prefix);
+            WordWrappedAppend(sb, prefix, prefix.Length, width, action.description);
+            sb.AppendLine();
+        }
+
+        sb.AppendLine();
+
+        // Action Usage
+        var pos = 0;
+        pos = Append(sb, pos, "USAGE: ");
+        pos = Append(sb, pos, command);
+        pos = Append(sb, pos, " [options] ");
+        pos = Append(sb, pos, action.name == defaultAction ? $"[{action.name}]" : action.name);
+        pos = Append(sb, pos, " ");
+
+        prefix = new string(' ', 8 + command.Length);
+        pos = OptionUsage(sb, prefix, pos, width, (option) => string.Equals(option.action, action.name, ActionComp));
+        pos = ArgumentUsage(sb, prefix, pos, width, (option) => string.Equals(option.action, action.name, ActionComp));
+        sb.AppendLine();
+
+        sb.AppendLine();
+
+        // Action options
+        if (options.Count(option => string.Equals(option.action, action.name, ActionComp)) > 0) {
+            sb.AppendLine("OPTIONS:");
+            ListOptions(sb, width, (option) => string.Equals(option.action, action.name, ActionComp));
+            sb.AppendLine();
+        }
+
+        sb.AppendLine();
     }
 
     /// <summary>
@@ -527,7 +554,7 @@ public class Arguments<T>
     int ArgumentUsage(StringBuilder sb, string prefix, int pos, int width, Func<OptionDef, bool> filter)
     {
         foreach (var option in options) {
-            if (option.position < 0 || !filter(option)) continue;
+            if (option.position < 0 || !filter(option)) continue;
 
             var name = ArgumentName(option);
             if (option.repeatable) name += "...";
@@ -814,6 +841,7 @@ public class Arguments<T>
     ActionDef definedAction;
     OptionDef definedOption;
     Dictionary<string, ActionDef> actions = new Dictionary<string, ActionDef>(StringComparer.OrdinalIgnoreCase);
+    string defaultAction;
     List<OptionDef> options = new List<OptionDef>();
 
     string parsedAction;
@@ -925,7 +953,7 @@ public class Arguments<T>
     OptionDef FindOption(string action, string name, bool? shortOption)
     {
         foreach (var option in options) {
-            if (option.names == null || (!string.IsNullOrEmpty(option.action) && !string.Equals(option.action, action, ActionComp))) continue;
+            if (option.names == null || (!string.IsNullOrEmpty(option.action) && !string.Equals(option.action, action, ActionComp))) continue;
 
             foreach (var candidate in option.names) {
                 if (shortOption == (candidate.Length != 1)) continue;

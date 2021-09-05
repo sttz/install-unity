@@ -229,6 +229,7 @@ public class InstallUnityCLI
                     .Description("Platform to show the details for (default = current platform)")
                 
                 .Action("install", (t, a) => t.action = a)
+                    .DefaultAction()
                     .Description("Download and install a version of Unity")
                 
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
@@ -308,9 +309,6 @@ public class InstallUnityCLI
             }
 
             switch (cli.action) {
-                case "":
-                    await cli.ListUpdates();
-                    break;
                 case "list":
                     await cli.List();
                     break;
@@ -318,7 +316,11 @@ public class InstallUnityCLI
                     await cli.Details();
                     break;
                 case "install":
-                    await cli.Install();
+                    if (cli.matchVersion == null) {
+                        await cli.ListUpdates();
+                    } else {
+                        await cli.Install();
+                    }
                     break;
                 case "uninstall":
                     await cli.Uninstall();
