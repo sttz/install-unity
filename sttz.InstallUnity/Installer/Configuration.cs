@@ -134,7 +134,9 @@ public class Configuration
         }
 
         object parsed = null;
-        if (field.FieldType == typeof(bool)) {
+        if (field.FieldType == typeof(string)) {
+            parsed = value;
+        } else if (field.FieldType == typeof(bool)) {
             parsed = bool.Parse(value);
         } else if (field.FieldType == typeof(int)) {
             parsed = int.Parse(value);
