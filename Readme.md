@@ -113,7 +113,7 @@ The project will use Unity's default setup, including packages. Alternatively, y
 ## CLI Help
 
 ````
-install-unity v2.8.2
+install-unity v2.9.0
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
@@ -126,9 +126,33 @@ GLOBAL OPTIONS:
  -u, --update     Force an update of the versions cache 
      --data-path <path>  Store all data at the given path, also don't delete 
                   packages after install 
-     --opt <name>=<value>  Set additional options. Use 'list' to show all 
-                  options and their default value and 'save' to create an 
+     --opt <name>=<value>  Set additional options. Use '--opt list' to show all 
+                  options and their default value and '--opt save' to create an 
                   editable JSON config file. 
+
+
+ACTIONS:
+
+---- INSTALL (default):
+     Download and install a version of Unity 
+
+USAGE: install-unity [options] [install] [--packages <name,name>...] 
+                     [--download] [--install] [--upgrade] 
+                     [--platform none|macos|windows|linux] [--yolo] [<version>] 
+
+OPTIONS:
+ <version>        Pattern to match Unity version or release notes / unity hub 
+                  url 
+ -p, --packages <name,name>  Select packages to download and install ('all' 
+                  selects all available, '~NAME' matches substrings) 
+     --download   Only download the packages (requires '--data-path') 
+     --install    Install previously downloaded packages (requires 
+                  '--data-path') 
+     --upgrade    Replace existing matching Unity installation after successful 
+                  install 
+     --platform none|macos|windows|linux  Platform to download the packages for 
+                  (only valid with '--download', default = current platform) 
+     --yolo       Skip size and hash checks of downloaded files 
 
 
 ---- LIST:
@@ -155,28 +179,6 @@ OPTIONS:
                   url 
      --platform none|macos|windows|linux  Platform to show the details for 
                   (default = current platform) 
-
-
----- INSTALL:
-     Download and install a version of Unity 
-
-USAGE: install-unity [options] install [--packages <name,name>...] [--download] 
-                     [--install] [--upgrade] 
-                     [--platform none|macos|windows|linux] [--yolo] [<version>] 
-
-OPTIONS:
- <version>        Pattern to match Unity version or release notes / unity hub 
-                  url 
- -p, --packages <name,name>  Select packages to download and install ('all' 
-                  selects all available, '~NAME' matches substrings) 
-     --download   Only download the packages (requires '--data-path') 
-     --install    Install previously downloaded packages (requires 
-                  '--data-path') 
-     --upgrade    Replace existing matching Unity installation after successful 
-                  install 
-     --platform none|macos|windows|linux  Platform to download the packages for 
-                  (only valid with '--download', default = current platform) 
-     --yolo       Skip size and hash checks of downloaded files 
 
 
 ---- UNINSTALL:

@@ -1,5 +1,11 @@
 # Changelog
 
+### 2.9.0 (2020-09-05)
+* `install` is now the default action, so e.g. `install-unity 2021.1` works
+* Add interactive prompt to upgrade a Unity project with `run`
+* Fix `--opt` not being able to set `downloadSubdirectory` and `installPathMac`
+* Fix Android SDK Build Tools version with Unity >= 2019.4
+
 ### 2.8.2 (2020-11-10)
 * Don't add Documentation package for alpha releases
 * Use Android SDK Platforms 29 for 2019.3+
