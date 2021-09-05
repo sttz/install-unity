@@ -118,20 +118,19 @@ public static class VirtualPackages
                 sync = "Android SDK & NDK Tools",
             };
 
-            yield return new PackageMetadata() {
-                name = "Android SDK Build Tools",
-                description = "Android SDK Build Tools 28.0.3",
-                url = $"https://dl.google.com/android/repository/build-tools_r28.0.3-macosx.zip",
-                destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/build-tools",
-                size = 53 * 1024 * 1024,
-                installedsize = 120 * 1024 * 1024,
-                hidden = true,
-                sync = "Android SDK & NDK Tools",
-                renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/build-tools/android-9",
-                renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/build-tools/28.0.3"
-            };
-
             if (v.major == 2019 && v.minor <= 3) {
+                yield return new PackageMetadata() {
+                    name = "Android SDK Build Tools",
+                    description = "Android SDK Build Tools 28.0.3",
+                    url = $"https://dl.google.com/android/repository/build-tools_r28.0.3-macosx.zip",
+                    destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/build-tools",
+                    size = 53 * 1024 * 1024,
+                    installedsize = 120 * 1024 * 1024,
+                    hidden = true,
+                    sync = "Android SDK & NDK Tools",
+                    renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/build-tools/android-9",
+                    renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/build-tools/28.0.3"
+                };
                 yield return new PackageMetadata() {
                     name = "Android SDK Platforms",
                     description = "Android SDK Platforms 28 r06",
@@ -145,6 +144,18 @@ public static class VirtualPackages
                     renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-28"
                 };
             } else {
+                yield return new PackageMetadata() {
+                    name = "Android SDK Build Tools",
+                    description = "Android SDK Build Tools 30.0.2",
+                    url = $"https://dl.google.com/android/repository/5a6ceea22103d8dec989aefcef309949c0c42f1d.build-tools_r30.0.2-macosx.zip",
+                    destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/build-tools",
+                    size = 49 * 1024 * 1024,
+                    installedsize = 129 * 1024 * 1024,
+                    hidden = true,
+                    sync = "Android SDK & NDK Tools",
+                    renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/build-tools/android-11",
+                    renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/build-tools/30.0.2"
+                };
                 yield return new PackageMetadata() {
                     name = "Android SDK Platforms",
                     description = "Android SDK Platforms 29 r05",
