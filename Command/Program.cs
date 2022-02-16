@@ -375,19 +375,6 @@ public class InstallUnityCLI
     ILogger Logger;
     HashSet<UnityVersion> newVersions;
 
-    public CachePlatform GetCurrentPlatform()
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
-            return CachePlatform.macOS;
-        } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
-            return CachePlatform.Windows;
-        } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {
-            return CachePlatform.Linux;
-        } else {
-            throw new NotImplementedException("Installer does not currently support the platform: " + RuntimeInformation.OSDescription);
-        }
-    }
-
     public async Task<UnityVersion> Setup(bool avoidCacheUpate = false)
     {
         enableColors = Environment.GetEnvironmentVariable("CLICOLORS") != "0";
@@ -417,7 +404,7 @@ public class InstallUnityCLI
 
         // Set current platform
         if (platform == CachePlatform.None) {
-            platform = GetCurrentPlatform();
+            platform = await installer.Platform.GetCurrentPlatform();
         }
 
         // Enable generating virtual packages
@@ -941,8 +928,11 @@ public class InstallUnityCLI
             throw new Exception("'--upgrade' cannot be used with '--download'");
         }
 
-        if (op != UnityInstaller.InstallStep.Download && platform != GetCurrentPlatform()) {
-            throw new Exception("The platform can only be set when only downloading.");
+        if (op != UnityInstaller.InstallStep.Download) {
+            var installable = await installer.Platform.GetInstallablePlatforms();
+            if (!installable.Contains(platform)) {
+                throw new Exception($"Cannot install {platform} on the current platform.");
+            }
         }
 
         VersionMetadata metadata;

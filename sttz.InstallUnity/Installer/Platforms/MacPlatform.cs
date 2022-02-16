@@ -44,6 +44,39 @@ public class MacPlatform : IInstallerPlatform
 
     // -------- IInstallerPlatform --------
 
+    public async Task<CachePlatform> GetCurrentPlatform()
+    {
+        var result = await Command.Run("uname", "-m");
+        if (result.exitCode != 0) {
+            throw new Exception($"ERROR: {result.error}");
+        }
+
+        var platformString = result.output.Trim();
+        switch (platformString) {
+            case "x86_64":
+                return CachePlatform.macOSIntel;
+            case "arm64":
+                return CachePlatform.macOSArm;
+            default:
+                throw new Exception($"Unknown runtime architecture: '{platformString}'");
+        }
+    }
+
+    public async Task<IEnumerable<CachePlatform>> GetInstallablePlatforms()
+    {
+        var platform = await GetCurrentPlatform();
+        if (platform == CachePlatform.macOSIntel) {
+            return new CachePlatform[] {
+                CachePlatform.macOSIntel
+            };
+        } else {
+            return new CachePlatform[] {
+                CachePlatform.macOSIntel,
+                CachePlatform.macOSArm
+            };
+        }
+    }
+
     string GetUserLibraryDirectory()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.Personal);

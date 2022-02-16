@@ -127,8 +127,11 @@ public class Scraper
     {
         string platformName;
         switch (cachePlatform) {
-            case CachePlatform.macOS:
+            case CachePlatform.macOSIntel:
                 platformName = "darwin";
+                break;
+            case CachePlatform.macOSArm:
+                platformName = "silicon";
                 break;
             case CachePlatform.Windows:
                 platformName = "win32";
@@ -166,6 +169,10 @@ public class Scraper
     void ParseVersions(CachePlatform cachePlatform, HubUnityVersion[] versions, List<VersionMetadata> results)
     {
         foreach (var version in versions) {
+                // releases-darwin.json only contains intel, releases-silicon.json both arm and intel
+                if (cachePlatform == CachePlatform.macOSArm && version.arch != "arm64")
+                    continue;
+
                 var metadata = new VersionMetadata();
                 metadata.version = new UnityVersion(version.version);
 
@@ -423,9 +430,14 @@ public class Scraper
             throw new ArgumentException("Unity version needs to be a full version", nameof(metadata));
         }
 
+        if (cachePlatform == CachePlatform.macOSArm && metadata.version < new UnityVersion(2021, 2)) {
+            throw new ArgumentException("Apple Silicon builds are only available from Unity 2021.2", nameof(metadata));
+        }
+
         string platformName;
         switch (cachePlatform) {
-            case CachePlatform.macOS:
+            case CachePlatform.macOSIntel:
+            case CachePlatform.macOSArm:
                 platformName = "osx";
                 break;
             case CachePlatform.Windows:
@@ -534,6 +546,28 @@ public class Scraper
             packages[i++] = meta;
         }
 
+        // Patch editor URL to point to Apple Silicon editor
+        // The old ini system probably won't be updated to include Apple Silicon variants
+        if (cachePlatform == CachePlatform.macOSArm) {
+            for (i = 0; i < packages.Length; i++) {
+                if (packages[i].name == "Unity") {
+                    // Change e.g.
+                    // https://download.unity3d.com/download_unity/e50cafbb4399/MacEditorInstaller/Unity.pkg
+                    // to
+                    // https://download.unity3d.com/download_unity/e50cafbb4399/MacEditorInstallerArm64/Unity.pkg
+                    var editorUrl = packages[i].url;
+                    if (!editorUrl.StartsWith("MacEditorInstaller/")) {
+                        throw new Exception($"Cannot convert to Apple Silicon editor URL: Does not start with 'MacEditorInstaller' (got '{editorUrl}')");
+                    }
+                    editorUrl = editorUrl.Replace("MacEditorInstaller/", "MacEditorInstallerArm64/");
+                    packages[i].url = editorUrl;
+                    packages[i].description += " (Apple Silicon)";
+                    // Clear fields that are now invalid
+                    packages[i].md5 = null;
+                }
+            }
+        }
+
         Logger.LogInformation($"Found {packages.Length} packages");
         metadata.SetPackages(cachePlatform, packages);
 
@@ -588,6 +622,7 @@ public class Scraper
         public string installedSize;
         public string checksum;
         public HubUnityModule[] modules;
+        public string arch;
     }
 
     struct HubUnityModule

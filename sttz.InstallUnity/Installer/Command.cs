@@ -136,10 +136,18 @@ public static class Command
 
         var completion = new TaskCompletionSource<int>();
         command.Exited += (s, a) => {
-            command.WaitForExit(); // Waits for stdin and stderr to flush
-            Logger.LogDebug($"{command.StartInfo.FileName} exited with code {command.ExitCode}");
-            completion.SetResult(command.ExitCode);
-            command.Dispose();
+            // Wait for stdin and stderr to flush
+            // see https://github.com/dotnet/runtime/issues/18789
+            while (!command.WaitForExit(10000));
+            command.WaitForExit();
+
+            //Thread.Sleep(10);
+
+            var exitCode = command.ExitCode;
+            command.Close();
+
+            Logger.LogDebug($"{command.StartInfo.FileName} exited with code {exitCode}");
+            completion.SetResult(exitCode);
         };
 
         if (cancellation.CanBeCanceled) {

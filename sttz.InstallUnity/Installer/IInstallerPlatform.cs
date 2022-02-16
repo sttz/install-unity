@@ -32,6 +32,16 @@ public class Installation
 public interface IInstallerPlatform
 {
     /// <summary>
+    /// The platform that should be used by default.
+    /// </summary>
+    Task<CachePlatform> GetCurrentPlatform();
+
+    /// <summary>
+    /// Get platforms that can be installed on the current platform.
+    /// </summary>
+    Task<IEnumerable<CachePlatform>> GetInstallablePlatforms();
+
+    /// <summary>
     /// The path to the file where settings are stored.
     /// </summary>
     string GetConfigurationDirectory();

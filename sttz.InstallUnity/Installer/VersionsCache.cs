@@ -15,9 +15,10 @@ namespace sttz.InstallUnity
 public enum CachePlatform
 {
     None,
-    macOS,
+    macOSIntel,
+    macOSArm,
     Windows,
-    Linux
+    Linux,
 }
 
 /// <summary>
@@ -83,6 +84,11 @@ public struct VersionMetadata
     public PackageMetadata[] macPackages;
 
     /// <summary>
+    /// macOS packages.
+    /// </summary>
+    public PackageMetadata[] macArmPackages;
+
+    /// <summary>
     /// Windows packages.
     /// </summary>
     public PackageMetadata[] winPackages;
@@ -135,8 +141,10 @@ public struct VersionMetadata
     public IEnumerable<PackageMetadata> GetRawPackages(CachePlatform platform)
     {
         switch (platform) {
-            case CachePlatform.macOS:
+            case CachePlatform.macOSIntel:
                 return macPackages;
+            case CachePlatform.macOSArm:
+                return macArmPackages;
             case CachePlatform.Windows:
                 return winPackages;
             case CachePlatform.Linux:
@@ -172,8 +180,10 @@ public struct VersionMetadata
         }
 
         switch (platform) {
-            case CachePlatform.macOS:
+            case CachePlatform.macOSIntel:
                 return macPackages.Concat(virtualPackages);
+            case CachePlatform.macOSArm:
+                return macArmPackages.Concat(virtualPackages);
             case CachePlatform.Windows:
                 return winPackages.Concat(virtualPackages);
             case CachePlatform.Linux:
@@ -190,8 +200,11 @@ public struct VersionMetadata
     public void SetPackages(CachePlatform platform, PackageMetadata[] packages)
     {
         switch (platform) {
-            case CachePlatform.macOS:
+            case CachePlatform.macOSIntel:
                 macPackages = packages;
+                break;
+            case CachePlatform.macOSArm:
+                macArmPackages = packages;
                 break;
             case CachePlatform.Windows:
                 winPackages = packages;
