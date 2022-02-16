@@ -141,7 +141,7 @@ public static class Command
             while (!command.WaitForExit(10000));
             command.WaitForExit();
 
-            //Thread.Sleep(10);
+            Thread.Sleep(100);
 
             var exitCode = command.ExitCode;
             command.Close();

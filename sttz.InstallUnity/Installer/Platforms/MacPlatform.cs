@@ -46,20 +46,18 @@ public class MacPlatform : IInstallerPlatform
 
     public async Task<CachePlatform> GetCurrentPlatform()
     {
-        var result = await Command.Run("uname", "-m");
+        var result = await Command.Run("uname", "-a");
         if (result.exitCode != 0) {
             throw new Exception($"ERROR: {result.error}");
         }
 
-        var platformString = result.output.Trim();
-        switch (platformString) {
-            case "x86_64":
-                return CachePlatform.macOSIntel;
-            case "arm64":
-                return CachePlatform.macOSArm;
-            default:
-                throw new Exception($"Unknown runtime architecture: '{platformString}'");
+        if (result.output.Contains("_ARM64_")) {
+            return CachePlatform.macOSArm;
+        } else if (result.output.Contains("x86_64")) {
+            return CachePlatform.macOSIntel;
         }
+
+        throw new Exception($"Unknown runtime architecture: '{result.output.Trim()}'");
     }
 
     public async Task<IEnumerable<CachePlatform>> GetInstallablePlatforms()
@@ -392,9 +390,20 @@ public class MacPlatform : IInstallerPlatform
     /// </summary>
     async Task InstallPkg(string filePath, CancellationToken cancellation = default)
     {
-        var result = await Sudo("/usr/sbin/installer", $"-pkg \"{filePath}\" -target \"{INSTALL_VOLUME}\" -verbose", cancellation);
-        if (result.exitCode != 0) {
-            throw new Exception($"ERROR: {result.error}");
+        var platform = await GetCurrentPlatform();
+        if (platform == CachePlatform.macOSIntel) {
+            var result = await Sudo("/usr/sbin/installer", $"-pkg \"{filePath}\" -target \"{INSTALL_VOLUME}\" -verbose", cancellation);
+            if (result.exitCode != 0) {
+                throw new Exception($"ERROR: {result.error}");
+            }
+        } else {
+            // Make sure we run the arm64 version of the installer
+            // Otherwise the install script will fail with
+            // "Unity for Apple silicon can't be installed on this computer"
+            var result = await Sudo("/usr/bin/arch", $"-arm64 /usr/sbin/installer -pkg \"{filePath}\" -target \"{INSTALL_VOLUME}\" -verbose", cancellation);
+            if (result.exitCode != 0) {
+                throw new Exception($"ERROR: {result.error}");
+            }
         }
     }
 

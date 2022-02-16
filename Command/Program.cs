@@ -406,6 +406,7 @@ public class InstallUnityCLI
         if (platform == CachePlatform.None) {
             platform = await installer.Platform.GetCurrentPlatform();
         }
+        Logger.LogDebug($"Selected platform {platform}");
 
         // Enable generating virtual packages
         VirtualPackages.Enable();
