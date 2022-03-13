@@ -173,15 +173,15 @@ public static class VirtualPackages
                 };
                 yield return new PackageMetadata() {
                     name = "Android SDK Platforms",
-                    description = "Android SDK Platforms 29 r05",
-                    url = $"https://dl.google.com/android/repository/platform-29_r05.zip",
+                    description = "Android SDK Platforms 30 r03",
+                    url = $"https://dl.google.com/android/repository/platform-30_r03.zip",
                     destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms",
-                    size = 78 * 1024 * 1024,
-                    installedsize = 153 * 1024 * 1024,
+                    size = 52 * 1024 * 1024,
+                    installedsize = 116 * 1024 * 1024,
                     hidden = true,
                     sync = "Android SDK & NDK Tools",
-                    renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-10",
-                    renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-29"
+                    renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-11",
+                    renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-30"
                 };
             }
 
