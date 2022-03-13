@@ -1317,7 +1317,7 @@ public class InstallUnityCLI
 
             var lines = File.ReadAllLines(versionPath);
             foreach (var line in lines) {
-                if (line.StartsWith("m_EditorVersion:") || line.StartsWith("m_EditorVersionWithRevision:")) {
+                if (line.StartsWith("m_EditorVersion:") || line.StartsWith("m_EditorVersionWithRevision:")) {
                     var colonIndex = line.IndexOf(':');
                     var versionString = line.Substring(colonIndex + 1).Trim();
                     version = new UnityVersion(versionString);

@@ -129,7 +129,7 @@ public class Downloader
     /// <summary>
     /// The hash after the file has been downloaded.
     /// </summary>
-    public string Hash { get; protected set; }
+    public string Hash { get; protected set; }
 
     /// <summary>
     /// Event called for every <see cref="BufferSize"/> of data processed.
@@ -253,7 +253,7 @@ public class Downloader
                                 Logger.LogInformation($"Existing file '{filename}' has matching hash, skipping...");
                                 CurrentState = State.Complete;
                                 return;
-                            } else {
+                            } else {
                                 // Hash mismatch, force redownload
                                 Logger.LogWarning($"Existing file '{filename}' has different hash: Got {Hash} but expected {ExpectedHash}. Will redownload...");
                                 startOffset = 0;

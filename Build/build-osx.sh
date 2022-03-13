@@ -25,7 +25,7 @@ fi
 
 # Build a new executable
 
-dotnet publish -r "$ARCH" -c release -f "$TARGET" "$PROJECT" || exit 1
+dotnet publish -r "$ARCH" -c release -f "$TARGET" "$PROJECT" || exit 1
 
 BUILD_OUTPUT="Command/bin/release/$TARGET/$ARCH/publish/Command"
 
@@ -46,10 +46,10 @@ cp "$BUILD_OUTPUT" "$EXECUTABLE"
 codesign --force --timestamp --options=runtime --entitlements="$ENTITLEMENTS" --sign "$SIGN_IDENTITY" "$EXECUTABLE" || exit 1
 
 pushd "$ARCHIVE"
-zip "../install-unity-$VERSION.zip" "install-unity" || exit 1
+zip "../install-unity-$VERSION.zip" "install-unity" || exit 1
 popd
 
-xcrun altool --notarize-app --primary-bundle-id "$BUNDLE_ID" --asc-provider "$ASC_PROVIDER" --username "$ASC_USER" --file "$ZIPARCHIVE" || exit 1
+xcrun altool --notarize-app --primary-bundle-id "$BUNDLE_ID" --asc-provider "$ASC_PROVIDER" --username "$ASC_USER" --file "$ZIPARCHIVE" || exit 1
 
 # Shasum for Homebrew
 
