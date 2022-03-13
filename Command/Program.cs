@@ -1387,6 +1387,10 @@ public class InstallUnityCLI
 
                     if (allowUpgrade) {
                         installation = next;
+                        if (!unityArguments.Contains("-skipUpgradeDialogs")) {
+                            unityArguments.Add("-skipUpgradeDialogs");
+                        }
+
                     } else {
                         var allow = "all";
                         if (next.version.minor != version.minor) allow = "minor";
