@@ -1,7 +1,7 @@
 #!/bin/bash
 
 PROJECT="Command/Command.csproj"
-TARGET="net5.0"
+TARGET="net6.0"
 ARCH="osx-x64"
 SIGN_IDENTITY="Developer ID Application: Feist GmbH (DHNHQKSSYT)"
 ENTITLEMENTS="Build/notarization.entitlements"
