@@ -107,17 +107,32 @@ public static class VirtualPackages
                 eulamessage = "Please review and accept the license terms before downloading and installing Android\'s SDK and NDK.",
             };
 
-            yield return new PackageMetadata() {
-                name = "Android SDK Platform Tools",
-                description = "Android SDK Platform Tools 28.0.1",
-                url = $"https://dl.google.com/android/repository/platform-tools_r28.0.1-darwin.zip",
-                destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK",
-                size = 5 * 1024 * 1024,
-                installedsize = 16 * 1024 * 1024,
-                hidden = true,
-                sync = "Android SDK & NDK Tools",
-            };
+            // Android platform tools
+            if (v.major < 2021) {
+                yield return new PackageMetadata() {
+                    name = "Android SDK Platform Tools",
+                    description = "Android SDK Platform Tools 28.0.1",
+                    url = $"https://dl.google.com/android/repository/platform-tools_r28.0.1-darwin.zip",
+                    destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK",
+                    size = 5 * 1024 * 1024,
+                    installedsize = 16 * 1024 * 1024,
+                    hidden = true,
+                    sync = "Android SDK & NDK Tools",
+                };
+            } else {
+                yield return new PackageMetadata() {
+                    name = "Android SDK Platform Tools",
+                    description = "Android SDK Platform Tools 30.0.4",
+                    url = $"https://dl.google.com/android/repository/fbad467867e935dce68a0296b00e6d1e76f15b15.platform-tools_r30.0.4-darwin.zip",
+                    destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK",
+                    size = 10 * 1024 * 1024,
+                    installedsize = 30 * 1024 * 1024,
+                    hidden = true,
+                    sync = "Android SDK & NDK Tools",
+                };
+            }
 
+            // Android SDK platform & build tools
             if (v.major == 2019 && v.minor <= 3) {
                 yield return new PackageMetadata() {
                     name = "Android SDK Build Tools",
@@ -170,6 +185,7 @@ public static class VirtualPackages
                 };
             }
 
+            // Android NDK
             if (v.major == 2019 && v.minor <= 2) {
                 yield return new PackageMetadata() {
                     name = "Android NDK 16b",
