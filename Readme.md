@@ -2,7 +2,7 @@
 
 A command-line utility to install any recent version of Unity.
 
-Currently only supports macOS but support for Windows/Linux is possible, PRs welcome.
+Currently only supports macOS (Intel & Apple Silicon) but support for Windows/Linux is possible, PRs welcome.
 
 ## Table of Contents
 
@@ -43,13 +43,6 @@ In case install-unity fails to discover a release, it's also possible to pass a 
 
     install-unity details https://unity3d.com/unity/whats-new/unity-2018.3.0
     install-unity install unityhub://2018.3.0f2/6e9a27477296
-
-### Patch Releases
-
-With the switch to LTS versions, Unity has stopped creating patch releases for Unity 2017.3 and newer. install-unity no longer scans for patch releases but you can still install them by specifying the full version number.
-
-    install-unity install 2017.2.3p3
-
 ## Packages
 
 The command above will install the default packages as specified by Unity.
@@ -61,6 +54,14 @@ Will show the available packages for a given version. You can then select the pa
     install-unity install 2018.2 --packages Unity,Documentation
     install-unity install f -p Unity Linux iOS Android
     install-unity install 2018.3b -p Unity -p Android -p Linux
+
+## Apple Silicon
+
+By default, `install-unity` will download and install the Unity editor matching the current platform. 
+
+Use `--platform macOSIntel` to download and install the Intel editor on Apple Silicon.
+
+Use `--platform macOSArm` on Intel to download the Apple Silicon editor.
 
 ## Offline Install
 
@@ -110,10 +111,16 @@ The project will use Unity's default setup, including packages. Alternatively, y
 
     install-unity create --type minimal 2020.1 ~/Desktop/my-project
 
+### Patch Releases
+
+With the switch to LTS versions, Unity has stopped creating patch releases for Unity 2017.3 and newer. install-unity no longer scans for patch releases but you can still install them by specifying the full version number.
+
+    install-unity install 2017.2.3p3
+
 ## CLI Help
 
 ````
-install-unity v2.9.0
+install-unity v2.10.0
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
@@ -138,7 +145,8 @@ ACTIONS:
 
 USAGE: install-unity [options] [install] [--packages <name,name>...] 
                      [--download] [--install] [--upgrade] 
-                     [--platform none|macos|windows|linux] [--yolo] [<version>] 
+                     [--platform none|macosintel|macosarm|windows|linux] 
+                     [--yolo] [<version>] 
 
 OPTIONS:
  <version>        Pattern to match Unity version or release notes / unity hub 
@@ -150,8 +158,9 @@ OPTIONS:
                   '--data-path') 
      --upgrade    Replace existing matching Unity installation after successful 
                   install 
-     --platform none|macos|windows|linux  Platform to download the packages for 
-                  (only valid with '--download', default = current platform) 
+     --platform none|macosintel|macosarm|windows|linux  Platform to download 
+                  the packages for (only valid with '--download', default = 
+                  current platform) 
      --yolo       Skip size and hash checks of downloaded files 
 
 
@@ -159,26 +168,28 @@ OPTIONS:
      Get an overview of available or installed Unity versions 
 
 USAGE: install-unity [options] list [--installed] 
-                     [--platform none|macos|windows|linux] [<version>] 
+                     [--platform none|macosintel|macosarm|windows|linux] 
+                     [<version>] 
 
 OPTIONS:
  <version>        Pattern to match Unity version 
  -i, --installed  List installed versions of Unity 
-     --platform none|macos|windows|linux  Platform to list the versions for 
-                  (default = current platform) 
+     --platform none|macosintel|macosarm|windows|linux  Platform to list the 
+                  versions for (default = current platform) 
 
 
 ---- DETAILS:
      Show version information and all its available packages 
 
-USAGE: install-unity [options] details [--platform none|macos|windows|linux] 
+USAGE: install-unity [options] details 
+                     [--platform none|macosintel|macosarm|windows|linux] 
                      [<version>] 
 
 OPTIONS:
  <version>        Pattern to match Unity version or release notes / unity hub 
                   url 
-     --platform none|macos|windows|linux  Platform to show the details for 
-                  (default = current platform) 
+     --platform none|macosintel|macosarm|windows|linux  Platform to show the 
+                  details for (default = current platform) 
 
 
 ---- UNINSTALL:

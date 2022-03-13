@@ -1,5 +1,14 @@
 # Changelog
 
+### 2.10.0 (2022-02-16)
+* Add support for installing Apple Silicon editor
+* Use `--platform macOSArm` to download the Apple Silicon editor on other platforms
+* Use `--platform macOSIntel` to install Intel editors on Apple Silicon
+* Distribute install-unity as universal binary (using .Net 6 single file support)
+* Fix Unity asking again to upgrade project when upgrade was already confirmed in the interactive prompt
+* Install Android SDK 30 on Unity 2019.4+
+* Install Android Platform Tools 30.0.4 on Unity 2021.1+
+
 ### 2.9.0 (2020-09-05)
 * `install` is now the default action, so e.g. `install-unity 2021.1` works
 * Add interactive prompt to upgrade a Unity project with `run`

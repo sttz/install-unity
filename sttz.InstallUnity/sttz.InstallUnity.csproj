@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <PropertyGroup Label="Package">
-    <Version>2.9.0</Version>
+    <Version>2.10.0</Version>
     <Authors>Adrian Stutz (sttz.ch)</Authors>
     <Product>install-unity</Product>
     <Description>install-unity unofficial Unity installer library</Description>
