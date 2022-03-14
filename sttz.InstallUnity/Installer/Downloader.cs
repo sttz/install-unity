@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -49,6 +50,7 @@ public class Downloader
     /// <summary>
     /// Hash algorithm used to compute hash (null = don't compute hash).
     /// </summary>
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
     public Type HashAlgorithm = typeof(MD5CryptoServiceProvider);
 
     /// <summary>
