@@ -120,7 +120,7 @@ With the switch to LTS versions, Unity has stopped creating patch releases for U
 ## CLI Help
 
 ````
-install-unity v2.10.0
+install-unity v2.10.1
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 

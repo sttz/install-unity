@@ -1,6 +1,10 @@
 # Changelog
 
-### 2.10.0 (2022-02-16)
+### 2.10.1 (2022-03-14)
+* Fix exception when downloading, because `MD5CryptoServiceProvider` got trimmed in build
+* Update dependencies
+
+### 2.10.0 (2022-03-13)
 * Add support for installing Apple Silicon editor
 * Use `--platform macOSArm` to download the Apple Silicon editor on other platforms
 * Use `--platform macOSIntel` to install Intel editors on Apple Silicon
