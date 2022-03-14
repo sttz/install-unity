@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions.Internal;
 
 namespace sttz.NiceConsoleLogger
 {
@@ -81,7 +80,7 @@ public class ConsoleLogger : ILogger
 
     public IDisposable BeginScope<TState>(TState state)
     {
-        return ScopeProvider?.Push(state) ?? NullScope.Instance;
+        return ScopeProvider?.Push(state) ?? default;
     }
 
     public bool IsEnabled(LogLevel logLevel)

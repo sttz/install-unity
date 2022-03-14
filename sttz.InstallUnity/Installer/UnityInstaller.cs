@@ -203,8 +203,10 @@ public class UnityInstaller
         if (loggerFactory != null) {
             LoggerFactory = loggerFactory;
         } else {
-            LoggerFactory = new LoggerFactory()
-                .AddConsole(LogLevel.Information);
+            LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => {
+                builder.AddConsole();
+                builder.SetMinimumLevel(LogLevel.Information);
+            });
         }
         Logger = CreateLogger<UnityInstaller>();
         GlobalLogger = CreateLogger("Global");
