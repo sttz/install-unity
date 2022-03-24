@@ -1081,15 +1081,15 @@ public class InstallUnityCLI
                     await Task.Delay(refreshInterval);
                 }
                 ClearQueueStatus(queue);
-
-                if (processTask.IsFaulted) {
-                    throw processTask.Exception;
-                } else {
-                    installed = processTask.Result;
-                }
             } catch (Exception e) {
-                Logger.LogWarning($"Progress bar disabled due to exception during rendering: {e}");
+                Logger.LogWarning($"Progress bar disabled due to exception during rendering: {(verbose > 0 ? e.ToString() : e.Message)}");
                 installed = await processTask;
+            }
+
+            if (processTask.IsFaulted) {
+                throw processTask.Exception;
+            } else {
+                installed = processTask.Result;
             }
         } else {
             Logger.LogInformation("Progress bar is disabled");
