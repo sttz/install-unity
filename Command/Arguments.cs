@@ -393,9 +393,13 @@ public class Arguments<T>
 
         var agg = e as AggregateException;
         if (agg != null) {
-            WriteSingleException(e, false, enableColors);
-            foreach (var inner in agg.InnerExceptions) {
-                WriteException(inner, args, stackTrace, enableColors);
+            if (!stackTrace) {
+                WriteSingleException(agg.GetBaseException(), stackTrace, enableColors);
+            } else {
+                WriteSingleException(e, false, enableColors);
+                foreach (var inner in agg.InnerExceptions) {
+                    WriteException(inner, args, stackTrace, enableColors);
+                }
             }
             return;
         }
