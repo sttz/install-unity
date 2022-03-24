@@ -1,5 +1,11 @@
 # Changelog
 
+### 2.10.2 (2022-03-24)
+* Fix installing additional Android packages failing depending on the install order
+* Fix unzip hanging the installation if some target files already exist
+* Fix formatting of exceptions thrown during the installation process
+* Show path of target Unity installation when installing additional packages
+
 ### 2.10.1 (2022-03-14)
 * Fix exception when downloading, because `MD5CryptoServiceProvider` got trimmed in build
 * Update dependencies
