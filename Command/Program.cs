@@ -988,6 +988,8 @@ public class InstallUnityCLI
                 } else {
                     Console.WriteLine($"No installed version matches {version}, nothing to upgrade.");
                 }
+            } else if (!freshInstall) {
+                Console.WriteLine($"Will be installing additional packages for Unity {existing.version} at path: {existing.path}");
             }
         }
 
