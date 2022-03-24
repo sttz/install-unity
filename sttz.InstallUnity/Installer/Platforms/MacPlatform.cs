@@ -481,7 +481,11 @@ public class MacPlatform : IInstallerPlatform
         var retryWithRoot = false;
         (int exitCode, string output, string error) result;
         try {
-            result = await Command.Run("/usr/bin/unzip", $"\"{filePath}\" -d \"{target}\"", cancellation: cancellation);
+            if (!Directory.Exists(target)) {
+                Directory.CreateDirectory(target);
+            }
+
+            result = await Command.Run("/usr/bin/unzip", $"-o -d \"{target}\" \"{filePath}\"", cancellation: cancellation);
             if (result.exitCode != 0) {
                 throw new Exception($"ERROR: {result.error}");
             }
@@ -491,7 +495,12 @@ public class MacPlatform : IInstallerPlatform
         }
 
         if (retryWithRoot) {
-            result = await Sudo("/usr/bin/unzip", $"\"{filePath}\" -d \"{target}\"", cancellation);
+            result = await Sudo("/bin/mkdir", $"-p \"{target}\"", cancellation);
+            if (result.exitCode != 0) {
+                throw new Exception($"ERROR: {result.error}");
+            }
+
+            result = await Sudo("/usr/bin/unzip", $"-o -d \"{target}\" \"{filePath}\"", cancellation);
             if (result.exitCode != 0) {
                 throw new Exception($"ERROR: {result.error}");
             }
