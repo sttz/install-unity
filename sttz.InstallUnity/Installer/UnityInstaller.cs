@@ -222,6 +222,9 @@ public class UnityInstaller
         if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX)) {
             Logger.LogDebug("Loading platform integration for macOS");
             Platform = new MacPlatform();
+        } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+            Logger.LogDebug("Loading platform integration for WIndows");
+            Platform = new WIndowsPlatform();
         } else {
             throw new NotImplementedException("Installer does not currently support the platform: " + System.Runtime.InteropServices.RuntimeInformation.OSDescription);
         }
@@ -580,6 +583,8 @@ public class UnityInstaller
             string installationPaths = null;
             if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX)) {
                 installationPaths = Configuration.installPathMac;
+            } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+                installationPaths = Configuration.installPathWindows;
             } else {
                 throw new NotImplementedException("Installer does not currently support the platform: " + System.Runtime.InteropServices.RuntimeInformation.OSDescription);
             }
