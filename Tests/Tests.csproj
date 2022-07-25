@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <LangVersion>7.1</LangVersion>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
