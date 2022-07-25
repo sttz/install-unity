@@ -106,7 +106,7 @@ namespace sttz.InstallUnity
                 unityInstallations.Add(new Installation {
                     executable = modulesJsonPath,
                     path = unityCandidate,
-                    version = new UnityVersion(versionInfo.ProductVersion.Substring(0, versionInfo.ProductVersion.LastIndexOf(".")))
+                    version = new UnityVersion(versionInfo.ProductVersion.Substring(0, versionInfo.ProductVersion.LastIndexOf("_"))) // Versions are on format 2020.3.34f1_9a4c9c70452b
                 });
             }
             return unityInstallations;
