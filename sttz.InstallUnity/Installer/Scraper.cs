@@ -184,8 +184,8 @@ public class Scraper
                     url = version.downloadUrl,
                     install = true,
                     mandatory = false,
-                    size = long.Parse(version.downloadSize),
-                    installedsize = long.Parse(version.installedSize),
+                    size = long.Parse(version.downloadSize) * 1024,
+                    installedsize = long.Parse(version.installedSize) * 1024,
                     version = version.version,
                     md5 = version.checksum
                 };
