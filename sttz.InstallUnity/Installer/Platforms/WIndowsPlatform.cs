@@ -174,6 +174,9 @@ namespace sttz.InstallUnity
             {
                 throw new Exception($"Could not uninstall Unity. output: {result.output}, error: {result.error}");
             }
+
+            // TODO: Should folder be deleted even when uninstall command returns with exitcode != 0?
+            Directory.Delete(installation.path, true);
         }
 
         // -------- Helpers --------
