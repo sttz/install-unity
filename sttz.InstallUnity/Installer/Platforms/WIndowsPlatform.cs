@@ -102,11 +102,12 @@ namespace sttz.InstallUnity
                     continue;
                 }
                 var versionInfo = FileVersionInfo.GetVersionInfo(modulesJsonPath);
+                var splitCharacter = versionInfo.ProductVersion.Contains("_") ? '_' : '.'; // Versions are on format 2020.3.34f1_xxxx or 2020.3.34f1.xxxx
                 Logger.LogDebug($"Found version {versionInfo.ProductVersion}");
                 unityInstallations.Add(new Installation {
                     executable = modulesJsonPath,
                     path = unityCandidate,
-                    version = new UnityVersion(versionInfo.ProductVersion.Substring(0, versionInfo.ProductVersion.LastIndexOf("_"))) // Versions are on format 2020.3.34f1_9a4c9c70452b
+                    version = new UnityVersion(versionInfo.ProductVersion.Substring(0, versionInfo.ProductVersion.LastIndexOf(splitCharacter)))
                 });
             }
             return unityInstallations;
