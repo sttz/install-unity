@@ -13,7 +13,7 @@ namespace sttz.InstallUnity
 public static class Helpers
 {
     static readonly string[] SizeNames = new string[] {
-        "MB", "GB", "TB", "PB", "EB", "ZB", "YB"
+        "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"
     };
 
     /// <summary>
@@ -24,8 +24,8 @@ public static class Helpers
     /// <returns>Size formatted with appropriate size suffix (B, KB, MB, etc)</returns>
     public static string FormatSize(long bytes, string format = "{0:0.00} {1}")
     {
-        if (bytes < 0) return "? KB";
-        else if (bytes < 1024) return bytes + " KB";
+        if (bytes < 0) return "? B";
+        else if (bytes < 1024) return bytes + " B";
 
         var size = bytes / 1024.0;
         var index = Math.Min((int)Math.Log(size, 1024), SizeNames.Length - 1);
