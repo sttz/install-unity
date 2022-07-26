@@ -176,8 +176,38 @@ namespace sttz.InstallUnity
                 throw new Exception($"Could not uninstall Unity. output: {result.output}, error: {result.error}");
             }
 
-            // TODO: Should folder be deleted even when uninstall command returns with exitcode != 0?
-            Directory.Delete(installation.path, true);
+            Logger.LogDebug($"Unity {installation.version} uninstalled successfully");
+
+            try
+            {
+                // TODO: Should folder be deleted even when uninstall command returns with exitcode != 0?
+                Logger.LogInformation($"Deleting folder path {installation.path} recursively");
+                await Task.Delay(1000); // Wait for uninstallation
+                Directory.Delete(installation.path, true);
+
+                Logger.LogDebug($"Folder path {installation.path} deleted");
+            }
+            catch (UnauthorizedAccessException _)
+            {
+                try
+                {
+                    // Sometimes access to folders and files are still in use by Unity uninstall, so we wait some more
+                    await Task.Delay(3000);
+                    Directory.Delete(installation.path, true);
+
+                    Logger.LogDebug($"Folder path {installation.path} deleted at second attempt");
+                }
+                catch (Exception e)
+                {
+                    Logger.LogError(e, $"Failed to delete folder path {installation.path} at second attempt");
+                    // Continue even though errors occur deleting file path
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.LogError(e, $"Failed to delete folder path {installation.path}");
+                // Continue even though errors occur deleting file path
+            }
         }
 
         // -------- Helpers --------
