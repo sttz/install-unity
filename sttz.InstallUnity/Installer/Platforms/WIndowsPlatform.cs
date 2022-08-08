@@ -10,9 +10,8 @@ using System.Threading.Tasks;
 
 namespace sttz.InstallUnity
 {
-    public class WIndowsPlatform : IInstallerPlatform
+    public class WindowsPlatform : IInstallerPlatform
     {
-
         private string INSTALL_PATH => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Unity", "Hub", "Editor");
 
@@ -50,7 +49,9 @@ namespace sttz.InstallUnity
 
         public async Task<bool> IsAdmin(CancellationToken cancellation = default)
         {
-            return new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
+#pragma warning disable CA1416 // Validate platform compatibility
+            return await Task.FromResult(new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator));
+#pragma warning restore CA1416 // Validate platform compatibility
         }
 
         public async Task<Installation> CompleteInstall(bool aborted, CancellationToken cancellation = default)
@@ -72,7 +73,7 @@ namespace sttz.InstallUnity
 
                 installing = default;
 
-                return installation;
+                return await Task.FromResult(installation);
             }
             else
             {
@@ -110,7 +111,7 @@ namespace sttz.InstallUnity
                     version = new UnityVersion(versionInfo.ProductVersion.Substring(0, versionInfo.ProductVersion.LastIndexOf(splitCharacter)))
                 });
             }
-            return unityInstallations;
+            return await Task.FromResult(unityInstallations);
         }
 
         public async Task Install(UnityInstaller.Queue queue, UnityInstaller.QueueItem item, CancellationToken cancellation = default)
@@ -121,7 +122,6 @@ namespace sttz.InstallUnity
             }
 
             var installPath = GetInstallationPath(installing.version, installationPaths);
-            // TODO: start info runas
             var result = await RunAsAdmin(item.filePath, $"/S /D={installPath}");
             if (result.exitCode != 0)
             {
@@ -134,9 +134,10 @@ namespace sttz.InstallUnity
             }
         }
 
-        public async Task MoveInstallation(Installation installation, string newPath, CancellationToken cancellation = default)
+        public Task MoveInstallation(Installation installation, string newPath, CancellationToken cancellation = default)
         {
-            // do nothing
+            // Don't need to move installation on Windows, Unity is installed in the correct location automatically.
+            return Task.CompletedTask;
         }
 
         public async Task PrepareInstall(UnityInstaller.Queue queue, string installationPaths, CancellationToken cancellation = default)
@@ -165,7 +166,7 @@ namespace sttz.InstallUnity
         public async Task<bool> PromptForPasswordIfNecessary(CancellationToken cancellation = default)
         {
             // Don't care about password. The system will ask for elevated priviliges automatically
-            return true;
+            return await Task.FromResult(true);
         }
 
         public async Task Uninstall(Installation installation, CancellationToken cancellation = default)
@@ -173,46 +174,52 @@ namespace sttz.InstallUnity
             var result = await RunAsAdmin(Path.Combine(installation.path, "Editor", "Uninstall.exe"), "/AllUsers /Q /S");
             if (result.exitCode != 0)
             {
-                throw new Exception($"Could not uninstall Unity. output: {result.output}, error: {result.error}");
+                throw new Exception($"Could not uninstall Unity. output: {result.output}, error: {result.error}.");
             }
 
-            Logger.LogDebug($"Unity {installation.version} uninstalled successfully");
+            // Uninstall.exe captures the files within the folder and retains sole access to them for some time even after returning a result
+            // We wait for a period of time and then make sure that the folder and contents are deleted
+            const int msDelay = 5000;
+            bool deletedFolder = false;
 
             try
             {
-                // TODO: Should folder be deleted even when uninstall command returns with exitcode != 0?
-                Logger.LogInformation($"Deleting folder path {installation.path} recursively");
-                await Task.Delay(1000); // Wait for uninstallation
+                Logger.LogDebug($"Deleting folder path {installation.path} recursively in {msDelay}ms.");
+                await Task.Delay(msDelay); // Wait for uninstallation to let go of files in folder
                 Directory.Delete(installation.path, true);
 
-                Logger.LogDebug($"Folder path {installation.path} deleted");
+                Logger.LogDebug($"Folder path {installation.path} deleted.");
+                deletedFolder = true;
             }
-            catch (UnauthorizedAccessException _)
+            catch (UnauthorizedAccessException)
             {
                 try
                 {
-                    // Sometimes access to folders and files are still in use by Unity uninstall, so we wait some more
-                    await Task.Delay(3000);
+                    // Sometimes access to folders and files are still in use by Uninstall.exe, so we wait some more
+                    await Task.Delay(msDelay);
                     Directory.Delete(installation.path, true);
 
-                    Logger.LogDebug($"Folder path {installation.path} deleted at second attempt");
+                    Logger.LogDebug($"Folder path {installation.path} deleted at second attempt.");
+                    deletedFolder = true;
                 }
                 catch (Exception e)
                 {
-                    Logger.LogError(e, $"Failed to delete folder path {installation.path} at second attempt");
+                    Logger.LogError(e, $"Failed to delete folder path {installation.path} at second attempt. Ignoring excess files.");
                     // Continue even though errors occur deleting file path
                 }
             }
             catch (Exception e)
             {
-                Logger.LogError(e, $"Failed to delete folder path {installation.path}");
+                Logger.LogError(e, $"Failed to delete folder path {installation.path}.");
                 // Continue even though errors occur deleting file path
             }
+
+            Logger.LogInformation($"Unity {installation.version} uninstalled successfully {(deletedFolder ? "and folder was deleted" : "but folder was not deleted")}.");
         }
 
         // -------- Helpers --------
 
-        ILogger Logger = UnityInstaller.CreateLogger<WIndowsPlatform>();
+        ILogger Logger = UnityInstaller.CreateLogger<WindowsPlatform>();
 
         VersionMetadata installing;
         string installationPaths;
@@ -233,7 +240,7 @@ namespace sttz.InstallUnity
             try
             {
                 var p = Process.Start(startInfo);
-                p.WaitForExit();
+                await p.WaitForExitAsync();
                 return (p.ExitCode, p.StandardOutput.ReadToEnd(), p.StandardError.ReadToEnd());
             } catch (Exception)
             {
@@ -302,13 +309,8 @@ namespace sttz.InstallUnity
             cmd.Start();
             cmd.BeginOutputReadLine();
             cmd.BeginErrorReadLine();
+            await cmd.WaitForExitAsync(); // Let stdout and stderr flush
 
-            while (!cmd.HasExited)
-            {
-                await Task.Delay(100);
-            }
-
-            cmd.WaitForExit(); // Let stdout and stderr flush
             Logger.LogInformation($"Unity exited with code {cmd.ExitCode}");
             Environment.Exit(cmd.ExitCode);
         }

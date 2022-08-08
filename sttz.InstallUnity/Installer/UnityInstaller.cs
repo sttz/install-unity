@@ -217,7 +217,7 @@ public class UnityInstaller
             Platform = new MacPlatform();
         } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
             Logger.LogDebug("Loading platform integration for WIndows");
-            Platform = new WIndowsPlatform();
+            Platform = new WindowsPlatform();
         } else {
             throw new NotImplementedException("Installer does not currently support the platform: " + RuntimeInformation.OSDescription);
         }
@@ -659,8 +659,12 @@ public class UnityInstaller
                 continue;
             
             if (!packageFileNames.Contains(fileName)) {
-                Logger.LogWarning("Unexpected file in downloads folder: " + path);
-                //throw new Exception("Unexpected file in downloads folder: " + path);
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+                    // Don't throw on unexcpeted files in Windows Download folder
+                    Logger.LogWarning("Unexpected file in downloads folder: " + path);
+                } else {
+                    throw new Exception("Unexpected file in downloads folder: " + path);
+                }
             }
         }
 
