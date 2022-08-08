@@ -209,11 +209,19 @@ public class WindowsPlatform : IInstallerPlatform
                 Logger.LogDebug($"Folder path {installation.path} deleted at second attempt.");
                 deletedFolder = true;
             }
+            catch (DirectoryNotFoundException)
+            {
+                // Ignore, path already deleted
+            }
             catch (Exception e)
             {
                 Logger.LogError(e, $"Failed to delete folder path {installation.path} at second attempt. Ignoring excess files.");
                 // Continue even though errors occur deleting file path
             }
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // Ignore, path already deleted
         }
         catch (Exception e)
         {
@@ -249,9 +257,9 @@ public class WindowsPlatform : IInstallerPlatform
             var p = Process.Start(startInfo);
             await p.WaitForExitAsync();
             return (p.ExitCode, p.StandardOutput.ReadToEnd(), p.StandardError.ReadToEnd());
-        } catch (Exception)
+        } catch (Exception e)
         {
-            Logger.LogError($"Execution of {filename} with {arguments} failed!");
+            Logger.LogError(e, $"Execution of {filename} with {arguments} failed!");
             throw;
         }
     }
