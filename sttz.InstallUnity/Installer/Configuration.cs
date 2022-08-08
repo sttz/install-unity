@@ -64,10 +64,7 @@ public class Configuration
 
 
     [Description("Windows installation paths, separted by ; (first non-existing will be used, variables: {major} {minor} {patch} {type} {build} {hash}).")]
-    public string installPathWindows =
-          Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\Unity\\Hub\\Editor\\{major}.{minor}.{patch}{type}{build};"
-        + Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\Unity\\Editor\\{major}.{minor}.{patch}{type}{build};"
-        + Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\Unity\\{major}.{minor}.{patch}{type}{build};";
+    public string installPathWindows = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\Unity\\Hub\\Editor\\{major}.{minor}.{patch}{type}{build};";
 
     // -------- Serialization --------
 
