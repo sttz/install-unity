@@ -71,9 +71,9 @@ public class Configuration
 
     // -------- Serialization --------
 
-        /// <summary>
-        /// Save the configuration as JSON to the given path.
-        /// </summary>
+    /// <summary>
+    /// Save the configuration as JSON to the given path.
+    /// </summary>
     public bool Save(string path)
     {
         try {
