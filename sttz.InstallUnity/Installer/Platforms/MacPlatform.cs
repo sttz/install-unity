@@ -350,10 +350,7 @@ public class MacPlatform : IInstallerPlatform
             Logger.LogInformation($"$ {cmd.StartInfo.FileName} {cmd.StartInfo.Arguments}");
             
             cmd.Start();
-            
-            while (!cmd.HasExited) {
-                await Task.Delay(100);
-            }
+            await cmd.WaitForExitAsync();
 
         } else {
             if (!arguments.Contains("-logFile")) {
@@ -381,12 +378,7 @@ public class MacPlatform : IInstallerPlatform
             cmd.Start();
             cmd.BeginOutputReadLine();
             cmd.BeginErrorReadLine();
-
-            while (!cmd.HasExited) {
-                await Task.Delay(100);
-            }
-
-            cmd.WaitForExit(); // Let stdout and stderr flush
+            await cmd.WaitForExitAsync(); // Let stdout and stderr flush
             Logger.LogInformation($"Unity exited with code {cmd.ExitCode}");
             Environment.Exit(cmd.ExitCode);
         }
@@ -755,5 +747,4 @@ public class MacPlatform : IInstallerPlatform
         }
     }
 }
-
 }

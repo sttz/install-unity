@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFrameworks>net7.0</TargetFrameworks>
+    <RuntimeIdentifierss>win-x64;osx-x64</RuntimeIdentifierss>
     <LangVersion>latest</LangVersion>
     <RootNamespace>sttz.InstallUnity</RootNamespace>
   </PropertyGroup>
