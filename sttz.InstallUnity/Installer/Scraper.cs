@@ -149,7 +149,7 @@ public class Scraper
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync();
-        Logger.LogDebug("Received response: {json}");
+        Logger.LogDebug($"Received response: {json}");
         var data = JsonConvert.DeserializeObject<Dictionary<string, HubUnityVersion[]>>(json);
 
         var result = new List<VersionMetadata>();
@@ -184,8 +184,8 @@ public class Scraper
                     url = version.downloadUrl,
                     install = true,
                     mandatory = false,
-                    size = long.Parse(version.downloadSize),
-                    installedsize = long.Parse(version.installedSize),
+                    size = long.Parse(version.downloadSize) * 1024,
+                    installedsize = long.Parse(version.installedSize) * 1024,
                     version = version.version,
                     md5 = version.checksum
                 };
@@ -199,8 +199,8 @@ public class Scraper
                         url = module.downloadUrl,
                         install = module.selected,
                         mandatory = false,
-                        size = long.Parse(module.downloadSize),
-                        installedsize = long.Parse(module.installedSize),
+                        size = long.Parse(module.downloadSize) * 1024,
+                        installedsize = long.Parse(module.installedSize) * 1024,
                         version = version.version,
                         md5 = module.checksum
                     };
@@ -496,10 +496,10 @@ public class Scraper
                         meta.mandatory = bool.Parse(pair.Value);
                         break;
                     case "size":
-                        meta.size = long.Parse(pair.Value);
+                        meta.size = long.Parse(pair.Value) * 1024;
                         break;
                     case "installedsize":
-                        meta.installedsize = long.Parse(pair.Value);
+                        meta.installedsize = long.Parse(pair.Value) * 1024;
                         break;
                     case "version":
                         meta.version = pair.Value;
