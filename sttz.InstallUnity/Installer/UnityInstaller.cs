@@ -224,7 +224,7 @@ public class UnityInstaller
             Platform = new MacPlatform();
         } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
             Logger.LogDebug("Loading platform integration for WIndows");
-            Platform = new WIndowsPlatform();
+            Platform = new WindowsPlatform();
         } else {
             throw new NotImplementedException("Installer does not currently support the platform: " + System.Runtime.InteropServices.RuntimeInformation.OSDescription);
         }
@@ -711,9 +711,14 @@ public class UnityInstaller
             var fileName = Path.GetFileName(path);
             if (fileName == ".DS_Store" || fileName == "thumbs.db" || fileName == "desktop.ini")
                 continue;
-
-            if (!packageFilePaths.Contains(path)) {
-                throw new Exception("Unexpected file in downloads folder: " + path);
+            
+            if (!packageFileNames.Contains(path)) {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+                    // Don't throw on unexcpeted files in Windows Download folder
+                    Logger.LogWarning("Unexpected file in downloads folder: " + path);
+                } else {
+                    throw new Exception("Unexpected file in downloads folder: " + path);
+                }
             }
         }
 

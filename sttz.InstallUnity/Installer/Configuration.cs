@@ -64,15 +64,19 @@ public class Configuration
           "/Applications/Unity {major}.{minor};"
         + "/Applications/Unity {major}.{minor}.{patch}{type}{build};"
         + "/Applications/Unity {major}.{minor}.{patch}{type}{build} ({hash})";
-        
-    [Description("Windwos installation paths, separted by ; (first non-existing will be used, variables: {major} {minor} {patch} {type} {build} {hash}).")]
-    public string installPathWindows = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\Unity\\Hub\\Editor\\{major}.{minor}.{patch}{type}{build};";
+
+
+    [Description("Windows installation paths, separted by ; (first non-existing will be used, variables: {major} {minor} {patch} {type} {build} {hash}).")]
+    public string installPathWindows =
+          Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\Unity\\Hub\\Editor\\{major}.{minor}.{patch}{type}{build};"
+        + Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\Unity\\Editor\\{major}.{minor}.{patch}{type}{build};"
+        + Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\Unity\\{major}.{minor}.{patch}{type}{build};";
 
     // -------- Serialization --------
 
-    /// <summary>
-    /// Save the configuration as JSON to the given path.
-    /// </summary>
+        /// <summary>
+        /// Save the configuration as JSON to the given path.
+        /// </summary>
     public bool Save(string path)
     {
         try {

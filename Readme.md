@@ -2,7 +2,7 @@
 
 A command-line utility to install any recent version of Unity.
 
-Currently only supports macOS (Intel & Apple Silicon) but support for Windows/Linux is possible, PRs welcome.
+Currently only supports macOS (Intel & Apple Silicon) and Windows, but support for Linux is possible, PRs welcome.
 
 ## Table of Contents
 
@@ -24,6 +24,12 @@ Or you can install via [Homebrew](https://brew.sh) using [sttz/homebrew-tap](htt
 Installing the latest release version of Unity is as simple as:
 
     install-unity install f
+
+# How to build plugin on Windows
+
+```shell
+dotnet publish -r win-x64 -c Release --self-contained --framework net6.0
+```
 
 ## Versions
 
