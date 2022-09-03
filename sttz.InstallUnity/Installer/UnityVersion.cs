@@ -223,7 +223,7 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
     /// <summary>
     /// Check if this version matches another, ignoring any components that aren't set.
     /// </summary>
-    /// /// <remarks>
+    /// <remarks>
     /// Version component matching is done exactly, with the only difference that components
     /// can be -1, in which case that component is ignored.
     /// The type is however compared relatively and the order of the versions does matter
