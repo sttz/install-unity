@@ -103,6 +103,10 @@ public class InstallUnityCLI
     /// </summary>
     public AllowNewer allowNewer;
     /// <summary>
+    /// Version to upgrade project to when running.
+    /// </summary>
+    public string upgradeVersion;
+    /// <summary>
     /// Arguments to launch Unity with.
     /// </summary>
     public List<string> unityArguments = new List<string>();
@@ -170,6 +174,7 @@ public class InstallUnityCLI
 
         if (child) cmd += " --child";
         if (allowNewer != AllowNewer.None) cmd += " --allow-newer " + allowNewer.ToString().ToLower();
+        if (upgradeVersion != null) cmd += " --upgrade " + upgradeVersion;
         if (unityArguments.Count > 0) cmd += " -- " + string.Join(" ", unityArguments);
 
         return cmd;
@@ -270,6 +275,9 @@ public class InstallUnityCLI
                 .Option((InstallUnityCLI t, AllowNewer v) => t.allowNewer = v, "a", "allow-newer", "allownewer")
                     .ArgumentName("none|hash|build|patch|minor|all")
                     .Description("Allow newer versions of Unity to open a project")
+                .Option((InstallUnityCLI t, string v) => t.upgradeVersion = v, "upgrade")
+                    .ArgumentName("<version>")
+                    .Description("Run the project with the highest installed Unity version matching the pattern")
                 
                 .Action("create", (t, a) => t.action = a)
                     .Description("Create a new empty Unity project")
@@ -1331,23 +1339,46 @@ public class InstallUnityCLI
                 throw new Exception("Could not parse version from ProjectVersion.txt: " + versionPath);
             }
 
-            var allowedVersion = version;
-            if (allowNewer >= AllowNewer.Hash)  allowedVersion.hash = null;
-            if (allowNewer >= AllowNewer.Build) allowedVersion.build = -1;
-            if (allowNewer >= AllowNewer.Patch) { allowedVersion.patch = -1; allowedVersion.type = UnityVersion.Type.Undefined; }
-            if (allowNewer >= AllowNewer.Minor) allowedVersion.minor = -1;
-            if (allowNewer >= AllowNewer.All)   allowedVersion.major = -1;
-            foreach (var install in installs.OrderByDescending(i => i.version)) {
-                // Prevent downgrading project
-                if (version > install.version)
-                    break;
-                // Exact match trumps fuzzy
-                if (version.FuzzyMatches(install.version)) {
-                    installation = install;
+            if (upgradeVersion != null && allowNewer != AllowNewer.None) {
+                throw new Exception("--upgrade and --allow-newer options cannot be used together");
+            }
+
+            if (upgradeVersion != null) {
+                var uprgadeToVersion = new UnityVersion(upgradeVersion);
+                if (!uprgadeToVersion.IsValid) {
+                    throw new Exception("Not a valid --upgrade Unity version pattern: " + upgradeVersion);
                 }
-                // Fuzzy match only newest version
-                if (installation == null && allowedVersion.FuzzyMatches(install.version, allowTypeUpgrade: false)) {
-                    installation = install;
+
+                // Use version explicitly set with --upgrade
+                foreach (var install in installs.OrderByDescending(i => i.version)) {
+                    // Prevent downgrading project
+                    if (version > install.version)
+                        break;
+
+                    if (uprgadeToVersion.FuzzyMatches(install.version)) {
+                        installation = install;
+                    }
+                }
+            } else {
+                // Check if an installed version matches the allowed upgrade path
+                var allowedVersion = version;
+                if (allowNewer >= AllowNewer.Hash)  allowedVersion.hash = null;
+                if (allowNewer >= AllowNewer.Build) allowedVersion.build = -1;
+                if (allowNewer >= AllowNewer.Patch) { allowedVersion.patch = -1; allowedVersion.type = UnityVersion.Type.Undefined; }
+                if (allowNewer >= AllowNewer.Minor) allowedVersion.minor = -1;
+                if (allowNewer >= AllowNewer.All)   allowedVersion.major = -1;
+                foreach (var install in installs.OrderByDescending(i => i.version)) {
+                    // Prevent downgrading project
+                    if (version > install.version)
+                        break;
+                    // Exact match trumps fuzzy
+                    if (version.FuzzyMatches(install.version)) {
+                        installation = install;
+                    }
+                    // Fuzzy match only newest version
+                    if (installation == null && allowedVersion.FuzzyMatches(install.version, allowTypeUpgrade: false)) {
+                        installation = install;
+                    }
                 }
             }
 
@@ -1368,7 +1399,7 @@ public class InstallUnityCLI
                 unityArguments.Add(projectPath);
             }
 
-            if (allowNewer != AllowNewer.None) {
+            if (allowNewer != AllowNewer.None || upgradeVersion != null) {
                 unityArguments.Add("-skipUpgradeDialogs");
             }
         }
@@ -1377,9 +1408,9 @@ public class InstallUnityCLI
             var projectName = Path.GetFileName(projectPath);
             if (installation == null) {
                 Logger.LogError($"Could not run project '{projectName}', Unity {version} not installed");
-                
+
                 var next = installs.Where(i => i.version > version).OrderBy(i => i.version).FirstOrDefault();
-                if (!next.version.IsValid) {
+                if (next == null || !next.version.IsValid) {
                     Environment.Exit(1);
                 } else {
                     var allowUpgrade = false;
