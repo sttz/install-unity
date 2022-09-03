@@ -38,7 +38,15 @@ fi
 
 ARCH_ARGS=()
 for arch in $ARCHES; do
-    dotnet publish -r "$arch" -c release -f "$TARGET" "$PROJECT" || exit 1
+    dotnet publish \
+        -r "$arch" \
+        -c release \
+        -f "$TARGET" \
+        -p:PublishSingleFile=true \
+        -p:PublishReadyToRun=true \
+        -p:PublishTrimmed=true \
+        "$PROJECT" \
+        || exit 1
 
     output="Command/bin/release/$TARGET/$arch/publish/Command"
 
