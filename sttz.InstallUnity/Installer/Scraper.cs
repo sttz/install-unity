@@ -149,7 +149,7 @@ public class Scraper
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync();
-        Logger.LogDebug("Received response: {json}");
+        Logger.LogDebug("Received response: {json}", json);
         var data = JsonConvert.DeserializeObject<Dictionary<string, HubUnityVersion[]>>(json);
 
         var result = new List<VersionMetadata>();
