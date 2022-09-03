@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -50,8 +51,8 @@ public class Downloader
     /// <summary>
     /// Hash algorithm used to compute hash (null = don't compute hash).
     /// </summary>
-    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
-    public Type HashAlgorithm = typeof(MD5CryptoServiceProvider);
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
+    public Type HashAlgorithm = typeof(MD5);
 
     /// <summary>
     /// Buffer size used when downloading.
@@ -205,7 +206,7 @@ public class Downloader
 
         HashAlgorithm hasher = null;
         if (HashAlgorithm != null) {
-            hasher = (HashAlgorithm)Activator.CreateInstance(HashAlgorithm);
+            hasher = CreateHashAlgorithm(HashAlgorithm);
         }
 
         using (var input = File.Open(TargetPath, FileMode.Open, FileAccess.Read)) {
@@ -231,7 +232,7 @@ public class Downloader
         try {
             HashAlgorithm hasher = null;
             if (HashAlgorithm != null) {
-                hasher = (HashAlgorithm)Activator.CreateInstance(HashAlgorithm);
+                hasher = CreateHashAlgorithm(HashAlgorithm);
             }
 
             var filename = Path.GetFileName(TargetPath);
@@ -389,6 +390,20 @@ public class Downloader
         if (blocks != null) {
             watch.Stop();
         }
+    }
+
+    /// <summary>
+    /// Create a HashAlgorithm instance from the given type that is subclass of HashAlgorithm.
+    /// The type needs to implement a static Create method that takes no arguments and
+    /// return the HashAlgorithm instance.
+    /// </summary>
+    static HashAlgorithm CreateHashAlgorithm(Type type)
+    {
+        var createMethod = type.GetMethod("Create", BindingFlags.Public | BindingFlags.Static, new Type[0]);
+        if (createMethod == null) {
+            throw new Exception($"Could not find static Create method on hash algorithm type '{type}'");
+        }
+        return (HashAlgorithm)createMethod.Invoke(null, null);
     }
 }
 
