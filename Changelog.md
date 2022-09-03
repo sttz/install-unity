@@ -1,5 +1,11 @@
 # Changelog
 
+### 2.11.0 (2022-09-03)
+* Add "--upgrade &lt;version&gt;" to `run` command to upgrade a project to a specific Unity version
+* Fix --allow-newer attempting to downgrade project if project Unity version is newer than installed versions
+* Drop support for mono, using .Net 6 exclusively now
+* Update Homebrew formula, now depends on dotnet instead of mono
+
 ### 2.10.2 (2022-03-24)
 * Fix installing additional Android packages failing depending on the install order
 * Fix unzip hanging the installation if some target files already exist

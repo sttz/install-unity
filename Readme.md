@@ -120,7 +120,7 @@ With the switch to LTS versions, Unity has stopped creating patch releases for U
 ## CLI Help
 
 ````
-install-unity v2.10.2
+install-unity v2.11.0
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--data-path <path>] [--opt <name>=<value>...] <action> 
@@ -207,7 +207,8 @@ OPTIONS:
 
 USAGE: install-unity [options] run [--child] 
                      [--allow-newer none|hash|build|patch|minor|all] 
-                     <version-or-path> [<unity-arguments>...] 
+                     [--upgrade <version>] <version-or-path> 
+                     [<unity-arguments>...] 
 
 OPTIONS:
  <version-or-path> Pattern to match Unity version or path to a Unity project 
@@ -217,6 +218,8 @@ OPTIONS:
                   errors, use -v to see the full log) 
  -a, --allow-newer none|hash|build|patch|minor|all  Allow newer versions of 
                   Unity to open a project 
+     --upgrade <version>  Run the project with the highest installed Unity 
+                  version matching the pattern 
 
 
 ---- CREATE:
