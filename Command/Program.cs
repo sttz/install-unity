@@ -1338,6 +1338,9 @@ public class InstallUnityCLI
             if (allowNewer >= AllowNewer.Minor) allowedVersion.minor = -1;
             if (allowNewer >= AllowNewer.All)   allowedVersion.major = -1;
             foreach (var install in installs.OrderByDescending(i => i.version)) {
+                // Prevent downgrading project
+                if (version > install.version)
+                    break;
                 // Exact match trumps fuzzy
                 if (version.FuzzyMatches(install.version)) {
                     installation = install;
