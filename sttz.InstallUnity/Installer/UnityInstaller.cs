@@ -216,7 +216,7 @@ public class UnityInstaller
             Logger.LogDebug("Loading platform integration for macOS");
             Platform = new MacPlatform();
         } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
-            Logger.LogDebug("Loading platform integration for WIndows");
+            Logger.LogDebug("Loading platform integration for Windows");
             Platform = new WindowsPlatform();
         } else {
             throw new NotImplementedException("Installer does not currently support the platform: " + RuntimeInformation.OSDescription);
