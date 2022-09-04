@@ -184,8 +184,8 @@ public class Scraper
                     url = version.downloadUrl,
                     install = true,
                     mandatory = false,
-                    size = long.Parse(version.downloadSize) * 1024,
-                    installedsize = long.Parse(version.installedSize) * 1024,
+                    size = long.Parse(version.downloadSize),
+                    installedsize = long.Parse(version.installedSize),
                     version = version.version,
                     md5 = version.checksum
                 };
@@ -199,8 +199,8 @@ public class Scraper
                         url = module.downloadUrl,
                         install = module.selected,
                         mandatory = false,
-                        size = long.Parse(module.downloadSize) * 1024,
-                        installedsize = long.Parse(module.installedSize) * 1024,
+                        size = long.Parse(module.downloadSize),
+                        installedsize = long.Parse(module.installedSize),
                         version = version.version,
                         md5 = module.checksum
                     };
@@ -472,6 +472,12 @@ public class Scraper
             data = parser.Parse(ini);
         }
 
+        var sizeFactor = 1;
+        if (cachePlatform == CachePlatform.Windows) {
+            // Windows ini files are in kb, osx ini files and all jsons in bytes
+            sizeFactor = 1024;
+        }
+
         var packages = new PackageMetadata[data.Sections.Count];
         var i = 0;
         foreach (var section in data.Sections) {
@@ -496,10 +502,10 @@ public class Scraper
                         meta.mandatory = bool.Parse(pair.Value);
                         break;
                     case "size":
-                        meta.size = long.Parse(pair.Value) * 1024;
+                        meta.size = long.Parse(pair.Value) * sizeFactor;
                         break;
                     case "installedsize":
-                        meta.installedsize = long.Parse(pair.Value) * 1024;
+                        meta.installedsize = long.Parse(pair.Value) * sizeFactor;
                         break;
                     case "version":
                         meta.version = pair.Value;
