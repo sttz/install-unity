@@ -94,7 +94,7 @@ public class WindowsPlatform : IInstallerPlatform
         if (!aborted)
         {
             var executable = Path.Combine(installationPaths, "Editor", "Unity.exe");
-            if (executable == null) return default;
+            if (!File.Exists(executable)) return default;
 
             var installation = new Installation()
             {
