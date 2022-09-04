@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,10 +17,37 @@ namespace sttz.InstallUnity
 /// </summary>
 public class WindowsPlatform : IInstallerPlatform
 {
-    private string INSTALL_PATH => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Unity", "Hub", "Editor");
+    /// <summary>
+    /// Default installation path.
+    /// </summary>
+    static readonly string INSTALL_PATH = Path.Combine(ProgramFilesPath, "Unity");
 
-    string GetUserApplicationSupportDirectory()
+    /// <summary>
+    /// Paths where Unity installations are searched in.
+    /// </summary>
+    /// <value></value>
+    static readonly string[] INSTALL_LOCATIONS = new string[] {
+        ProgramFilesPath,
+        Path.Combine(ProgramFilesPath, "Unity", "Editor"),
+        Path.Combine(ProgramFilesPath, "Unity", "Hub", "Editor"),
+    };
+
+    /// <summary>
+    /// Path to the program files directory.
+    /// </summary>
+    static string ProgramFilesPath { get {
+        if (RuntimeInformation.OSArchitecture != Architecture.X86
+                && RuntimeInformation.ProcessArchitecture == Architecture.X86) {
+            // The unity editor since 2017.1 is 64bit
+            // If install-unity is run as X86 on a non-X86 system, GetFolderPath will return
+            // the "Program Files (x86)" directory instead of the main one where the editor
+            // is likely installed.
+            throw new Exception($"install-unity cannot run as X86 on a non-X86 Windows");
+        }
+        return Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+    } }
+
+    string GetLocalApplicationDataDirectory()
     {
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             UnityInstaller.PRODUCT_NAME);
@@ -38,12 +66,12 @@ public class WindowsPlatform : IInstallerPlatform
 
     public string GetCacheDirectory()
     {
-        return GetUserApplicationSupportDirectory();
+        return GetLocalApplicationDataDirectory();
     }
 
     public string GetConfigurationDirectory()
     {
-        return GetUserApplicationSupportDirectory();
+        return GetLocalApplicationDataDirectory();
     }
 
     public string GetDownloadDirectory()
@@ -87,37 +115,33 @@ public class WindowsPlatform : IInstallerPlatform
 
     public async Task<IEnumerable<Installation>> FindInstallations(CancellationToken cancellation = default)
     {
-        var hubInstallations = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Unity", "Hub", "Editor");
-        var defaultUnityPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Unity", "Editor");
-        var installUnityPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Unity", "install-unity");
-
-        var unityCandidates = new List<string>();
-        if (Directory.Exists(hubInstallations))
-            unityCandidates.AddRange(Directory.GetDirectories(hubInstallations));
-        if (Directory.Exists(defaultUnityPath))
-            unityCandidates.Add(defaultUnityPath);
-        if (Directory.Exists(installUnityPath))
-            unityCandidates.AddRange(Directory.GetDirectories(installUnityPath));
-
         var unityInstallations = new List<Installation>();
-        foreach (var unityCandidate in unityCandidates)
+        foreach (var installPath in INSTALL_LOCATIONS)
         {
-            var modulesJsonPath = Path.Combine(unityCandidate, "Editor", "Unity.exe");
-            if (!File.Exists(modulesJsonPath))
-            {
-                Logger.LogDebug($"No Unity.exe in {unityCandidate}\\Editor");
+            if (!Directory.Exists(installPath))
                 continue;
-            }
-            var versionInfo = FileVersionInfo.GetVersionInfo(modulesJsonPath);
-            var splitCharacter = versionInfo.ProductVersion.Contains("_") ? '_' : '.'; // Versions are on format 2020.3.34f1_xxxx or 2020.3.34f1.xxxx
 
-            Logger.LogDebug($"Found version {versionInfo.ProductVersion}");
-            unityInstallations.Add(new Installation {
-                executable = modulesJsonPath,
-                path = unityCandidate,
-                version = new UnityVersion(versionInfo.ProductVersion.Substring(0, versionInfo.ProductVersion.LastIndexOf(splitCharacter)))
-            });
+            foreach (var unityCandidate in Directory.EnumerateDirectories(installPath))
+            {
+                var unityExePath = Path.Combine(unityCandidate, "Editor", "Unity.exe");
+                if (!File.Exists(unityExePath))
+                {
+                    Logger.LogDebug($"No Unity.exe in {unityCandidate}\\Editor");
+                    continue;
+                }
+
+                var versionInfo = FileVersionInfo.GetVersionInfo(unityExePath);
+                var splitCharacter = versionInfo.ProductVersion.Contains("_") ? '_' : '.'; // Versions are on format 2020.3.34f1_xxxx or 2020.3.34f1.xxxx
+
+                Logger.LogDebug($"Found version {versionInfo.ProductVersion}");
+                unityInstallations.Add(new Installation {
+                    executable = unityExePath,
+                    path = unityCandidate,
+                    version = new UnityVersion(versionInfo.ProductVersion.Substring(0, versionInfo.ProductVersion.LastIndexOf(splitCharacter)))
+                });
+            }
         }
+
         return await Task.FromResult(unityInstallations);
     }
 
@@ -280,6 +304,7 @@ public class WindowsPlatform : IInstallerPlatform
                 expanded = Helpers.Replace(expanded, "{type}", ((char)version.type).ToString(), comparison);
                 expanded = Helpers.Replace(expanded, "{build}", version.build.ToString(), comparison);
                 expanded = Helpers.Replace(expanded, "{hash}", version.hash, comparison);
+                expanded = Helpers.Replace(expanded, "{ProgramFiles}", ProgramFilesPath, comparison);
 
                 return expanded;
             }
