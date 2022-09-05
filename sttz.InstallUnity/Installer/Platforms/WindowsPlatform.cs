@@ -97,15 +97,15 @@ public class WindowsPlatform : IInstallerPlatform
 
         if (!aborted)
         {
-            var executable = Path.Combine(installationPaths, "Editor", "Unity.exe");
+            var executable = Path.Combine(installPath, "Editor", "Unity.exe");
             if (!File.Exists(executable))
-                throw new Exception($"Unity exe not found at expected path after installation: {executable}");
+                throw new Exception($"Unity exe not found at expected path after installation: {installPath}");
 
             var installation = new Installation()
             {
                 version = installing.version,
                 executable = executable,
-                path = installationPaths
+                path = installPath
             };
 
             installing = default;
@@ -169,7 +169,6 @@ public class WindowsPlatform : IInstallerPlatform
             throw new InvalidOperationException("Cannot install package without installing editor first.");
         }
 
-        var installPath = GetInstallationPath(installing.version, installationPaths);
         var result = await RunAsAdmin(item.filePath, $"/S /D={installPath}");
         if (result.exitCode != 0)
         {
@@ -194,7 +193,6 @@ public class WindowsPlatform : IInstallerPlatform
             throw new InvalidOperationException($"Already installing another version: {installing.version}");
 
         installing = queue.metadata;
-        this.installationPaths = installationPaths;
         installedEditor = false;
 
         // Check for upgrading installation
@@ -209,6 +207,8 @@ public class WindowsPlatform : IInstallerPlatform
 
             installedEditor = true;
         }
+
+        installPath = GetInstallationPath(installing.version, installationPaths);
     }
 
     public Task<bool> PromptForPasswordIfNecessary(CancellationToken cancellation = default)
@@ -280,7 +280,7 @@ public class WindowsPlatform : IInstallerPlatform
     Configuration configuration;
 
     VersionMetadata installing;
-    string installationPaths;
+    string installPath;
     bool installedEditor;
 
     async Task<(int exitCode, string output, string error)> RunAsAdmin(string filename, string arguments)
