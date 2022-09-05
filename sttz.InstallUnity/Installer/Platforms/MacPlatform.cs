@@ -91,6 +91,11 @@ public class MacPlatform : IInstallerPlatform
         return GetUserApplicationSupportDirectory();
     }
 
+    public void SetConfiguration(Configuration configuration)
+    {
+        // Not used
+    }
+
     public string GetCacheDirectory()
     {
         return GetUserApplicationSupportDirectory();

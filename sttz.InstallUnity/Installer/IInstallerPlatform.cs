@@ -47,6 +47,15 @@ public interface IInstallerPlatform
     string GetConfigurationDirectory();
 
     /// <summary>
+    /// Set the configuration instance to use.
+    /// </summary>
+    /// <remarks>
+    /// Note that other methods might be called before the configuraiton
+    /// is set, namely <see cref="GetConfigurationDirectory"/>.
+    /// </remarks>
+    void SetConfiguration(Configuration configuration);
+
+    /// <summary>
     /// The directory where cache files are stored.
     /// </summary>
     string GetCacheDirectory();

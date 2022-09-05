@@ -62,12 +62,17 @@ public class Configuration
         + "/Applications/Unity {major}.{minor}.{patch}{type}{build};"
         + "/Applications/Unity {major}.{minor}.{patch}{type}{build} ({hash})";
 
-
     [Description("Windows installation paths, separted by ; (first non-existing will be used, variables: {major} {minor} {patch} {type} {build} {hash} {ProgramFiles}).")]
     public string installPathWindows = 
           "{ProgramFiles}\\Unity {major}.{minor};"
         + "{ProgramFiles}\\Unity {major}.{minor}.{patch}{type}{build};"
         + "{ProgramFiles}\\Unity {major}.{minor}.{patch}{type}{build} ({hash});";
+
+    [Description("Windows directories which are searched for Unity installations, separted by ; (variables: {ProgramFiles}).")]
+    public string searchPathWindows = 
+          "{ProgramFiles};"
+        + "{ProgramFiles}\\Unity\\Editor;"
+        + "{ProgramFiles}\\Unity\\Hub\\Editor;";
 
     // -------- Serialization --------
 
