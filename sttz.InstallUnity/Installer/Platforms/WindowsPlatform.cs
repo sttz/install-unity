@@ -98,7 +98,8 @@ public class WindowsPlatform : IInstallerPlatform
         if (!aborted)
         {
             var executable = Path.Combine(installationPaths, "Editor", "Unity.exe");
-            if (!File.Exists(executable)) return default;
+            if (!File.Exists(executable))
+                throw new Exception($"Unity exe not found at expected path after installation: {executable}");
 
             var installation = new Installation()
             {
@@ -113,7 +114,7 @@ public class WindowsPlatform : IInstallerPlatform
         }
         else
         {
-            return default;
+            return Task.FromResult<Installation>(null);
         }
     }
 
