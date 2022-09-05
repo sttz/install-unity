@@ -25,7 +25,6 @@ public class WindowsPlatform : IInstallerPlatform
     /// <summary>
     /// Paths where Unity installations are searched in.
     /// </summary>
-    /// <value></value>
     static readonly string[] INSTALL_LOCATIONS = new string[] {
         ProgramFilesPath,
         Path.Combine(ProgramFilesPath, "Unity", "Editor"),
@@ -51,6 +50,11 @@ public class WindowsPlatform : IInstallerPlatform
     {
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             UnityInstaller.PRODUCT_NAME);
+    }
+
+    public void SetConfiguration(Configuration configuration)
+    {
+        this.configuration = configuration;
     }
 
     public Task<CachePlatform> GetCurrentPlatform()
@@ -115,11 +119,22 @@ public class WindowsPlatform : IInstallerPlatform
 
     public async Task<IEnumerable<Installation>> FindInstallations(CancellationToken cancellation = default)
     {
+        var locations = INSTALL_LOCATIONS;
+        if (configuration != null && !string.IsNullOrEmpty(configuration.searchPathWindows)) {
+            locations = configuration.searchPathWindows.Split(';', StringSplitOptions.RemoveEmptyEntries);
+            var comparison = StringComparison.OrdinalIgnoreCase;
+            for (int i = 0; i < locations.Length; i++) {
+                locations[i] = Helpers.Replace(locations[i], "{ProgramFiles}", ProgramFilesPath, comparison);
+            }
+        }
+
         var unityInstallations = new List<Installation>();
-        foreach (var installPath in INSTALL_LOCATIONS)
+        foreach (var installPath in locations)
         {
             if (!Directory.Exists(installPath))
                 continue;
+
+            Logger.LogDebug($"Searching directory for Unity installations: {installPath}");
 
             foreach (var unityCandidate in Directory.EnumerateDirectories(installPath))
             {
@@ -133,7 +148,8 @@ public class WindowsPlatform : IInstallerPlatform
                 var versionInfo = FileVersionInfo.GetVersionInfo(unityExePath);
                 var splitCharacter = versionInfo.ProductVersion.Contains("_") ? '_' : '.'; // Versions are on format 2020.3.34f1_xxxx or 2020.3.34f1.xxxx
 
-                Logger.LogDebug($"Found version {versionInfo.ProductVersion}");
+                Logger.LogDebug($"Found version {versionInfo.ProductVersion} at path: {unityCandidate}");
+
                 unityInstallations.Add(new Installation {
                     executable = unityExePath,
                     path = unityCandidate,
@@ -260,6 +276,8 @@ public class WindowsPlatform : IInstallerPlatform
 
     ILogger Logger = UnityInstaller.CreateLogger<WindowsPlatform>();
 
+    Configuration configuration;
+
     VersionMetadata installing;
     string installationPaths;
     bool installedEditor;
@@ -294,7 +312,7 @@ public class WindowsPlatform : IInstallerPlatform
         if (!string.IsNullOrEmpty(installationPaths))
         {
             var comparison = StringComparison.OrdinalIgnoreCase;
-            var paths = installationPaths.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+            var paths = installationPaths.Split(';', StringSplitOptions.RemoveEmptyEntries);
             foreach (var path in paths)
             {
                 expanded = path.Trim();
