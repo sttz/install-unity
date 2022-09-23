@@ -67,8 +67,7 @@ public class Configuration
 
     [Description("Windows installation paths, separted by ; (first non-existing will be used, variables: {major} {minor} {patch} {type} {build} {hash} {ProgramFiles}).")]
     public string installPathWindows = 
-          "{ProgramFiles}\\Unity {major}.{minor};"
-        + "{ProgramFiles}\\Unity {major}.{minor}.{patch}{type}{build};"
+          "{ProgramFiles}\\Unity {major}.{minor}.{patch}{type}{build};"
         + "{ProgramFiles}\\Unity {major}.{minor}.{patch}{type}{build} ({hash});";
 
     [Description("Windows directories which are searched for Unity installations, separted by ; (variables: {ProgramFiles}).")]

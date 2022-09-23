@@ -20,6 +20,7 @@
     <RepositoryUrl>https://github.com/sttz/install-unity</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>CLI;Unity;Installer</PackageTags>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>
