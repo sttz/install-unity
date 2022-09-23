@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
+    <RuntimeIdentifiers>win-x64;osx-x64</RuntimeIdentifiers>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
@@ -16,6 +17,7 @@
     <RepositoryUrl>https://github.com/sttz/install-unity</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>CLI;Unity;Installer</PackageTags>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>
