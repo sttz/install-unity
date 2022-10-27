@@ -133,6 +133,13 @@ public class MacPlatform : IInstallerPlatform
 
     public async Task<IEnumerable<Installation>> FindInstallations(CancellationToken cancellation = default)
     {
+        var spotlightResult = await Command.Run("/usr/bin/mdutil", "-s /Applications", null, cancellation);
+        if (spotlightResult.exitCode != 0) {
+            Logger.LogWarning($"Could not determine Spotlight status of '/Applications', finding Unity installations might not work.");
+        } else if (spotlightResult.output.Contains("disabled") || spotlightResult.output.Contains("No index")) {
+            Logger.LogWarning($"Spotlight is disabled for '/Applications', existing Unity installations might not be found.");
+        }
+
         var findResult = await Command.Run("/usr/bin/mdfind", $"kMDItemCFBundleIdentifier = '{BUNDLE_ID}'", null, cancellation);
         if (findResult.exitCode != 0) {
             throw new Exception($"ERROR: {findResult.error}");
