@@ -563,10 +563,11 @@ public class VersionsCache : IEnumerable<VersionMetadata>
     {
         var existing = cache.versions[index];
         existing.prerelease = with.prerelease;
-        if (with.baseUrl != null) existing.baseUrl = with.baseUrl;
-        if (with.macPackages != null) existing.macPackages = with.macPackages;
-        if (with.winPackages != null) existing.macPackages = with.winPackages;
-        if (with.linuxPackages != null) existing.macPackages = with.linuxPackages;
+        if (with.baseUrl != null)        existing.baseUrl = with.baseUrl;
+        if (with.macPackages != null)    existing.macPackages = with.macPackages;
+        if (with.macArmPackages != null) existing.macArmPackages = with.macArmPackages;
+        if (with.winPackages != null)    existing.winPackages = with.winPackages;
+        if (with.linuxPackages != null)  existing.linuxPackages = with.linuxPackages;
         cache.versions[index] = existing;
     }
 
