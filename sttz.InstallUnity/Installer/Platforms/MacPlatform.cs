@@ -203,17 +203,6 @@ public class MacPlatform : IInstallerPlatform
         this.installationPaths = installationPaths;
         installedEditor = false;
 
-        // Move existing installation out of the way
-        movedExisting = false;
-        if (Directory.Exists(INSTALL_PATH)) {
-            if (Directory.Exists(INSTALL_PATH_TMP)) {
-                throw new InvalidOperationException($"Fallback installation path '{INSTALL_PATH_TMP}' already exists.");
-            }
-            Logger.LogInformation("Temporarily moving existing installation at default install path: " + INSTALL_PATH);
-            await Move(INSTALL_PATH, INSTALL_PATH_TMP, cancellation);
-            movedExisting = true;
-        }
-
         // Check for upgrading installation
         upgradeOriginalPath = null;
         if (!queue.items.Any(i => i.package.name == PackageMetadata.EDITOR_PACKAGE_NAME)) {
@@ -224,9 +213,25 @@ public class MacPlatform : IInstallerPlatform
             }
 
             upgradeOriginalPath = existingInstall.path;
+        }
 
-            Logger.LogInformation($"Temporarily moving installation to upgrade from '{existingInstall.path}' to default install path");
-            await Move(existingInstall.path, INSTALL_PATH, cancellation);
+        // Move existing installation out of the way
+        movedExisting = false;
+        if (upgradeOriginalPath != INSTALL_PATH) {
+            if (Directory.Exists(INSTALL_PATH)) {
+                if (Directory.Exists(INSTALL_PATH_TMP)) {
+                    throw new InvalidOperationException($"Fallback installation path '{INSTALL_PATH_TMP}' already exists.");
+                }
+                Logger.LogInformation("Temporarily moving existing installation at default install path: " + INSTALL_PATH);
+                await Move(INSTALL_PATH, INSTALL_PATH_TMP, cancellation);
+                movedExisting = true;
+            }
+
+            // Check for upgrading installation
+            if (upgradeOriginalPath != null) {
+                Logger.LogInformation($"Temporarily moving installation to upgrade from '{upgradeOriginalPath}' to default install path");
+                await Move(upgradeOriginalPath, INSTALL_PATH, cancellation);
+            }
         }
     }
 
@@ -267,8 +272,10 @@ public class MacPlatform : IInstallerPlatform
         if (upgradeOriginalPath != null) {
             // Move back installation
             destination = upgradeOriginalPath;
-            Logger.LogInformation("Moving back upgraded installation to: " + destination);
-            await Move(INSTALL_PATH, destination, cancellation);
+            if (upgradeOriginalPath != INSTALL_PATH) {
+                Logger.LogInformation("Moving back upgraded installation to: " + destination);
+                await Move(INSTALL_PATH, destination, cancellation);
+            }
         } else if (!aborted) {
             // Move new installations to "Unity VERSION"
             destination = GetUniqueInstallationPath(installing.version, installationPaths);
