@@ -635,7 +635,7 @@ public class MacPlatform : IInstallerPlatform
                 throw new Exception($"ERROR: {result.error}");
             }
 
-            result = await Command.Run("/bin/cp", $"-R \"{sourcePath}\" \"{newPath}\"", cancellation: cancellation);
+            result = await Command.Run("/bin/cp", $"-a \"{sourcePath}\" \"{newPath}\"", cancellation: cancellation);
             if (result.exitCode != 0) {
                 throw new Exception($"ERROR: {result.error}");
             }
@@ -651,7 +651,7 @@ public class MacPlatform : IInstallerPlatform
             throw new Exception($"ERROR: {result.error}");
         }
 
-        result = await Sudo("/bin/mv", $"\"{sourcePath}\" \"{newPath}\"", cancellation);
+        result = await Sudo("/bin/cp", $"-a \"{sourcePath}\" \"{newPath}\"", cancellation);
         if (result.exitCode != 0) {
             throw new Exception($"ERROR: {result.error}");
         }
