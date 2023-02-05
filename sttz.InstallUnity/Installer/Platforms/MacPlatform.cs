@@ -225,7 +225,7 @@ public class MacPlatform : IInstallerPlatform
 
             upgradeOriginalPath = existingInstall.path;
 
-            Logger.LogInformation($"Temporarily moving installation to upgrade from '{existingInstall}' to default install path");
+            Logger.LogInformation($"Temporarily moving installation to upgrade from '{existingInstall.path}' to default install path");
             await Move(existingInstall.path, INSTALL_PATH, cancellation);
         }
     }
