@@ -119,7 +119,7 @@ public static class VirtualPackages
                     hidden = true,
                     sync = "Android SDK & NDK Tools",
                 };
-            } else {
+            } else if (v.major <= 2022) {
                 yield return new PackageMetadata() {
                     name = "Android SDK Platform Tools",
                     description = "Android SDK Platform Tools 30.0.4",
@@ -129,6 +129,17 @@ public static class VirtualPackages
                     installedsize = 30 * 1024 * 1024,
                     hidden = true,
                     sync = "Android SDK & NDK Tools",
+                };
+            } else {
+                yield return new PackageMetadata() {
+                    name = "Android SDK Platform Tools",
+                    description = "Android SDK Platform Tools 32.0.0",
+                    url = $"https://dl.google.com/android/repository/platform-tools_r32.0.0-darwin.zip",
+                    destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK",
+                    size = 18500000,
+                    installedsize = 48684075,
+                    hidden = true,
+                    sync = "Android SDK & NDK Tools"
                 };
             }
 
@@ -158,7 +169,7 @@ public static class VirtualPackages
                     renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-9",
                     renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-28"
                 };
-            } else {
+            } else if (v.major <= 2022) {
                 yield return new PackageMetadata() {
                     name = "Android SDK Build Tools",
                     description = "Android SDK Build Tools 30.0.2",
@@ -182,6 +193,55 @@ public static class VirtualPackages
                     sync = "Android SDK & NDK Tools",
                     renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-11",
                     renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-30"
+                };
+            } else {
+                yield return new PackageMetadata() {
+                    name = "Android SDK Build Tools",
+                    description = "Android SDK Build Tools 32.0.0",
+                    url = $"https://dl.google.com/android/repository/5219cc671e844de73762e969ace287c29d2e14cd.build-tools_r32-macosx.zip",
+                    destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/build-tools",
+                    size = 50400000,
+                    installedsize = 138655842,
+                    hidden = true,
+                    sync = "Android SDK & NDK Tools",
+                    renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/build-tools/android-12",
+                    renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/build-tools/32.0.0"
+                };
+                yield return new PackageMetadata() {
+                    name = "Android SDK Platforms",
+                    description = "Android SDK Platforms 31",
+                    url = $"https://dl.google.com/android/repository/platform-31_r01.zip",
+                    destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms",
+                    size = 53900000,
+                    installedsize = 91868884,
+                    hidden = true,
+                    sync = "Android SDK & NDK Tools",
+                    renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-12",
+                    renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-31"
+                };
+                yield return new PackageMetadata() {
+                    name = "Android SDK Platforms",
+                    description = "Android SDK Platforms 32",
+                    url = $"https://dl.google.com/android/repository/platform-32_r01.zip",
+                    destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms",
+                    size = 63000000,
+                    installedsize = 101630444,
+                    hidden = true,
+                    sync = "Android SDK & NDK Tools",
+                    renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-12",
+                    renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/platforms/android-32"
+                };
+                yield return new PackageMetadata() {
+                    name = "Android SDK Command Line Tools",
+                    description = "Android SDK Command Line Tools 6.0",
+                    url = $"https://dl.google.com/android/repository/commandlinetools-mac-8092744_latest.zip",
+                    destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/cmdline-tools",
+                    size = 119650616,
+                    installedsize = 119651596,
+                    hidden = true,
+                    sync = "Android SDK & NDK Tools",
+                    renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/cmdline-tools/cmdline-tools",
+                    renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/SDK/cmdline-tools/6.0"
                 };
             }
 
@@ -212,7 +272,7 @@ public static class VirtualPackages
                     renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/android-ndk-r19",
                     renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/NDK"
                 };
-            } else {
+            } else if (v.major <= 2022) {
                 yield return new PackageMetadata() {
                     name = "Android NDK 21d",
                     description = "Android NDK r21d",
@@ -225,10 +285,33 @@ public static class VirtualPackages
                     renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/android-ndk-r21d",
                     renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/NDK"
                 };
+            } else {
+                yield return new PackageMetadata() {
+                    name = "Android NDK 23b",
+                    description = "Android NDK r23b",
+                    url = $"https://dl.google.com/android/repository/android-ndk-r23b-darwin.dmg",
+                    destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/NDK",
+                    size = 1400000000,
+                    installedsize = 4254572698,
+                    hidden = true,
+                    sync = "Android SDK & NDK Tools",
+                    renameFrom = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/NDK/Contents/NDK",
+                    renameTo = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/NDK"
+                };
             }
 
             // Android JDK
-            if (v.major > 2019 || v.minor >= 2) {
+            if (v.major >= 2023) {
+                yield return new PackageMetadata() {
+                    name = "OpenJDK",
+                    description = "Android Open JDK 11.0.14.1+1",
+                    url = $"https://download.unity3d.com/download_unity/open-jdk/open-jdk-mac-x64/jdk11.0.14.1-1_236fc2e31a8b6da32fbcf8624815f509c51605580cb2c6285e55510362f272f8.zip",
+                    destination = "{UNITY_PATH}/PlaybackEngines/AndroidPlayer/OpenJDK",
+                    size = 118453231,
+                    installedsize = 230230237,
+                    sync = "Android",
+                };
+            } else if (v.major > 2019 || v.minor >= 2) {
                 yield return new PackageMetadata() {
                     name = "OpenJDK",
                     description = "Android Open JDK 8u172-b11",

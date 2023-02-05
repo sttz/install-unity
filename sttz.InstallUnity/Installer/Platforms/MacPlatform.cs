@@ -240,13 +240,17 @@ public class MacPlatform : IInstallerPlatform
         if (extentsion == ".pkg") {
             await InstallPkg(item.filePath, cancellation);
         } else if (extentsion == ".dmg") {
-            await InstallDmg(item.filePath, cancellation);
+            await InstallDmg(item.filePath, item.package.destination, cancellation);
         } else if (extentsion == ".zip") {
-            await InstallZip(item.filePath, item.package.destination, item.package.renameFrom, item.package.renameTo, cancellation);
+            await InstallZip(item.filePath, item.package.destination, cancellation);
         } else if (extentsion == ".po") {
             await InstallFile(item.filePath, item.package.destination, cancellation);
         } else {
             throw new Exception("Cannot install package of type: " + extentsion);
+        }
+
+        if (!string.IsNullOrEmpty(item.package.renameFrom) && !string.IsNullOrEmpty(item.package.renameTo)) {
+            await Rename(item.filePath, item.package.renameFrom, item.package.renameTo, cancellation);
         }
 
         if (item.package.name == PackageMetadata.EDITOR_PACKAGE_NAME) {
@@ -417,7 +421,7 @@ public class MacPlatform : IInstallerPlatform
     /// <summary>
     /// Install a DMG package by mounting it and copying the app bundle.
     /// </summary>
-    async Task InstallDmg(string filePath, CancellationToken cancellation = default)
+    async Task InstallDmg(string filePath, string destination = null, CancellationToken cancellation = default)
     {
         // Mount DMG
         var result = await Command.Run("/usr/bin/hdiutil", $"attach -nobrowse -mountrandom /tmp \"{filePath}\"", cancellation: cancellation);
@@ -443,13 +447,26 @@ public class MacPlatform : IInstallerPlatform
             if (apps.Length == 0) {
                 throw new Exception("No app bundles found in DMG.");
             }
-            
-            var targetDir = Path.Combine(INSTALL_VOLUME, "Applications");
+
+            string targetDir;
+            if (!string.IsNullOrEmpty(destination)) {
+                targetDir = destination.Replace("{UNITY_PATH}", INSTALL_PATH);
+            } else {
+                targetDir = Path.Combine(INSTALL_VOLUME, "Applications");
+            }
+
             foreach (var app in apps) {
-                var dst = Path.Combine(targetDir, Path.GetFileName(app));
+                var dst = targetDir;
+                if (string.IsNullOrEmpty(destination)) {
+                    // If we have a destination, we only copy the contents
+                    // So only create an app bundle directory without destination
+                    dst = Path.Combine(dst, Path.GetFileName(app));
+                }
+
                 if (Directory.Exists(dst) || File.Exists(dst)) {
                     await Delete(dst, cancellation);
                 }
+
                 await Copy(app, dst, cancellation);
             }
         } finally {
@@ -478,7 +495,7 @@ public class MacPlatform : IInstallerPlatform
     /// <summary>
     /// Unpack a Zip file to the given destination.
     /// </summary>
-    async Task InstallZip(string filePath, string destination, string renameFrom, string renameTo, CancellationToken cancellation = default)
+    async Task InstallZip(string filePath, string destination, CancellationToken cancellation = default)
     {
         if (string.IsNullOrEmpty(destination)) {
             throw new Exception($"Cannot install {filePath}: Zip packages must have a destination set.");
@@ -515,15 +532,19 @@ public class MacPlatform : IInstallerPlatform
 
         // Fix permissions, some files are not readable if installed with root
         await Sudo("/bin/chmod", $"-R o+rX \"{target}\"", cancellation);
+    }
 
-        if (!string.IsNullOrEmpty(renameFrom) && !string.IsNullOrEmpty(renameTo)) {
-            var from = renameFrom.Replace("{UNITY_PATH}", INSTALL_PATH);
-            var to = renameTo.Replace("{UNITY_PATH}", INSTALL_PATH);
-            if (!Directory.Exists(from) && !File.Exists(from)) {
-                throw new Exception($"{filePath}: renameFrom path does not exist: {from}");
-            }
-            await Move(from, to, cancellation);
+    /// <summary>
+    /// Rename an installed filed or folder after inital installation.
+    /// </summary>
+    async Task Rename(string filePath, string renameFrom, string renameTo, CancellationToken cancellation = default)
+    {
+        var from = renameFrom.Replace("{UNITY_PATH}", INSTALL_PATH);
+        var to = renameTo.Replace("{UNITY_PATH}", INSTALL_PATH);
+        if (!Directory.Exists(from) && !File.Exists(from)) {
+            throw new Exception($"{filePath}: renameFrom path does not exist: {from}");
         }
+        await Move(from, to, cancellation);
     }
 
     /// <summary>
@@ -567,6 +588,15 @@ public class MacPlatform : IInstallerPlatform
     /// </summary>
     async Task Move(string sourcePath, string newPath, CancellationToken cancellation)
     {
+        if (sourcePath.StartsWith(newPath + "/")) {
+            // We're moving something to replace one of its parent folders,
+            // we need to move it out of the parent first and then delte the parent
+            var tmpSource = Path.Combine(Path.GetTempPath(), UnityInstaller.PRODUCT_NAME, Path.GetFileName(newPath));
+            await Move(sourcePath, tmpSource, cancellation);
+            await Delete(newPath, cancellation);
+            sourcePath = tmpSource;
+        }
+
         var baseDst = Path.GetDirectoryName(newPath);
 
         try {
