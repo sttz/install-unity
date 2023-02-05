@@ -33,7 +33,7 @@ public class Scraper
     /// <summary>
     /// Base URL of Unity homepage.
     /// </summary>
-    const string UNITY_BASE_URL = "https://unity3d.com";
+    const string UNITY_BASE_URL = "https://unity.com";
 
     /// <summary>
     /// Releases JSON used by Unity Hub ({0} should be either win32, darwin or linux).
@@ -43,29 +43,34 @@ public class Scraper
     /// <summary>
     /// HTML archive of Unity releases.
     /// </summary>
-    const string UNITY_ARCHIVE = "https://unity3d.com/get-unity/download/archive";
+    const string UNITY_ARCHIVE = "https://unity.com/releases/editor/archive";
 
     /// <summary>
-    /// Landing page for Unity prereleases.
+    /// Landing page for Unity beta releases.
     /// </summary>
-    const string UNITY_PRERELEASES = "https://unity3d.com/unity/beta";
+    const string UNITY_BETA = "https://unity.com/releases/editor/beta";
+
+    /// <summary>
+    /// Landing page for Unity alpha releases.
+    /// </summary>
+    const string UNITY_ALPHA = "https://unity.com/releases/editor/alpha";
 
     // -------- Release Notes --------
 
     /// <summary>
     /// HTML release notes of final Unity releases (append a version without type or build number, e.g. 2018.2.1)
     /// </summary>
-    const string UNITY_RELEASE_NOTES_FINAL = "https://unity3d.com/unity/whats-new/";
+    const string UNITY_RELEASE_NOTES_FINAL = "https://unity.com/releases/editor/whats-new/";
 
     /// <summary>
     /// HTML release notes of alpha Unity releases (append a full alpha version string)
     /// </summary>
-    const string UNITY_RELEASE_NOTES_ALPHA = "https://unity3d.com/unity/alpha/";
+    const string UNITY_RELEASE_NOTES_ALPHA = "https://unity.com/releases/editor/alpha/";
 
     /// <summary>
     /// HTML release notes of beta Unity releases (append a full beta version string)
     /// </summary>
-    const string UNITY_RELEASE_NOTES_BETA = "https://unity3d.com/unity/beta/";
+    const string UNITY_RELEASE_NOTES_BETA = "https://unity.com/releases/editor/beta/";
 
     /// <summary>
     /// HTML release notes of patch Unity releases (append a full beta version string)
@@ -102,14 +107,9 @@ public class Scraper
     static readonly Regex UNITY_DOWNLOAD_RE = new Regex(@"https?:\/\/[\w.-]+unity3d\.com\/[\w\/.-]+\/([0-9a-f]{12})\/(?:[^\/]+\/)[\w\/.-]+-(\d+\.\d+\.\d+\w\d+)[\w\/.-]+");
 
     /// <summary>
-    /// /// Regex to extract available prerelease major versions from landing page.
+    /// Regex to extract available prerelease versions from landing page.
     /// </summary>
-    static readonly Regex UNITY_PRERELEASE_MAJOR_RE = new Regex(@"(?<!unity)\/(alpha|beta)\/(\d{4}\.\d[a-f]?)");
-
-    /// <summary>
-    /// Regex to extract available prerelease major versions from landing page.
-    /// </summary>
-    static readonly Regex UNITY_PRERELEASE_RE = new Regex(@"\/unity\/(alpha|beta)\/(\d+\.\d+\.\d+\w\d+)");
+    static readonly Regex UNITY_PRERELEASE_RE = new Regex(@"\/releases\/editor\/(alpha|beta)\/(\d+\.\d+\.\d+\w\d+)");
 
     // -------- Scraper --------
 
@@ -239,63 +239,54 @@ public class Scraper
     /// <returns>Task returning the discovered versions</returns>
     public async Task<IEnumerable<VersionMetadata>> LoadPrerelease(bool includeAlpha, IEnumerable<UnityVersion> knownVersions = null, int scrapeDelay = 50, CancellationToken cancellation = default)
     {
-        // Load main prereleases page to discover which major versions are available as prerelease
-        Logger.LogInformation($"Scraping latest prereleases with includeAlpha={includeAlpha} from '{UNITY_PRERELEASES}'");
+        var results = new Dictionary<UnityVersion, VersionMetadata>();
+
+        if (includeAlpha) {
+            await LoadPrerelease(UNITY_ALPHA, results, knownVersions, scrapeDelay, cancellation);
+        }
+
+        await LoadPrerelease(UNITY_BETA, results, knownVersions, scrapeDelay, cancellation);
+
+        return results.Values;
+    }
+
+    /// <summary>
+    /// Load the available prerelase versions from a alpha/beta landing page.
+    /// </summary>
+    async Task LoadPrerelease(string url, Dictionary<UnityVersion, VersionMetadata> results, IEnumerable<UnityVersion> knownVersions = null, int scrapeDelay = 50, CancellationToken cancellation = default)
+    {
+        // Load major version's individual prerelease page to get individual versions
+        Logger.LogInformation($"Scraping latest prereleases from '{url}'");
         await Task.Delay(scrapeDelay);
-        var response = await client.GetAsync(UNITY_PRERELEASES, cancellation);
+        var response = await client.GetAsync(url, cancellation);
         if (!response.IsSuccessStatusCode) {
-            Logger.LogWarning($"Failed to scrape url '{UNITY_PRERELEASES}' ({response.StatusCode})");
-            return Enumerable.Empty<VersionMetadata>();
+            Logger.LogWarning($"Failed to scrape url '{url}' ({response.StatusCode})");
+            return;
         }
 
         var html = await response.Content.ReadAsStringAsync();
         Logger.LogTrace($"Got response: {html}");
 
-        var majorMatches = UNITY_PRERELEASE_MAJOR_RE.Matches(html);
-        var visitedMajorVersions = new HashSet<string>();
-        var results = new Dictionary<UnityVersion, VersionMetadata>();
-        foreach (Match majorMatch in majorMatches) {
-            if (!visitedMajorVersions.Add(majorMatch.Groups[2].Value)) continue;
+        var versionMatches = UNITY_PRERELEASE_RE.Matches(html);
+        foreach (Match versionMatch in versionMatches) {
+            var version = new UnityVersion(versionMatch.Groups[2].Value);
+            if (results.ContainsKey(version)) continue;
+            if (knownVersions != null && knownVersions.Contains(version)) continue;
 
-            var isAlpha = majorMatch.Groups[1].Value == "alpha";
-            if (isAlpha && !includeAlpha) continue;
-
-            // Load major version's individual prerelease page to get individual versions
-            var archiveUrl = UNITY_BASE_URL + majorMatch.Value;
-            Logger.LogInformation($"Scraping latest releases for {majorMatch.Groups[2].Value} from '{archiveUrl}'");
+            // Load version's release notes to get download links
+            var prereleaseUrl = UNITY_BASE_URL + versionMatch.Value;
+            Logger.LogInformation($"Scraping {versionMatch.Groups[1].Value} {version} from '{prereleaseUrl}'");
             await Task.Delay(scrapeDelay);
-            response = await client.GetAsync(archiveUrl, cancellation);
+            response = await client.GetAsync(prereleaseUrl, cancellation);
             if (!response.IsSuccessStatusCode) {
-                Logger.LogWarning($"Failed to scrape url '{archiveUrl}' ({response.StatusCode})");
-                return Enumerable.Empty<VersionMetadata>();
+                Logger.LogWarning($"Could not load release notes at url '{prereleaseUrl}' ({response.StatusCode})");
+                continue;
             }
 
             html = await response.Content.ReadAsStringAsync();
             Logger.LogTrace($"Got response: {html}");
-
-            var versionMatches = UNITY_PRERELEASE_RE.Matches(html);
-            foreach (Match versionMatch in versionMatches) {
-                var version = new UnityVersion(versionMatch.Groups[2].Value);
-                if (results.ContainsKey(version)) continue;
-                if (version.type == UnityVersion.Type.Alpha && !includeAlpha) continue;
-                if (knownVersions != null && knownVersions.Contains(version)) continue;
-
-                // Load version's release notes to get download links
-                var prereleaseUrl = UNITY_BASE_URL + versionMatch.Value;
-                Logger.LogInformation($"Scraping {versionMatch.Groups[1].Value} {version} from '{prereleaseUrl}'");
-                await Task.Delay(scrapeDelay);
-                response = await client.GetAsync(prereleaseUrl, cancellation);
-                if (!response.IsSuccessStatusCode) {
-                    Logger.LogWarning($"Could not load release notes at url '{prereleaseUrl}' ({response.StatusCode})");
-                    continue;
-                }
-
-                html = await response.Content.ReadAsStringAsync();
-                Logger.LogTrace($"Got response: {html}");
-                ExtractFromHtml(html, true, results);
-            }
+            ExtractFromHtml(html, true, results);
         }
-        return results.Values;
     }
 
     /// <summary>
