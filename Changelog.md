@@ -1,5 +1,12 @@
 # Changelog
 
+### 2.11.1 (2023-02-05)
+* Add warning when Spotlight is disabled and installations cannot be found
+* Update Android packages for Unity 2023.1
+* Fix discovery of beta and alpha releases
+* Fix Apple Silicon packages not saved in cache
+* Fix exception when cleaning up after installing additional packages to an installation at `/Applications/Unity`
+
 ### 2.11.0 (2022-09-03)
 * Add "--upgrade &lt;version&gt;" to `run` command to upgrade a project to a specific Unity version
 * Fix --allow-newer attempting to downgrade project if project Unity version is newer than installed versions
