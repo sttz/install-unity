@@ -111,12 +111,6 @@ The project will use Unity's default setup, including packages. Alternatively, y
 
     install-unity create --type minimal 2020.1 ~/Desktop/my-project
 
-### Patch Releases
-
-With the switch to LTS versions, Unity has stopped creating patch releases for Unity 2017.3 and newer. install-unity no longer scans for patch releases but you can still install them by specifying the full version number.
-
-    install-unity install 2017.2.3p3
-
 ## CLI Help
 
 ````

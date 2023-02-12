@@ -21,10 +21,6 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
         /// </summary>
         Final = 'f',
         /// <summary>
-        /// Unity patch release.
-        /// </summary>
-        Patch = 'p',
-        /// <summary>
         /// Unity beta release.
         /// </summary>
         Beta  = 'b',
@@ -86,8 +82,6 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
     {
         switch (type) {
             case Type.Final:
-                return 4;
-            case Type.Patch:
                 return 3;
             case Type.Beta:
                 return 2;
@@ -102,7 +96,7 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
     /// Types sorted from unstable to stable.
     /// </summary>
     public static readonly Type[] SortedTypes = new Type[] {
-        Type.Alpha, Type.Beta, Type.Patch, Type.Final, Type.Undefined
+        Type.Alpha, Type.Beta, Type.Final, Type.Undefined
     };
 
     /// <summary>

@@ -72,11 +72,6 @@ public class Scraper
     /// </summary>
     const string UNITY_RELEASE_NOTES_BETA = "https://unity.com/releases/editor/beta/";
 
-    /// <summary>
-    /// HTML release notes of patch Unity releases (append a full beta version string)
-    /// </summary>
-    const string UNITY_RELEASE_NOTES_PATCH = "https://unity3d.com/unity/qa/patch-releases/";
-
     // -------- INIs --------
 
     /// <summary>
@@ -366,8 +361,8 @@ public class Scraper
     /// </summary>
     /// <remarks>
     /// The version must include major, minor and patch components.
-    /// For patch and beta releases, it must also contain the build component.
-    /// If no type is set, final is assumes.
+    /// For beta and alpha releases, it must also contain the build component.
+    /// If no type is set, final is assumed.
     /// </remarks>
     /// <param name="version">The version</param>
     /// <returns>The metadata or the default value if the version couldn't be found.</returns>
@@ -587,8 +582,6 @@ public class Scraper
             case UnityVersion.Type.Undefined:
             case UnityVersion.Type.Final:
                 return UNITY_RELEASE_NOTES_FINAL + version.major + "." + version.minor + "." + version.patch;
-            case UnityVersion.Type.Patch:
-                return UNITY_RELEASE_NOTES_PATCH + version.ToString(false);
             case UnityVersion.Type.Beta:
                 return UNITY_RELEASE_NOTES_BETA + version.ToString(false);
             case UnityVersion.Type.Alpha:

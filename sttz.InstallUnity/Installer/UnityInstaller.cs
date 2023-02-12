@@ -305,7 +305,6 @@ public class UnityInstaller
         } else {
             switch (type) {
                 case UnityVersion.Type.Final:
-                case UnityVersion.Type.Patch:
                 case UnityVersion.Type.Beta:
                 case UnityVersion.Type.Alpha:
                     Logger.LogDebug($"Updating Final Unity Versions...");
