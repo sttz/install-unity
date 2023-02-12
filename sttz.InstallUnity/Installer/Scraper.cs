@@ -1,12 +1,9 @@
 using IniParser.Parser;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,11 +31,6 @@ public class Scraper
     /// Base URL of Unity homepage.
     /// </summary>
     const string UNITY_BASE_URL = "https://unity.com";
-
-    /// <summary>
-    /// Releases JSON used by Unity Hub ({0} should be either win32, darwin or linux).
-    /// </summary>
-    const string UNITY_HUB_RELEASES = "https://public-cdn.cloud.unity3d.com/hub/prod/releases-{0}.json";
 
     /// <summary>
     /// HTML archive of Unity releases.
@@ -111,101 +103,6 @@ public class Scraper
     static HttpClient client = new HttpClient();
 
     ILogger Logger = UnityInstaller.CreateLogger<Scraper>();
-
-    /// <summary>
-    /// Load the latest Unity releases, using the same JSON as Unity Hub.
-    /// </summary>
-    /// <param name="cachePlatform">Name of platform to load the JSON for</param>
-    /// <param name="cancellation">Cancellation token</param>
-    /// <returns>Task returning the discovered versions</returns>
-    public async Task<IEnumerable<VersionMetadata>> LoadLatest(CachePlatform cachePlatform, CancellationToken cancellation = default)
-    {
-        string platformName;
-        switch (cachePlatform) {
-            case CachePlatform.macOSIntel:
-                platformName = "darwin";
-                break;
-            case CachePlatform.macOSArm:
-                platformName = "silicon";
-                break;
-            case CachePlatform.Windows:
-                platformName = "win32";
-                break;
-            case CachePlatform.Linux:
-                platformName = "linux";
-                break;
-            default:
-                throw new NotImplementedException("Invalid platform name: " + cachePlatform);
-        }
-
-        var url = string.Format(UNITY_HUB_RELEASES, platformName);
-        Logger.LogInformation($"Loading latest releases for {platformName} from '{url}'");
-        var response = await client.GetAsync(url, cancellation);
-        response.EnsureSuccessStatusCode();
-
-        var json = await response.Content.ReadAsStringAsync();
-        Logger.LogDebug("Received response: {json}", json);
-        var data = JsonConvert.DeserializeObject<Dictionary<string, HubUnityVersion[]>>(json);
-
-        var result = new List<VersionMetadata>();
-        if (!data.ContainsKey("official")) {
-            Logger.LogWarning("Unity Hub JSON does not contain expected 'official' array.");
-        } else {
-            ParseVersions(cachePlatform, data["official"], result);
-        }
-
-        if (data.ContainsKey("beta")) {
-            ParseVersions(cachePlatform, data["beta"], result);
-        }
-
-        return result;
-    }
-
-    void ParseVersions(CachePlatform cachePlatform, HubUnityVersion[] versions, List<VersionMetadata> results)
-    {
-        foreach (var version in versions) {
-                // releases-darwin.json only contains intel, releases-silicon.json both arm and intel
-                if (cachePlatform == CachePlatform.macOSArm && version.arch != "arm64")
-                    continue;
-
-                var metadata = new VersionMetadata();
-                metadata.version = new UnityVersion(version.version);
-
-                var packages = new PackageMetadata[version.modules.Length + 1];
-                packages[0] = new PackageMetadata() {
-                    name = "Unity ",
-                    title = "Unity " + version.version,
-                    description = "Unity Editor",
-                    url = version.downloadUrl,
-                    install = true,
-                    mandatory = false,
-                    size = long.Parse(version.downloadSize),
-                    installedsize = long.Parse(version.installedSize),
-                    version = version.version,
-                    md5 = version.checksum
-                };
-
-                var i = 1;
-                foreach (var module in version.modules) {
-                    packages[i++] = new PackageMetadata() {
-                        name = module.id,
-                        title = module.name,
-                        description = module.description,
-                        url = module.downloadUrl,
-                        install = module.selected,
-                        mandatory = false,
-                        size = long.Parse(module.downloadSize),
-                        installedsize = long.Parse(module.installedSize),
-                        version = version.version,
-                        md5 = module.checksum
-                    };
-                }
-
-                Logger.LogDebug($"Found version {metadata.version} with {packages.Length} packages");
-                metadata.SetPackages(cachePlatform, packages);
-                results.Add(metadata);
-            }
-    }
 
     /// <summary>
     /// Load the available final versions.
@@ -590,42 +487,6 @@ public class Scraper
                 return null;
         }
     }
-
-    // -------- Types --------
-
-    // Disable never assigned warning, as the fields are 
-    // set dynamically in the JSON deserializer
-    #pragma warning disable CS0649
-
-    struct HubUnityVersion
-    {
-        public string version;
-        public bool lts;
-        public string downloadUrl;
-        public string downloadSize;
-        public string installedSize;
-        public string checksum;
-        public HubUnityModule[] modules;
-        public string arch;
-    }
-
-    struct HubUnityModule
-    {
-        public string id;
-        public string name;
-        public string description;
-        public string downloadUrl;
-        public string destination;
-        public string category;
-        public string installedSize;
-        public string downloadSize;
-        public bool visible;
-        public bool selected;
-        public string checksum;
-    }
-
-    #pragma warning restore CS0649
-
 }
 
 }

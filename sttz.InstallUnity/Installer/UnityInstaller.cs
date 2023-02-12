@@ -295,47 +295,40 @@ public class UnityInstaller
     public async Task<IEnumerable<VersionMetadata>> UpdateCache(CachePlatform cachePlatform, UnityVersion.Type type = UnityVersion.Type.Undefined, CancellationToken cancellation = default)
     {
         var added = new List<VersionMetadata>();
-        if (type == UnityVersion.Type.Undefined) {
-            Logger.LogDebug("Loading UnityHub JSON with latest Unity versions...");
-            var newVersions = await Scraper.LoadLatest(cachePlatform, cancellation);
-            Logger.LogInformation($"Loaded {newVersions.Count()} versions from UnityHub JSON");
-            
-            Versions.Add(newVersions, added);
-            Versions.SetLastUpdate(type, DateTime.Now);
-        } else {
-            switch (type) {
-                case UnityVersion.Type.Final:
-                case UnityVersion.Type.Beta:
-                case UnityVersion.Type.Alpha:
-                    Logger.LogDebug($"Updating Final Unity Versions...");
-                    var newVersions = await Scraper.LoadFinal(cancellation);
-                    Logger.LogInformation($"Scraped {newVersions.Count()} versions of type Final");
-                    Versions.Add(newVersions, added);
-                    
-                    Versions.SetLastUpdate(UnityVersion.Type.Final, DateTime.Now);
-                    break;
-            }
 
-            switch (type) {
-                case UnityVersion.Type.Beta:
-                case UnityVersion.Type.Alpha:
-                    Logger.LogDebug($"Updating Prerelease Unity Versions...");
-                    var newVersions = await Scraper.LoadPrerelease(
-                        type == UnityVersion.Type.Alpha, 
-                        Versions.Select(m => m.version), 
-                        Configuration.scrapeDelayMs, 
-                        cancellation
-                    );
-                    Logger.LogInformation($"Scraped {newVersions.Count()} versions of type Beta/Alpha");
-                    Versions.Add(newVersions, added);
-                    
-                    Versions.SetLastUpdate(UnityVersion.Type.Beta, DateTime.Now);
-                    if (type == UnityVersion.Type.Alpha) {
-                        Versions.SetLastUpdate(UnityVersion.Type.Alpha, DateTime.Now);
-                    }
-                    break;
-            }
+        switch (type) {
+            case UnityVersion.Type.Final:
+            case UnityVersion.Type.Beta:
+            case UnityVersion.Type.Alpha:
+                Logger.LogDebug($"Updating Final Unity Versions...");
+                var newVersions = await Scraper.LoadFinal(cancellation);
+                Logger.LogInformation($"Scraped {newVersions.Count()} versions of type Final");
+                Versions.Add(newVersions, added);
+                
+                Versions.SetLastUpdate(UnityVersion.Type.Final, DateTime.Now);
+                break;
         }
+
+        switch (type) {
+            case UnityVersion.Type.Beta:
+            case UnityVersion.Type.Alpha:
+                Logger.LogDebug($"Updating Prerelease Unity Versions...");
+                var newVersions = await Scraper.LoadPrerelease(
+                    type == UnityVersion.Type.Alpha, 
+                    Versions.Select(m => m.version), 
+                    Configuration.scrapeDelayMs, 
+                    cancellation
+                );
+                Logger.LogInformation($"Scraped {newVersions.Count()} versions of type Beta/Alpha");
+                Versions.Add(newVersions, added);
+                
+                Versions.SetLastUpdate(UnityVersion.Type.Beta, DateTime.Now);
+                if (type == UnityVersion.Type.Alpha) {
+                    Versions.SetLastUpdate(UnityVersion.Type.Alpha, DateTime.Now);
+                }
+                break;
+        }
+
         Versions.Save();
 
         added.Sort((m1, m2) => m2.version.CompareTo(m1.version));
