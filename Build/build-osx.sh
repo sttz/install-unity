@@ -1,7 +1,7 @@
 #!/bin/zsh
 
 PROJECT="Command/Command.csproj"
-TARGET="net6.0"
+TARGET="net7.0"
 ARCHES=("osx-x64" "osx-arm64")
 SIGN_IDENTITY="Developer ID Application: Feist GmbH (DHNHQKSSYT)"
 ASC_PROVIDER="DHNHQKSSYT"
