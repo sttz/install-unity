@@ -6,20 +6,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
+using static sttz.InstallUnity.UnityReleaseAPIClient;
+
 namespace sttz.InstallUnity
 {
-
-/// <summary>
-/// Platforms supported by the cache.
-/// </summary>
-public enum CachePlatform
-{
-    None,
-    macOSIntel,
-    macOSArm,
-    Windows,
-    Linux,
-}
 
 /// <summary>
 /// Information about a Unity version available to install.
@@ -27,51 +17,22 @@ public enum CachePlatform
 public struct VersionMetadata
 {
     /// <summary>
-    /// Unity version.
+    /// Create a new version from a release.
     /// </summary>
-    public UnityVersion version;
-
-    /// <summary>
-    /// Wether version was scraped from a beta/alpha page.
-    /// </summary>
-    /// <remarks>
-    /// Release candidates appear on the beta page but have versions that
-    /// are indistinguishable from regular releases, we mark them here to
-    /// distinguish between them.
-    /// </remarks>
-    public bool prerelease;
-
-    /// <summary>
-    /// Returns wether the metadata represents a release candidate.
-    /// (A final version published on the prerelease pages.)
-    /// </summary>
-    public bool IsReleaseCandidate {
-        get {
-            return prerelease && version.type == UnityVersion.Type.Final;
-        }
+    public static VersionMetadata FromRelease(Release release)
+    {
+        return new VersionMetadata() { release = release };
     }
 
     /// <summary>
-    /// Returns wether the metadata represents a regular Unity release,
-    /// excluding release candidates.
+    /// The release metadata, in the format of the Unity Release API.
     /// </summary>
-    public bool IsFinalRelease {
-        get {
-            return version.type == UnityVersion.Type.Final && !prerelease;
-        }
-    }
+    public Release release;
 
     /// <summary>
-    /// Returns wether the metadata represents a Unity prerelease,
-    /// including alpha, beta and release candidates.
+    /// Shortcut to the Unity version of this release.
     /// </summary>
-    public bool IsPrerelease {
-        get {
-            return version.type == UnityVersion.Type.Alpha 
-                || version.type == UnityVersion.Type.Beta
-                || prerelease;
-        }
-    }
+    public UnityVersion Version => release?.version ?? default;
 
     /// <summary>
     /// Base URL of where INIs are stored.
@@ -79,340 +40,64 @@ public struct VersionMetadata
     public string baseUrl;
 
     /// <summary>
-    /// macOS packages.
-    /// </summary>
-    public PackageMetadata[] macPackages;
-
-    /// <summary>
-    /// macOS packages.
-    /// </summary>
-    public PackageMetadata[] macArmPackages;
-
-    /// <summary>
-    /// Windows packages.
-    /// </summary>
-    public PackageMetadata[] winPackages;
-
-    /// <summary>
-    /// Linux packages.
-    /// </summary>
-    public PackageMetadata[] linuxPackages;
-
-    /// <summary>
-    /// Virtual packages, generated dynamically for the current platform.
-    /// </summary>
-    [NonSerialized]
-    public IEnumerable<PackageMetadata> virtualPackages;
-
-    /// <summary>
-    /// Callback to add virtual packages.
-    /// </summary>
-    /// <remarks>
-    /// Don't call <see cref="GetPackages"/> in the callback or you'll end up in
-    /// an infinite recursion. Use <see cref="GetRawPackages"/> instead.
-    /// </remarks>
-    public static Func<VersionMetadata, CachePlatform, IEnumerable<PackageMetadata>> OnGenerateVirtualPackages;
-
-    /// <summary>
-    /// Wrapper of <see cref="UnityVersion.FuzzyMatches"/> that also checks that
-    /// final versions don't match release candidates.
-    /// </summary>
-    public bool IsFuzzyMatchedBy(UnityVersion query)
-    {
-        if (query.type == UnityVersion.Type.Final && prerelease) {
-            return false;
-        }
-
-        return query.FuzzyMatches(version);
-    }
-
-    /// <summary>
     /// Determine wether the packages metadata has been loaded.
     /// </summary>
-    public bool HasPackagesMetadata(CachePlatform platform)
+    public bool HasDownload(Platform platform, Architecture architecture)
     {
-        return GetRawPackages(platform) != null;
+        return GetEditorDownload(platform, architecture) != null;
     }
 
     /// <summary>
     /// Get platform specific packages without adding virtual packages.
     /// </summary>
-    /// <param name="platform">Platform to get.</param>
-    public IEnumerable<PackageMetadata> GetRawPackages(CachePlatform platform)
+    public EditorDownload GetEditorDownload(Platform platform, Architecture architecture)
     {
-        switch (platform) {
-            case CachePlatform.macOSIntel:
-                return macPackages;
-            case CachePlatform.macOSArm:
-                return macArmPackages;
-            case CachePlatform.Windows:
-                return winPackages;
-            case CachePlatform.Linux:
-                return linuxPackages;
-            default:
-                throw new Exception("Invalid platform name: " + platform);
-        }
-    }
+        if (release.downloads == null)
+            return null;
 
-    /// <summary>
-    /// Get platform specific packages.
-    /// </summary>
-    /// <param name="platform">Platform to get.</param>
-    public IEnumerable<PackageMetadata> GetPackages(CachePlatform platform)
-    {
-        // Generate virtual packages
-        if (virtualPackages == null) {
-            if (OnGenerateVirtualPackages != null) {
-                foreach (Func<VersionMetadata, CachePlatform, IEnumerable<PackageMetadata>> func in OnGenerateVirtualPackages.GetInvocationList()) {
-                    var result = func(this, platform);
-                    if (result != null) {
-                        if (virtualPackages == null) {
-                            virtualPackages = result;
-                        } else {
-                            virtualPackages = virtualPackages.Concat(result);
-                        }
-                    }
-                }
-            }
-            if (virtualPackages == null) {
-                virtualPackages = Enumerable.Empty<PackageMetadata>();
-            }
+        foreach (var editor in release.downloads) {
+            if (editor.platform == platform && editor.architecture == architecture)
+                return editor;
         }
 
-        switch (platform) {
-            case CachePlatform.macOSIntel:
-                return macPackages.Concat(virtualPackages);
-            case CachePlatform.macOSArm:
-                return macArmPackages.Concat(virtualPackages);
-            case CachePlatform.Windows:
-                return winPackages.Concat(virtualPackages);
-            case CachePlatform.Linux:
-                return linuxPackages.Concat(virtualPackages);
-            default:
-                throw new Exception("Invalid platform name: " + platform);
-        }
+        return null;
     }
 
     /// <summary>
     /// Set platform specific packages.
     /// </summary>
-    /// <param name="platform">Platform to set.</param>
-    public void SetPackages(CachePlatform platform, PackageMetadata[] packages)
+    public void SetEditorDownload(EditorDownload download)
     {
-        switch (platform) {
-            case CachePlatform.macOSIntel:
-                macPackages = packages;
-                break;
-            case CachePlatform.macOSArm:
-                macArmPackages = packages;
-                break;
-            case CachePlatform.Windows:
-                winPackages = packages;
-                break;
-            case CachePlatform.Linux:
-                linuxPackages = packages;
-                break;
-            default:
-                throw new Exception("Invalid platform name: " + platform);
-        }
-    }
+        if (release.downloads == null)
+            release.downloads = new List<EditorDownload>();
 
-    /// <summary>
-    /// Find a package by name, ignoring case and excluding virtual packages.
-    /// </summary>
-    public PackageMetadata GetRawPackage(CachePlatform platform, string name)
-    {
-        var packages = GetRawPackages(platform);
-        foreach (var package in packages) {
-            if (package.name.Equals(name, StringComparison.OrdinalIgnoreCase)) {
-                return package;
+        for (int i = 0; i < release.downloads.Count; i++) {
+            var editor = release.downloads[i];
+            if (editor.platform == download.platform && editor.architecture == download.architecture) {
+                // Replace existing download
+                release.downloads[i] = download;
+                return;
             }
         }
-        return default;
+
+        // Add new download
+        release.downloads.Add(download);
     }
 
     /// <summary>
-    /// Find a package by name, ignoring case.
+    /// Find a package by identifier, ignoring case.
     /// </summary>
-    public PackageMetadata GetPackage(CachePlatform platform, string name)
+    public Module GetModule(Platform platform, Architecture architecture, string id)
     {
-        var packages = GetPackages(platform);
-        foreach (var package in packages) {
-            if (package.name.Equals(name, StringComparison.OrdinalIgnoreCase)) {
-                return package;
-            }
-        }
-        return default;
-    }
-}
+        var editor = GetEditorDownload(platform, architecture);
+        if (editor == null) return null;
 
-/// <summary>
-/// Information about an version's individual package.
-/// </summary>
-public struct PackageMetadata
-{
-    /// <summary>
-    /// Name of the main editor package.
-    /// </summary>
-    public const string EDITOR_PACKAGE_NAME = "Unity";
-
-    /// <summary>
-    /// Identifier of the package.
-    /// </summary>
-    public string name;
-
-    /// <summary>
-    /// Title of the package.
-    /// </summary>
-    public string title;
-
-    /// <summary>
-    /// Description of the package.
-    /// </summary>
-    public string description;
-
-    /// <summary>
-    /// Relative or absolute url to the package download.
-    /// </summary>
-    public string url;
-
-    /// <summary>
-    /// Wether the package is installed by default.
-    /// </summary>
-    public bool install;
-
-    /// <summary>
-    /// Wether the package is mandatory.
-    /// </summary>
-    public bool mandatory;
-
-    /// <summary>
-    /// The download size in bytes.
-    /// </summary>
-    public long size;
-
-    /// <summary>
-    /// The installed size in bytes.
-    /// </summary>
-    public long installedsize;
-
-    /// <summary>
-    /// The version of the package.
-    /// </summary>
-    public string version;
-
-    /// <summary>
-    /// File extension to use.
-    /// </summary>
-    public string extension;
-
-    /// <summary>
-    /// Wether the package is hidden.
-    /// </summary>
-    public bool hidden;
-
-    /// <summary>
-    /// Install this package together with another one.
-    /// </summary>
-    public string sync;
-
-    /// <summary>
-    /// The md5 hash of the package download.
-    /// </summary>
-    public string md5;
-
-    /// <summary>
-    /// Wether the package can be installed without the editor.
-    /// </summary>
-    public bool requires_unity;
-
-    /// <summary>
-    /// Bundle Identifier of app in package.
-    /// </summary>
-    public string appidentifier;
-
-    /// <summary>
-    /// Message for extra EULA terms.
-    /// </summary>
-    public string eulamessage;
-
-    /// <summary>
-    /// Label of first extra EULA.
-    /// </summary>
-    public string eulalabel1;
-
-    /// <summary>
-    /// URL of first extra EULA.
-    /// </summary>
-    public string eulaurl1;
-
-    /// <summary>
-    /// Label of second extra EULA.
-    /// </summary>
-    public string eulalabel2;
-
-    /// <summary>
-    /// URL of second extra EULA.
-    /// </summary>
-    public string eulaurl2;
-
-    // -------- Fields used by virtual packages --------
-
-    /// <summary>
-    /// Where the archive should be extracted to (does not apply to installers).
-    /// </summary>
-    public string destination;
-
-    /// <summary>
-    /// Rename the extracted archive from this path.
-    /// </summary>
-    public string renameFrom;
-
-    /// <summary>
-    ///  Rename the extracted archive to this path.
-    /// </summary>
-    public string renameTo;
-
-    /// <summary>
-    /// Target file name.
-    /// </summary>
-    public string fileName;
-
-    /// <summary>
-    /// Used to track automatically added dependencies.
-    /// </summary>
-    [NonSerialized] public bool addedAutomatically;
-
-    /// <summary>
-    /// Get the file name to use for the package.
-    /// </summary>
-    public string GetFileName()
-    {
-        if (!string.IsNullOrEmpty(fileName)) {
-            return fileName;
+        foreach (var module in editor.modules) {
+            if (module.id.Equals(id, StringComparison.OrdinalIgnoreCase))
+                return module;
         }
 
-        string guessedName;
-
-        // Try to get file name from URL
-        var uri = new Uri(url, UriKind.RelativeOrAbsolute);
-        if (uri.IsAbsoluteUri) {
-            guessedName = uri.Segments.Last();
-        } else {
-            guessedName = Path.GetFileName(url);
-        }
-
-        // Fallback to given extension if the url doesn't match
-        if (extension != null 
-                && !string.Equals(Path.GetExtension(guessedName), "." + extension, StringComparison.OrdinalIgnoreCase)) {
-            guessedName = name + "." + extension;
-        
-        // Force an extension for older versions that don't provide one
-        } else if (Path.GetExtension(guessedName) == "") {
-            guessedName = name + ".pkg";
-        }
-
-        return guessedName;
+        return null;
     }
 }
 
@@ -429,7 +114,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
     /// <summary>
     /// Version of cache format.
     /// </summary>
-    const int CACHE_FORMAT = 2;
+    const int CACHE_FORMAT = 3;
 
     /// <summary>
     /// Data written out to JSON file.
@@ -482,7 +167,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
     /// </summary>
     void SortVersions()
     {
-        cache.versions.Sort((m1, m2) => m2.version.CompareTo(m1.version));
+        cache.versions.Sort((m1, m2) => m2.release.version.CompareTo(m1.release.version));
     }
 
     /// <summary>
@@ -520,16 +205,16 @@ public class VersionsCache : IEnumerable<VersionMetadata>
     public bool Add(VersionMetadata metadata)
     {
         for (int i = 0; i < cache.versions.Count; i++) {
-            if (cache.versions[i].version == metadata.version) {
+            if (cache.versions[i].Version == metadata.Version) {
                 UpdateVersion(i, metadata);
-                Logger.LogDebug($"Updated version in cache: {metadata.version}");
+                Logger.LogDebug($"Updated version in cache: {metadata.Version}");
                 return false;
             }
         }
 
         cache.versions.Add(metadata);
         SortVersions();
-        Logger.LogDebug($"Added version to cache: {metadata.version}");
+        Logger.LogDebug($"Added version to cache: {metadata.Version}");
         return true;
     }
 
@@ -541,15 +226,15 @@ public class VersionsCache : IEnumerable<VersionMetadata>
     {
         foreach (var metadata in metadatas) {
             for (int i = 0; i < cache.versions.Count; i++) {
-                if (cache.versions[i].version == metadata.version) {
+                if (cache.versions[i].Version == metadata.Version) {
                     UpdateVersion(i, metadata);
-                    Logger.LogDebug($"Updated version in cache: {metadata.version}");
+                    Logger.LogDebug($"Updated version in cache: {metadata.Version}");
                     goto continueOuter;
                 }
             }
             cache.versions.Add(metadata);
             if (newVersions != null) newVersions.Add(metadata);
-            Logger.LogDebug($"Added version to cache: {metadata.version}");
+            Logger.LogDebug($"Added version to cache: {metadata.Version}");
             continueOuter:;
         }
 
@@ -562,12 +247,18 @@ public class VersionsCache : IEnumerable<VersionMetadata>
     void UpdateVersion(int index, VersionMetadata with)
     {
         var existing = cache.versions[index];
-        existing.prerelease = with.prerelease;
-        if (with.baseUrl != null)        existing.baseUrl = with.baseUrl;
-        if (with.macPackages != null)    existing.macPackages = with.macPackages;
-        if (with.macArmPackages != null) existing.macArmPackages = with.macArmPackages;
-        if (with.winPackages != null)    existing.winPackages = with.winPackages;
-        if (with.linuxPackages != null)  existing.linuxPackages = with.linuxPackages;
+
+        // Same release instance, nothing to update
+        if (existing.release == with.release)
+            return;
+
+        if (with.baseUrl != null) {
+            existing.baseUrl = with.baseUrl;
+        }
+        foreach (var editor in with.release.downloads) {
+            existing.SetEditorDownload(editor);
+        }
+
         cache.versions[index] = existing;
     }
 
@@ -582,7 +273,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
         if (version.IsFullVersion) {
             // Do exact match
             foreach (var metadata in cache.versions) {
-                if (version.MatchesVersionOrHash(metadata.version)) {
+                if (version.MatchesVersionOrHash(metadata.Version)) {
                     return metadata;
                 }
             }
@@ -591,7 +282,7 @@ public class VersionsCache : IEnumerable<VersionMetadata>
 
         // Do fuzzy match
         foreach (var metadata in cache.versions) {
-            if (metadata.IsFuzzyMatchedBy(version)) {
+            if (version.FuzzyMatches(metadata.Version)) {
                 return metadata;
             }
         }

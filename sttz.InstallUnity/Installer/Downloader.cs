@@ -1,12 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -24,6 +21,31 @@ public class Downloader
     // -------- Settings --------
 
     /// <summary>
+    /// How to handle existing files.
+    /// </summary>
+    public enum ExistingFile
+    {
+        /// <summary>
+        /// Undefined behaviour, will default to Resume.
+        /// </summary>
+        Undefined,
+
+        /// <summary>
+        /// Always redownload, overwriting existing files.
+        /// </summary>
+        Redownload,
+        /// <summary>
+        /// Try to hash and/or resume existing file,
+        /// will fall back to redownloading and overwriting.
+        /// </summary>
+        Resume,
+        /// <summary>
+        /// Do not hash or touch existing files and complete immediately.
+        /// </summary>
+        Skip
+    }
+
+    /// <summary>
     /// Url of the file to download.
     /// </summary>
     public Uri Url { get; protected set; }
@@ -39,20 +61,14 @@ public class Downloader
     public long ExpectedSize { get; protected set; }
 
     /// <summary>
-    /// Expected hash of the file (computed with <see cref="HashAlgorithm"/>).
+    /// Expected hash of the file (in WRC SRI format).
     /// </summary>
     public string ExpectedHash { get; protected set; }
 
     /// <summary>
-    /// Try to resume download of partially downloaded files.
+    /// How to handle existing files.
     /// </summary>
-    public bool Resume = true;
-
-    /// <summary>
-    /// Hash algorithm used to compute hash (null = don't compute hash).
-    /// </summary>
-    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
-    public Type HashAlgorithm = typeof(MD5);
+    public ExistingFile Existing = ExistingFile.Resume;
 
     /// <summary>
     /// Buffer size used when downloading.
@@ -132,7 +148,7 @@ public class Downloader
     /// <summary>
     /// The hash after the file has been downloaded.
     /// </summary>
-    public string Hash { get; protected set; }
+    public byte[] Hash { get; protected set; }
 
     /// <summary>
     /// Event called for every <see cref="BufferSize"/> of data processed.
@@ -184,6 +200,10 @@ public class Downloader
             blocks = null;
             watch = null;
         }
+
+        if (Existing == ExistingFile.Undefined) {
+            Existing = ExistingFile.Resume;
+        }
     }
 
     /// <summary>
@@ -192,8 +212,22 @@ public class Downloader
     public bool CheckHash()
     {
         if (Hash == null) throw new InvalidOperationException("No Hash set.");
-        if (ExpectedHash == null) throw new InvalidOperationException("No ExpectedHash set.");
-        return string.Equals(ExpectedHash, Hash, StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrEmpty(ExpectedHash)) throw new InvalidOperationException("No ExpectedHash set.");
+
+        var hash = SplitSRIHash(ExpectedHash);
+
+        var base64Hash = Convert.ToBase64String(Hash);
+        if (string.Equals(hash.value, base64Hash, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Unity generates their hashes in a non-standard way
+        // W3C SRI specifies the hash to be base64 encoded form the raw hash bytes
+        // but Unity takes the hex-encoded string of the hash and base64-encodes that
+        var hexBase64Hash = Convert.ToBase64String(Encoding.UTF8.GetBytes(Helpers.ToHexString(Hash)));
+        if (string.Equals(hash.value, hexBase64Hash, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
     }
 
     /// <summary>
@@ -201,12 +235,13 @@ public class Downloader
     /// </summary>
     public async Task AssertExistingFileHash(CancellationToken cancellation = default)
     {
-        if (ExpectedHash == null) throw new InvalidOperationException("No ExpectedHash set.");
+        if (string.IsNullOrEmpty(ExpectedHash)) throw new InvalidOperationException("No ExpectedHash set.");
         if (!File.Exists(TargetPath)) return;
 
+        var hash = SplitSRIHash(ExpectedHash);
         HashAlgorithm hasher = null;
-        if (HashAlgorithm != null) {
-            hasher = CreateHashAlgorithm(HashAlgorithm);
+        if (hash.algorithm != null) {
+            hasher = CreateHashAlgorithm(hash.algorithm);
         }
 
         using (var input = File.Open(TargetPath, FileMode.Open, FileAccess.Read)) {
@@ -214,10 +249,10 @@ public class Downloader
             await CopyToAsync(input, Stream.Null, hasher, cancellation);
         }
         hasher.TransformFinalBlock(new byte[0], 0, 0);
-        Hash = Helpers.ToHexString(hasher.Hash);
+        Hash = hasher.Hash;
 
         if (!CheckHash()) {
-            throw new Exception($"Existing file '{TargetPath}' does not match expected hash (got {Hash}, expected {ExpectedHash}).");
+            throw new Exception($"Existing file '{TargetPath}' does not match expected hash (got {Convert.ToBase64String(Hash)}, expected {hash.value}).");
         }
     }
 
@@ -231,8 +266,11 @@ public class Downloader
 
         try {
             HashAlgorithm hasher = null;
-            if (HashAlgorithm != null) {
-                hasher = CreateHashAlgorithm(HashAlgorithm);
+            if (!string.IsNullOrEmpty(ExpectedHash)) {
+                var hash = SplitSRIHash(ExpectedHash);
+                if (hash.algorithm != null) {
+                    hasher = CreateHashAlgorithm(hash.algorithm);
+                }
             }
 
             var filename = Path.GetFileName(TargetPath);
@@ -240,42 +278,18 @@ public class Downloader
             // Check existing file
             var mode = FileMode.Create;
             var startOffset = 0L;
-            if (File.Exists(TargetPath) && Resume) {
-                // Try to resume existing file
-                var fileInfo = new FileInfo(TargetPath);
-                if (ExpectedSize > 0 && fileInfo.Length >= ExpectedSize) {
-                    if (hasher != null) {
-                        using (var input = File.Open(TargetPath, FileMode.Open, FileAccess.Read)) {
-                            CurrentState = State.Hashing;
-                            await CopyToAsync(input, Stream.Null, hasher, cancellation);
-                        }
-                        hasher.TransformFinalBlock(new byte[0], 0, 0);
-                        Hash = Helpers.ToHexString(hasher.Hash);
-                        if (ExpectedHash != null) {
-                            if (CheckHash()) {
-                                Logger.LogInformation($"Existing file '{filename}' has matching hash, skipping...");
-                                CurrentState = State.Complete;
-                                return;
-                            } else {
-                                // Hash mismatch, force redownload
-                                Logger.LogWarning($"Existing file '{filename}' has different hash: Got {Hash} but expected {ExpectedHash}. Will redownload...");
-                                startOffset = 0;
-                                mode = FileMode.Create;
-                            }
-                        } else {
-                            Logger.LogInformation($"Existing file '{filename}' has hash {Hash} but we have nothing to check against, assuming it's ok...");
-                        }
-                    } else {
-                        // Assume file is good
-                        Logger.LogInformation($"Existing file '{filename}' cannot be checked for integrity, assuming it's ok...");
-                        CurrentState = State.Complete;
-                        return;
-                    }
-                
-                } else {
-                    Logger.LogInformation($"Resuming partial download of '{filename}' ({Helpers.FormatSize(fileInfo.Length)} already downloaded)...");
-                    startOffset = fileInfo.Length;
+            if (File.Exists(TargetPath)) {
+                // Handle existing file from a previous download
+                var existing = await HandleExistingFile(hasher, cancellation);
+                if (existing.complete) {
+                    CurrentState = State.Complete;
+                    return;
+                } else if (existing.startOffset > 0) {
+                    startOffset = existing.startOffset;
                     mode = FileMode.Append;
+                } else {
+                    startOffset = 0;
+                    mode = FileMode.Create;
                 }
             }
 
@@ -288,6 +302,13 @@ public class Downloader
             if (client.Timeout != TimeSpan.FromSeconds(Timeout))
                 client.Timeout = TimeSpan.FromSeconds(Timeout);
             var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellation);
+
+            if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable) {
+                // Disable resuming for next attempt
+                Existing = ExistingFile.Redownload;
+                throw new Exception($"Failed to resume, disabled resume for '{filename}' (HTTP Code 416)");
+            }
+
             response.EnsureSuccessStatusCode();
 
             // Redownload whole file if resuming fails
@@ -323,18 +344,18 @@ public class Downloader
 
             if (hasher != null) {
                 hasher.TransformFinalBlock(new byte[0], 0, 0);
-                Hash = Helpers.ToHexString(hasher.Hash);
+                Hash = hasher.Hash;
             }
 
-            if (Hash != null && ExpectedHash != null && !CheckHash()) {
-                if (ExpectedHash == null) {
-                    Logger.LogInformation($"Downloaded file '{filename}' with hash {Hash}");
+            if (Hash != null && !string.IsNullOrEmpty(ExpectedHash) && !CheckHash()) {
+                if (string.IsNullOrEmpty(ExpectedHash)) {
+                    Logger.LogInformation($"Downloaded file '{filename}' with hash {Convert.ToBase64String(Hash)}");
                     CurrentState = State.Complete;
                 } else if (CheckHash()) {
-                    Logger.LogInformation($"Downloaded file '{filename}' with expected hash {Hash}");
+                    Logger.LogInformation($"Downloaded file '{filename}' with expected hash {Convert.ToBase64String(Hash)}");
                     CurrentState = State.Complete;
                 } else {
-                    throw new Exception($"Downloaded file '{filename}' does not match expected hash (got {Hash} but expected {ExpectedHash})");
+                    throw new Exception($"Downloaded file '{filename}' does not match expected hash (got {Convert.ToBase64String(Hash)} but expected {ExpectedHash})");
                 }
             } else {
                 Logger.LogInformation($"Downloaded file '{filename}'");
@@ -344,6 +365,54 @@ public class Downloader
             CurrentState = State.Error;
             throw;
         }
+    }
+
+    async Task<(bool complete, long startOffset)> HandleExistingFile(HashAlgorithm hasher, CancellationToken cancellation)
+    {
+        if (Existing == ExistingFile.Skip) {
+            // Complete without checking or resuming
+            return (true, -1);
+        }
+
+        var filename = Path.GetFileName(TargetPath);
+
+        if (Existing == ExistingFile.Resume) {
+            var hashChecked = false;
+            if (!string.IsNullOrEmpty(ExpectedHash) && hasher != null) {
+                // If we have a hash, always check against hash first
+                using (var input = File.Open(TargetPath, FileMode.Open, FileAccess.Read)) {
+                    CurrentState = State.Hashing;
+                    await CopyToAsync(input, Stream.Null, hasher, cancellation);
+                }
+                hasher.TransformFinalBlock(new byte[0], 0, 0);
+                Hash = hasher.Hash;
+
+                if (CheckHash()) {
+                    Logger.LogInformation($"Existing file '{filename}' has matching hash, skipping...");
+                    return (true, -1);
+                } else {
+                    hashChecked = true;
+                }
+            }
+
+            if (ExpectedSize > 0) {
+                var fileInfo = new FileInfo(TargetPath);
+                if (fileInfo.Length >= ExpectedSize && !hashChecked) {
+                    // No hash and big enough, Assume file is good
+                    Logger.LogInformation($"Existing file '{filename}' cannot be checked for integrity, assuming it's ok...");
+                    return (true, -1);
+
+                } else {
+                    // File smaller than it should be, try resuming
+                    Logger.LogInformation($"Resuming partial download of '{filename}' ({Helpers.FormatSize(fileInfo.Length)} already downloaded)...");
+                    return (false, fileInfo.Length);
+                }
+            }
+        }
+
+        // Force redownload from start
+        Logger.LogWarning($"Redownloading existing file '{filename}'");
+        return (false, 0);
     }
 
     /// <summary>
@@ -393,17 +462,36 @@ public class Downloader
     }
 
     /// <summary>
-    /// Create a HashAlgorithm instance from the given type that is subclass of HashAlgorithm.
-    /// The type needs to implement a static Create method that takes no arguments and
-    /// return the HashAlgorithm instance.
+    /// Split a WRC SRI string into hash algorithm and hash value.
     /// </summary>
-    static HashAlgorithm CreateHashAlgorithm(Type type)
+    (string algorithm, string value) SplitSRIHash(string hash)
     {
-        var createMethod = type.GetMethod("Create", BindingFlags.Public | BindingFlags.Static, new Type[0]);
-        if (createMethod == null) {
-            throw new Exception($"Could not find static Create method on hash algorithm type '{type}'");
+        if (string.IsNullOrEmpty(hash))
+            return (null, null);
+
+        var firstDash = hash.IndexOf('-');
+        if (firstDash < 0) return (null, hash);
+
+        var hashName = hash.Substring(0, firstDash).ToLowerInvariant();
+        var hashValue = hash.Substring(firstDash + 1);
+
+        return (hashName, hashValue);
+    }
+
+    /// <summary>
+    /// Create a hash algorithm instance from a hash name.
+    /// </summary>
+    HashAlgorithm CreateHashAlgorithm(string hashName)
+    {
+        switch (hashName) {
+            case "md5": return MD5.Create();
+            case "sha256": return SHA256.Create();
+            case "sha512": return SHA512.Create();
+            case "sha384": return SHA384.Create();
         }
-        return (HashAlgorithm)createMethod.Invoke(null, null);
+
+        Logger.LogError($"Unsupported hash algorithm: '{hashName}'");
+        return null;
     }
 }
 

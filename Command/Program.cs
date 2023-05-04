@@ -2,12 +2,12 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using sttz.NiceConsoleLogger;
+
+using static sttz.InstallUnity.UnityReleaseAPIClient;
 
 namespace sttz.InstallUnity
 {
@@ -45,9 +45,17 @@ public class InstallUnityCLI
     /// </summary>
     public bool update;
     /// <summary>
-    /// Path to store all data at.
+    /// Clear the versions cache.
     /// </summary>
-    public CachePlatform platform;
+    public bool clearCache;
+    /// <summary>
+    /// Platform of the editor to download.
+    /// </summary>
+    public Platform platform;
+    /// <summary>
+    /// Architecture of the editor to download and/or install.
+    /// </summary>
+    public Architecture architecture;
     /// <summary>
     /// Path to store all data at.
     /// </summary>
@@ -87,6 +95,10 @@ public class InstallUnityCLI
     /// Uninstall existing installation first.
     /// </summary>
     public bool upgrade;
+    /// <summary>
+    /// Force redownloading all files.
+    /// </summary>
+    public bool redownload;
     /// <summary>
     /// Skip size and hash checks for downloads.
     /// </summary>
@@ -158,11 +170,13 @@ public class InstallUnityCLI
         var cmd = action ?? "";
         if (help) cmd += " --help";
         if (verbose > 0) cmd += string.Concat(Enumerable.Repeat(" --verbose", verbose));
+        if (clearCache) cmd += " --clear-cache";
         if (update) cmd += " --update";
         if (dataPath != null) cmd += " --data-path " + dataPath;
         if (options.Count > 0) cmd += " --opt " + string.Join(" ", options);
-        if (platform != CachePlatform.None) cmd += " --platform " + platform;
-        
+        if (platform != Platform.None) cmd += " --platform " + platform;
+        if (architecture != Architecture.None) cmd += " --arch " + platform;
+
         if (matchVersion != null) cmd += " " + matchVersion;
 
         if (installed) cmd += " --installed";
@@ -205,6 +219,8 @@ public class InstallUnityCLI
                     .Description("Don't prompt for confirmation (use with care)")
                 .Option((InstallUnityCLI t, bool v) => t.update = v, "u", "update")
                     .Description("Force an update of the versions cache")
+                .Option((InstallUnityCLI t, bool v) => t.clearCache = v, "clear-cache")
+                    .Description("Clear the versions cache before running any commands")
                 .Option((InstallUnityCLI t, string v) => t.dataPath = v, "data-path", "datapath")
                     .ArgumentName("<path>")
                     .Description("Store all data at the given path, also don't delete packages after install")
@@ -221,18 +237,22 @@ public class InstallUnityCLI
                     .Description("Pattern to match Unity version")
                 .Option((InstallUnityCLI t, bool v) => t.installed = v, "i", "installed")
                     .Description("List installed versions of Unity")
-                .Option((InstallUnityCLI t, CachePlatform v) => t.platform = v, "platform")
+                .Option((InstallUnityCLI t, Platform v) => t.platform = v, "platform")
                     .Description("Platform to list the versions for (default = current platform)")
-                
+                .Option((InstallUnityCLI t, Architecture v) => t.architecture = v, "arch")
+                    .Description("Architecture to list the versions for (default = current architecture)")
+
                 .Action("details", (t, a) => t.action = a)
                     .Description("Show version information and all its available packages")
-                
+
                 .Option((InstallUnityCLI t, string v) => t.matchVersion = v, 0)
                     .ArgumentName("<version>")
                     .Description("Pattern to match Unity version or release notes / unity hub url")
-                .Option((InstallUnityCLI t, CachePlatform v) => t.platform = v, "platform")
+                .Option((InstallUnityCLI t, Platform v) => t.platform = v, "platform")
                     .Description("Platform to show the details for (default = current platform)")
-                
+                .Option((InstallUnityCLI t, Architecture v) => t.architecture = v, "arch")
+                    .Description("Architecture to show the details for (default = current architecture)")
+
                 .Action("install", (t, a) => t.action = a)
                     .DefaultAction()
                     .Description("Download and install a version of Unity")
@@ -249,8 +269,12 @@ public class InstallUnityCLI
                     .Description("Install previously downloaded packages (requires '--data-path')")
                 .Option((InstallUnityCLI t, bool v) => t.upgrade = v, "upgrade")
                     .Description("Replace existing matching Unity installation after successful install")
-                .Option((InstallUnityCLI t, CachePlatform v) => t.platform = v, "platform")
+                .Option((InstallUnityCLI t, Platform v) => t.platform = v, "platform")
                     .Description("Platform to download the packages for (only valid with '--download', default = current platform)")
+                .Option((InstallUnityCLI t, Architecture v) => t.architecture = v, "arch")
+                    .Description("Architecture to download the packages for (default = current architecture)")
+                .Option((InstallUnityCLI t, bool v) => t.redownload = v, "redownload")
+                    .Description("Force redownloading all files")
                 .Option((InstallUnityCLI t, bool v) => t.yolo = v, "yolo")
                     .Description("Skip size and hash checks of downloaded files")
                 
@@ -365,8 +389,8 @@ public class InstallUnityCLI
     /// </summary>
     public string GetVersion()
     {
-        var assembly = Assembly.GetExecutingAssembly();
-        return assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+        return System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(assembly).InformationalVersion;
     }
 
     /// <summary>
@@ -411,13 +435,12 @@ public class InstallUnityCLI
         if (!enableColors) Logger.LogInformation("Console colors disabled");
 
         // Set current platform
-        if (platform == CachePlatform.None) {
-            platform = await installer.Platform.GetCurrentPlatform();
+        if (platform == Platform.None || architecture == Architecture.None) {
+            var (defaultPlatform, defaultarch) = await installer.Platform.GetCurrentPlatform();
+            if (platform == Platform.None)         platform = defaultPlatform;
+            if (architecture == Architecture.None) architecture = defaultarch;
         }
-        Logger.LogDebug($"Selected platform {platform}");
-
-        // Enable generating virtual packages
-        VirtualPackages.Enable();
+        Logger.LogDebug($"Selected platform {platform}-{architecture}");
 
         // Parse version argument (positional argument)
         var version = new UnityVersion(matchVersion);
@@ -432,8 +455,8 @@ public class InstallUnityCLI
                 Environment.Exit(0);
             } else if (options.Contains("save")) {
                 var configPath = installer.DataPath ?? installer.Platform.GetConfigurationDirectory();
-                configPath = Path.Combine(configPath, UnityInstaller.CONFIG_FILENAME);
-                if (File.Exists(configPath)) {
+                configPath = System.IO.Path.Combine(configPath, UnityInstaller.CONFIG_FILENAME);
+                if (System.IO.File.Exists(configPath)) {
                     Console.WriteLine($"Configuration file already exists:\n{configPath}");
                 } else {
                     installer.Configuration.Save(configPath);
@@ -452,6 +475,12 @@ public class InstallUnityCLI
             }
         }
 
+        // Clear the versions cache (--clear-cache)
+        if (clearCache) {
+            installer.Versions.Clear();
+            installer.Versions.Save();
+        }
+
         // Update cache if needed or requested (--update)
         var updateType = version.type;
         if (updateType == UnityVersion.Type.Undefined) {
@@ -465,7 +494,7 @@ public class InstallUnityCLI
         IEnumerable<VersionMetadata> newVersionsData;
         if (update || (!avoidCacheUpate && installer.IsCacheOutdated(updateType))) {
             WriteTitle("Updating Cache...");
-            newVersionsData = await installer.UpdateCache(platform, updateType);
+            newVersionsData = await installer.UpdateCache(platform, architecture, updateType);
 
             var total = newVersionsData.Count();
             var maxVersions = 10;
@@ -473,8 +502,9 @@ public class InstallUnityCLI
                 Console.WriteLine("No new Unity versions");
             } else if (total > 0) {
                 Console.WriteLine($"New Unity version{(total > 1 ? "s" : "")}:");
-                foreach (var newVersion in newVersionsData.OrderByDescending(m => m.version).Take(maxVersions)) {
-                    Console.WriteLine($"- {newVersion.version} ({installer.Scraper.GetReleaseNotesUrl(newVersion)})");
+                foreach (var newVersion in newVersionsData.OrderByDescending(m => m.Version).Take(maxVersions)) {
+                    var url = Scraper.GetReleaseNotesUrl(newVersion.release.stream, newVersion.Version);
+                    Console.WriteLine($"- {newVersion.Version} ({url})");
                 }
                 if (total - maxVersions > 0) {
                     Console.WriteLine($"And {total - maxVersions} more...");
@@ -483,7 +513,7 @@ public class InstallUnityCLI
 
             if (total <= maxVersions) {
                 newVersions = new HashSet<UnityVersion>();
-                foreach (var newVersion in newVersionsData.Select(d => d.version)) {
+                foreach (var newVersion in newVersionsData.Select(d => d.Version)) {
                     newVersions.Add(newVersion);
                 }
             }
@@ -517,52 +547,74 @@ public class InstallUnityCLI
                 Logger.LogInformation($"Got url instead of version, trying to find version at url...");
                 metadata = await installer.Scraper.LoadUrl(matchVersion);
 
-                if (!metadata.version.IsValid) {
+                if (!metadata.Version.IsValid) {
                     throw new Exception("Could not find version at url: " + versionString);
                 }
             }
 
-            version = metadata.version;
+            version = metadata.Version;
 
         } else {
             // Locate version in cache or look it up
             metadata = installer.Versions.Find(version);
-            if (!metadata.version.IsValid) {
+            if (!metadata.Version.IsValid) {
                 if (installOnly) {
                     throw new Exception("Could not find version matching input: " + version);
                 }
 
                 try {
                     Logger.LogInformation($"Version {version} not found in cache, trying exact lookup");
-                    metadata = await installer.Scraper.LoadExact(version);
+                    metadata.release = await installer.Releases.FindRelease(version, platform, architecture);
                 } catch (Exception e) {
                     Logger.LogInformation("Failed exact lookup: " + e.Message);
                 }
 
-                if (!metadata.version.IsValid) {
+                if (!metadata.Version.IsValid) {
                     throw new Exception("Could not find version matching input: " + version);
                 }
 
                 installer.Versions.Add(metadata);
                 installer.Versions.Save();
-                Console.WriteLine($"Guessed release notes URL to discover {metadata.version}");
+                Console.WriteLine($"Guessed release notes URL to discover {metadata.Version}");
             }
         }
 
-        if (!metadata.version.MatchesVersionOrHash(version)) {
+        if (!metadata.Version.MatchesVersionOrHash(version)) {
             Console.WriteLine();
-            ConsoleLogger.WriteLine($"Selected <white bg=darkgray>{metadata.version}</white> for input {version}");
+            ConsoleLogger.WriteLine($"Selected <white bg=darkgray>{metadata.Version}</white> for input {version}");
         }
 
         // Load packages ini if needed
-        if (!metadata.HasPackagesMetadata(platform)) {
+        var editor = metadata.GetEditorDownload(platform, architecture);
+        if (editor == null) {
             if (installOnly) {
                 throw new Exception("Packages not found in versions cache (install only): " + version);
             }
-            Logger.LogInformation("Packages not yet loaded, loading ini now");
-            metadata = await installer.Scraper.LoadPackages(metadata, platform);
-            installer.Versions.Add(metadata);
-            installer.Versions.Save();
+
+            // Try to load version from API
+            // The API doesn't allow lookup by hash, so we have to check if after loading
+            Logger.LogInformation($"Missing packages for {platform}-{architecture} in cache, loading from Release API");
+            var release = await installer.Releases.FindRelease(metadata.Version, platform, architecture);
+            if (release != null && (metadata.Version.hash == null || release.version.hash == metadata.Version.hash)) {
+                editor = release.downloads.Where(d => d.platform == platform && d.architecture == architecture).FirstOrDefault();
+                if (editor != null) {
+                    metadata.SetEditorDownload(editor);
+                    installer.Versions.Add(metadata);
+                    installer.Versions.Save();
+                }
+            }
+
+            // Fall back to look up version using legacy INI system (for e.g. test releases of the editor)
+            if (editor == null && !string.IsNullOrEmpty(metadata.baseUrl)) {
+                Logger.LogInformation("Loading packages from legacy INI system");
+                metadata = await installer.Scraper.LoadPackages(metadata, platform, architecture);
+                installer.Versions.Add(metadata);
+                installer.Versions.Save();
+            }
+
+            if (editor == null) {
+                throw new Exception($"Could not load packages for {metadata.Version} on {platform}-{architecture}");
+            }
         }
 
         return (version, metadata);
@@ -619,15 +671,15 @@ public class InstallUnityCLI
 
         if (!installs.Any()) {
             var latest = installer.Versions
-                .Where(m => m.IsFinalRelease)
-                .OrderByDescending(m => m.version)
+                .Where(m => (m.release.stream & ReleaseStream.PrereleaseMask) == 0)
+                .OrderByDescending(m => m.Version)
                 .FirstOrDefault();
-            
+
             Console.WriteLine("No installed Unity versions found.");
 
-            if (latest.version.IsValid) {
+            if (latest.Version.IsValid) {
                 Console.WriteLine();
-                Console.WriteLine($"The latest Unity version available is {latest.version.ToString(verbose > 0)}.");
+                Console.WriteLine($"The latest Unity version available is {latest.Version.ToString(verbose > 0)}.");
             }
 
         } else {
@@ -635,9 +687,9 @@ public class InstallUnityCLI
             var updates = new List<(Installation install, VersionMetadata update)>();
             foreach (var install in installs.OrderByDescending(i => i.version)) {
                 var newerPatch = installer.Versions
-                    .Where(m => IsNewerPatch(m.version, install.version))
+                    .Where(m => IsNewerPatch(m.Version, install.version))
                     .FirstOrDefault();
-                if (newerPatch.version.IsValid) {
+                if (newerPatch.Version.IsValid) {
                     updates.Add((install, newerPatch));
                 }
             }
@@ -647,29 +699,29 @@ public class InstallUnityCLI
             } else {
                 WriteTitle("Minor updates to installed Unity versions:");
                 foreach (var update in updates) {
-                    Console.WriteLine($"- {update.install.version.ToString(verbose > 0)} ➤ {update.update.version.ToString(verbose > 0)}");
+                    Console.WriteLine($"- {update.install.version.ToString(verbose > 0)} ➤ {update.update.Version.ToString(verbose > 0)}");
                 }
             }
 
             // Compile latest version for each major.minor release
             var mms = installer.Versions
-                .OrderByDescending(m => m.version)
-                .GroupBy(m => (major: m.version.major, minor: m.version.minor))
+                .OrderByDescending(m => m.Version)
+                .GroupBy(m => (major: m.Version.major, minor: m.Version.minor))
                 .Select(g => g.First())
                 .Reverse();
 
             // Find major/minor new Unity versions not yet installed
             var latest = installs.OrderByDescending(i => i.version).First();
             var newer = mms
-                .Where(m => m.IsFinalRelease && m.version > latest.version);
+                .Where(m => (m.release.stream & ReleaseStream.PrereleaseMask) == 0 && m.Version > latest.version);
 
             if (newer.Any()) {
                 WriteTitle("New major Unity versions:");
                 foreach (var m in newer) {
                     if (verbose > 0) {
-                        Console.WriteLine($"- {m.version}");
+                        Console.WriteLine($"- {m.Version}");
                     } else {
-                        Console.WriteLine($"- {m.version.major}.{m.version.minor}");
+                        Console.WriteLine($"- {m.Version.major}.{m.Version.minor}");
                     }
                 }
             }
@@ -677,19 +729,19 @@ public class InstallUnityCLI
             // Find alpha/beta/RC versions not yet installed
             var abs = mms
                 .Where(m => 
-                    m.IsPrerelease 
-                    && m.version > latest.version 
-                    && (m.version.major != latest.version.major
-                    || m.version.minor != latest.version.minor)
+                    (m.release.stream & ReleaseStream.PrereleaseMask) != 0
+                    && m.Version > latest.version 
+                    && (m.Version.major != latest.version.major
+                    || m.Version.minor != latest.version.minor)
                 );
             
             if (abs.Any()) {
                 WriteTitle("New Unity release candidates, betas and alphas:");
                 foreach (var m in abs) {
                     if (verbose > 0) {
-                        Console.WriteLine($"- {m.version}");
+                        Console.WriteLine($"- {m.Version}");
                     } else {
-                        Console.WriteLine($"- {m.version.major}.{m.version.minor}{(char)m.version.type}");
+                        Console.WriteLine($"- {m.Version.major}.{m.Version.minor}{(char)m.Version.type}");
                     }
                 }
             }
@@ -739,8 +791,8 @@ public class InstallUnityCLI
         var currentList = new List<VersionMetadata>();
         int lastMajor = -1, lastMinor = -1;
         foreach (var metadata in installer.Versions) {
-            if (!metadata.IsFuzzyMatchedBy(version)) continue;
-            var other = metadata.version;
+            if (!version.FuzzyMatches(metadata.Version)) continue;
+            var other = metadata.Version;
 
             if (lastMinor < 0) lastMinor = other.minor;
             else if (lastMinor != other.minor) {
@@ -769,10 +821,9 @@ public class InstallUnityCLI
         // Write the generated columns line by line, wrapping to buffer size
         var colWidth = (verbose > 0 ? ListVersionsWithHashColumnWith : ListVersionsColumnWidth);
         var maxColumns = Math.Max(Console.BufferWidth / colWidth, 1);
-        var hasReleaseCandidate = false;
         foreach (var majorRow in majorRows) {
             // Major version separator / title
-            var major = majorRow[0][0].version.major;
+            var major = majorRow[0][0].Version.major;
             WriteBigTitle(major.ToString());
             
             var groupCount = (majorRow.Count - 1) / maxColumns + 1;
@@ -786,7 +837,7 @@ public class InstallUnityCLI
                             Console.SetCursorPosition((c - columnOffset) * colWidth, Console.CursorTop);
 
                             SetColors(ConsoleColor.White, ConsoleColor.DarkGray);
-                            var minorVersion = majorRow[c][0].version;
+                            var minorVersion = majorRow[c][0].Version;
                             var title = minorVersion.major + "." + minorVersion.minor;
                             Console.Write(title);
 
@@ -797,14 +848,10 @@ public class InstallUnityCLI
                         Console.SetCursorPosition((c - columnOffset) * colWidth, Console.CursorTop);
 
                         var m = majorRow[c][r];
-                        Console.Write(m.version.ToString(verbose > 0));
-                        if (m.IsReleaseCandidate) {
-                            hasReleaseCandidate = true;
-                            Console.Write("*");
-                        }
+                        Console.Write(m.Version.ToString(verbose > 0));
 
-                        var isNewVersion = (newVersions != null && newVersions.Contains(m.version));
-                        var isInstalled = (installed != null && installed.Contains(m.version));
+                        var isNewVersion = (newVersions != null && newVersions.Contains(m.Version));
+                        var isInstalled = (installed != null && installed.Contains(m.Version));
 
                         if (isNewVersion || isInstalled) {
                             SetColors(ConsoleColor.White, ConsoleColor.DarkGray);
@@ -819,10 +866,6 @@ public class InstallUnityCLI
                 Console.WriteLine();
             }
         }
-
-        if (hasReleaseCandidate) {
-            Console.WriteLine("* indicates a release candidate, it will only be selected by an exact match or as a beta version.");
-        }
     }
 
     // -------- Version Details --------
@@ -834,82 +877,129 @@ public class InstallUnityCLI
         ShowDetails(installer, metadata);
     }
 
-    void ShortPackagesList(VersionMetadata metadata)
+    void ShortModulesList(VersionMetadata metadata)
     {
-        var packageMetadata = metadata.GetPackages(platform);
-        var list = string.Join(", ", packageMetadata
+        var editor = metadata.GetEditorDownload(platform, architecture);
+
+        var list = editor.AllModules.Values
             .Where(p => !p.hidden)
-            .Select(p => p.name + (p.install ? "*" : ""))
-            .ToArray()
-        );
-        Console.WriteLine(packageMetadata.Count() + " Packages: " + list);
+            .Select(p => p.id + (p.preSelected ? "*" : ""))
+            .OrderBy(p => p)
+            .Prepend("unity");
+        if (list.Any()) {
+            Console.WriteLine(list.Count() + " Packages: " + string.Join(", ", list));
+            Console.WriteLine();
+        }
+
+        list = editor.AllModules.Values
+            .Where(p => p.hidden)
+            .Select(p => p.id + (p.preSelected ? "*" : ""))
+            .OrderBy(p => p);
+        if (list.Any()) {
+            Console.WriteLine(list.Count() + " Hidden Packages: " + string.Join(", ", list));
+            Console.WriteLine();
+        }
+
         Console.WriteLine("* = default package");
         Console.WriteLine();
     }
 
-    void DetailedPackagesList(IEnumerable<PackageMetadata> packages)
+    void DetailedModulesList(IEnumerable<Module> modules)
     {
         fieldWidth = 14;
-        foreach (var package in packages) {
+        foreach (var module in modules) {
             SetColors(ConsoleColor.DarkGray, ConsoleColor.DarkGray);
             Console.Write("--------------- ");
             SetForeground(ConsoleColor.White);
-            Console.Write(package.name + (package.install ? "* " : " "));
+            Console.Write($"{module.name} [{module.id}] " + (module.preSelected ? " *" : ""));
             ResetColor();
             Console.WriteLine();
 
-            WriteField("Title", package.title);
-            WriteField("Description", package.description);
-            WriteField("URL", package.url);
-            WriteField("Mandatory", (package.mandatory ? "yes" : null));
-            WriteField("Hidden", (package.hidden ? "yes" : null));
-            WriteField("Size", $"{Helpers.FormatSize(package.size)} ({Helpers.FormatSize(package.installedsize)} installed)");
-            WriteField("EULA", package.eulamessage);
-            if (package.eulalabel1 != null && package.eulaurl1 != null)
-                WriteField("", package.eulalabel1 + ": " + package.eulaurl1);
-            if (package.eulalabel2 != null && package.eulaurl2 != null)
-                WriteField("", package.eulalabel2 + ": " + package.eulaurl2);
-            WriteField("Install with", package.sync);
-            WriteField("MD5", package.md5);
+            WriteField("Description", module.description);
+            WriteField("URL", module.url);
+            WriteField("Required", (module.required ? "yes" : null));
+            WriteField("Hidden", (module.hidden ? "yes" : null));
+            WriteField("Size", $"{Helpers.FormatSize(module.downloadSize.GetBytes())} ({Helpers.FormatSize(module.installedSize.GetBytes())} installed)");
+
+            if (module.eula?.Length > 0) {
+                WriteField("EULA", module.eula[0].message);
+                foreach (var eula in module.eula) {
+                    WriteField("", eula.label + ": " + eula.url);
+                }
+            }
+
+            if (module.subModules?.Count > 0)
+                WriteField("Sub-Modules", string.Join(", ", module.subModules.Select(m => m.name)));
+            if (module.parentModuleId != null)
+                WriteField("Parent Module", module.parentModuleId);
+
+            WriteField("Hash", module.integrity);
 
             Console.WriteLine();
         }
     }
 
+    void EditorPackageDetails(EditorDownload module)
+    {
+        fieldWidth = 14;
+
+        SetColors(ConsoleColor.DarkGray, ConsoleColor.DarkGray);
+        Console.Write("--------------- ");
+        SetForeground(ConsoleColor.White);
+        Console.Write($"Unity Editor [{module.Id}]" + " *");
+        ResetColor();
+        Console.WriteLine();
+
+        WriteField("Description", "Main Unity Editor package");
+        WriteField("URL", module.url);
+        WriteField("Size", $"{Helpers.FormatSize(module.downloadSize.GetBytes())} ({Helpers.FormatSize(module.installedSize.GetBytes())} installed)");
+
+        WriteField("Hash", module.integrity);
+
+        Console.WriteLine();
+    }
+
     void ShowDetails(UnityInstaller installer, VersionMetadata metadata)
     {
-        var packageMetadata = metadata.GetPackages(platform);
+        var editor = metadata.GetEditorDownload(platform, architecture);
 
-        WriteBigTitle($"Details for Unity {metadata.version}");
-
-        if (metadata.IsReleaseCandidate) {
-            ConsoleLogger.WriteLine(
-                "<white bg=darkgray>This is a release candidate:</white> "
-                + "Even though it has an f version, it will only be selected " 
-                + "by an exact match or as a beta version.");
-            Console.WriteLine();
-        }
+        WriteBigTitle($"Details for Unity {metadata.Version} {editor.platform}-{editor.architecture}");
 
         if (metadata.baseUrl != null) {
             Console.WriteLine("Base URL: " + metadata.baseUrl);
         }
 
-        var releaseNotes = installer.Scraper.GetReleaseNotesUrl(metadata);
+        var releaseNotes = Scraper.GetReleaseNotesUrl(metadata.release.stream, metadata.Version);
         if (releaseNotes != null) {
             Console.WriteLine("Release notes: " + releaseNotes);
         }
 
         Console.WriteLine();
 
-        ShortPackagesList(metadata);
+        ShortModulesList(metadata);
 
-        DetailedPackagesList(packageMetadata.Where(p => !p.hidden).OrderBy(p => p.name));
+        EditorPackageDetails(editor);
+        DetailedModulesList(IterateModulesRecursive(editor.modules, hidden: false));
 
-        var hidden = packageMetadata.Where(p => p.hidden).OrderBy(p => p.name);
+        var hidden = IterateModulesRecursive(editor.modules, hidden: true);
         if (hidden.Any()) {
             WriteTitle("Hidden Packages");
             Console.WriteLine();
-            DetailedPackagesList(hidden);
+            DetailedModulesList(hidden);
+        }
+    }
+
+    IEnumerable<Module> IterateModulesRecursive(IEnumerable<Module> modules, bool hidden)
+    {
+        foreach (var module in modules) {
+            if (module.hidden == hidden)
+                yield return module;
+
+            if (module.subModules != null) {
+                foreach (var subModule in IterateModulesRecursive(module.subModules, hidden)) {
+                    yield return subModule;
+                }
+            }
         }
     }
 
@@ -938,21 +1028,21 @@ public class InstallUnityCLI
         }
 
         if (op != UnityInstaller.InstallStep.Download) {
-            var installable = await installer.Platform.GetInstallablePlatforms();
-            if (!installable.Contains(platform)) {
-                throw new Exception($"Cannot install {platform} on the current platform.");
+            var installable = await installer.Platform.GetInstallableArchitectures();
+            if (!installable.HasFlag(architecture)) {
+                throw new Exception($"Cannot install {architecture} on the current platform ({platform}).");
             }
         }
 
         VersionMetadata metadata;
         (version, metadata) = await SelectAndLoad(version, matchVersion, op == UnityInstaller.InstallStep.Install);
-        var packageMetadata = metadata.GetPackages(platform);
+        var editor = metadata.GetEditorDownload(platform, architecture);
 
         // Determine packages to install (-p / --packages or defaultPackages option)
         IEnumerable<string> selection = packages;
         if (string.Equals(selection.FirstOrDefault(), "all", StringComparison.OrdinalIgnoreCase)) {
             Logger.LogInformation("Found 'all', selecting all available packages");
-            selection = packageMetadata.Select(p => p.name);
+            selection = editor.AllModules.Keys;
         } else if (!selection.Any()) {
             Console.WriteLine();
             if (installer.Configuration.defaultPackages != null) {
@@ -960,34 +1050,34 @@ public class InstallUnityCLI
                 selection = installer.Configuration.defaultPackages;
             } else {
                 Console.WriteLine("Selecting default packages (select packages with '--packages', see available packages with 'details')");
-                selection = installer.GetDefaultPackages(metadata, platform);
+                selection = installer.GetDefaultPackages(metadata, platform, architecture);
             }
         }
 
         var notFound = new List<string>();
-        var resolved = installer.ResolvePackages(metadata, platform, selection, notFound: notFound);
+        var resolved = installer.ResolvePackages(metadata, platform, architecture, selection, notFound: notFound);
 
         // Check version to be installed against already installed
         Installation uninstall = null;
         if (upgrade || (op & UnityInstaller.InstallStep.Install) > 0) {
-            var freshInstall = resolved.Any(p => p.name == PackageMetadata.EDITOR_PACKAGE_NAME);
+            var freshInstall = resolved.Any(p => p is EditorDownload);
             var installs = await installer.Platform.FindInstallations();
-            var existing = installs.FirstOrDefault(i => i.version == metadata.version);
+            var existing = installs.FirstOrDefault(i => i.version == metadata.Version);
             if (!freshInstall && existing == null) {
-                throw new Exception($"Installing additional packages but Unity {metadata.version} hasn't been installed yet (add the 'Unity' package to install it).");
+                throw new Exception($"Installing additional packages but Unity {metadata.Version} hasn't been installed yet (add the 'Unity' package to install it).");
             } else if (freshInstall && existing != null) {
                 if (upgrade) {
-                    Console.WriteLine($"Unity {metadata.version} already installed at '{existing.path}', nothing to upgrade.");
+                    Console.WriteLine($"Unity {metadata.Version} already installed at '{existing.path}', nothing to upgrade.");
                     Environment.Exit(0);
                 } else {
-                    throw new Exception($"Unity {metadata.version} already installed at '{existing.path}' (remove the 'Unity' package to install additional packages).");
+                    throw new Exception($"Unity {metadata.Version} already installed at '{existing.path}' (remove the 'Unity' package to install additional packages).");
                 }
             }
 
             // Find version to upgrade
             if (upgrade) {
                 uninstall = installs
-                    .Where(i => i.version <= metadata.version)
+                    .Where(i => i.version <= metadata.Version)
                     .OrderByDescending(i => i.version)
                     .FirstOrDefault();
                 Console.WriteLine();
@@ -1003,21 +1093,21 @@ public class InstallUnityCLI
 
         WriteTitle("Selected packages:");
         long totalSpace = 0, totalDownload = 0;
-        var packageList = resolved.OrderBy(p => p.name);
-        foreach (var package in packageList.Where(p => !p.addedAutomatically)) {
-            totalSpace += package.installedsize;
-            totalDownload += package.size;
-            Console.WriteLine($"- {package.name} ({Helpers.FormatSize(package.size)})");
+        var packageList = resolved.OrderBy(p => p.Id);
+        foreach (var package in packageList.Where(p => !(p is Module module) || !module.addedAutomatically)) {
+            totalSpace += package.installedSize.GetBytes();
+            totalDownload += package.downloadSize.GetBytes();
+            Console.WriteLine($"- {package.Id} ({Helpers.FormatSize(package.downloadSize.GetBytes())})");
         }
 
-        var deps = packageList.Where(p => p.addedAutomatically);
+        var deps = packageList.OfType<Module>().Where(m => m.addedAutomatically);
         if (deps.Any()) {
             WriteTitle("Additional dependencies:");
             Console.WriteLine("Dependencies are added automatically, prefix a package with = to install only that package.");
             foreach (var package in deps) {
-                totalSpace += package.installedsize;
-                totalDownload += package.size;
-                Console.WriteLine($"- {package.name} ({Helpers.FormatSize(package.size)}) [from {package.sync}]");
+                totalSpace += package.installedSize.GetBytes();
+                totalDownload += package.downloadSize.GetBytes();
+                Console.WriteLine($"- {package.name} ({Helpers.FormatSize(package.downloadSize.GetBytes())}) [from {package.parentModule.Id}]");
             }
         }
 
@@ -1038,16 +1128,15 @@ public class InstallUnityCLI
 
         // Make user accept additional EULAs
         var hasEula = false;
-        foreach (var package in resolved) {
-            if (package.eulamessage == null) continue;
+        foreach (var module in resolved.OfType<Module>()) {
+            if (module.eula == null || module.eula.Length == 0) continue;
             hasEula = true;
             Console.WriteLine();
             SetForeground(ConsoleColor.Yellow);
-            Console.WriteLine($"Installing '{package.name}' requires accepting following EULA(s).");
-            Console.WriteLine(package.eulamessage);
-            Console.WriteLine($"- {package.eulalabel1}: {package.eulaurl1}");
-            if (package.eulalabel2 != null) {
-                Console.WriteLine($"- {package.eulalabel2}: {package.eulaurl2}");
+            Console.WriteLine($"Installing '{module.name}' requires accepting following EULA(s).");
+            foreach (var eula in module.eula) {
+                Console.WriteLine(eula.message);
+                Console.WriteLine($"- {eula.label}: {eula.url}");
             }
             ResetColor();
         }
@@ -1077,10 +1166,14 @@ public class InstallUnityCLI
         var downloadPath = installer.GetDownloadDirectory(metadata);
         Logger.LogInformation($"Downloading packages to '{downloadPath}'");
 
+        var existingFile = Downloader.ExistingFile.Undefined;
+        if (redownload) existingFile = Downloader.ExistingFile.Redownload;
+        else if (yolo)  existingFile = Downloader.ExistingFile.Skip;
+
         Installation installed = null;
-        var queue = installer.CreateQueue(metadata, platform, downloadPath, resolved);
-        if (installer.Configuration.progressBar && !Console.IsOutputRedirected) {
-            var processTask = installer.Process(op, queue, yolo);
+        var queue = installer.CreateQueue(metadata, platform, architecture, downloadPath, resolved);
+        if (installer.Configuration.progressBar && !Console.IsOutputRedirected && verbose < 2) {
+            var processTask = installer.Process(op, queue, existingFile);
 
             try {
                 var refreshInterval = installer.Configuration.progressRefreshInterval;
@@ -1103,12 +1196,12 @@ public class InstallUnityCLI
             }
         } else {
             Logger.LogInformation("Progress bar is disabled");
-            installed = await installer.Process(op, queue, yolo);
+            installed = await installer.Process(op, queue, existingFile);
         }
 
         if (dataPath == null) {
             Logger.LogInformation("Cleaning up downloaded packages ('--data-path' not set)");
-            installer.CleanUpDownloads(metadata, downloadPath, resolved);
+            installer.CleanUpDownloads(queue);
         }
 
         if (uninstall != null) {
@@ -1128,7 +1221,7 @@ public class InstallUnityCLI
 
     void WriteQueueStatus(UnityInstaller.Queue queue, long updateCount, int statusInterval)
     {
-        var longestName = Math.Max(queue.items.Max(i => i.package.name.Length), 12);
+        var longestName = Math.Max(queue.items.Max(i => i.package.Id.Length), 12);
         var longestStatus = queue.items.Max(i => i.status?.Length ?? 37);
 
         Console.Write(new string(' ', Console.BufferWidth));
@@ -1164,7 +1257,7 @@ public class InstallUnityCLI
             ResetColor();
 
             Console.Write(" ");
-            Console.Write(item.package.name);
+            Console.Write(item.package.Id);
             Console.Write(new string(' ', Math.Max(barStartCol - Console.CursorLeft, 0)));
 
             var progressWidth = Console.BufferWidth - longestName - 6; // 4 for status, 2 padding
@@ -1242,9 +1335,9 @@ public class InstallUnityCLI
         Installation uninstall = null;
         var version = new UnityVersion(matchVersion);
         if (!version.IsValid) {
-            var fullPath = Path.GetFullPath(matchVersion);
+            var fullPath = System.IO.Path.GetFullPath(matchVersion);
             foreach (var install in installs) {
-                var fullInstallPath = Path.GetFullPath(install.path);
+                var fullInstallPath = System.IO.Path.GetFullPath(install.path);
                 if (fullPath == fullInstallPath) {
                     uninstall = install;
                     break;
@@ -1312,20 +1405,20 @@ public class InstallUnityCLI
             version = default;
 
             projectPath = matchVersion;
-            if (!Directory.Exists(projectPath)) {
+            if (!System.IO.Directory.Exists(projectPath)) {
                 throw new Exception($"Project path '{projectPath}' does not exist.");
             }
 
-            var versionPath = Path.Combine(projectPath, "ProjectSettings", "ProjectVersion.txt");
-            if (!File.Exists(versionPath)) {
+            var versionPath = System.IO.Path.Combine(projectPath, "ProjectSettings", "ProjectVersion.txt");
+            if (!System.IO.File.Exists(versionPath)) {
                 throw new Exception($"ProjectVersion.txt not found at expected path: {versionPath}");
             }
 
             // Use full path, Unity doesn't properly recognize short relative paths
             // (as of Unity 2019.3)
-            projectPath = Path.GetFullPath(projectPath);
+            projectPath = System.IO.Path.GetFullPath(projectPath);
 
-            var lines = File.ReadAllLines(versionPath);
+            var lines = System.IO.File.ReadAllLines(versionPath);
             foreach (var line in lines) {
                 if (line.StartsWith("m_EditorVersion:") || line.StartsWith("m_EditorVersionWithRevision:")) {
                     var colonIndex = line.IndexOf(':');
@@ -1405,7 +1498,7 @@ public class InstallUnityCLI
         }
 
         if (projectPath != null) {
-            var projectName = Path.GetFileName(projectPath);
+            var projectName = System.IO.Path.GetFileName(projectPath);
             if (installation == null) {
                 Logger.LogError($"Could not run project '{projectName}', Unity {version} not installed");
 

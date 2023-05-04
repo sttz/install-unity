@@ -390,6 +390,11 @@ public struct UnityVersion : IComparable, IComparable<UnityVersion>, IEquatable<
     {
         return lhs.CompareTo(rhs) >= 0;
     }
+
+    public static explicit operator UnityVersion(string versionString)
+    {
+        return new UnityVersion(versionString);
+    }
 }
 
 }

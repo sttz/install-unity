@@ -15,7 +15,10 @@ namespace sttz.InstallUnity
 public class Configuration
 {
     [Description("After how many seconds the cache is considered to be outdated.")]
-    public int cacheLifetime = 60 * 60 * 24; // 24 hours
+    public int cacheLifetime = 60 * 60 * 16; // 16 hours
+
+    [Description("Maximum age of Unity releases to load when refreshing the cache (days).")]
+    public int latestMaxAge = 90; // 90 days
 
     [Description("Delay between requests when scraping.")]
     public int scrapeDelayMs = 50;

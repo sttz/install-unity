@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
+using static sttz.InstallUnity.UnityReleaseAPIClient;
+
 namespace sttz.InstallUnity
 {
 
@@ -34,12 +36,12 @@ public interface IInstallerPlatform
     /// <summary>
     /// The platform that should be used by default.
     /// </summary>
-    Task<CachePlatform> GetCurrentPlatform();
+    Task<(Platform, Architecture)> GetCurrentPlatform();
 
     /// <summary>
-    /// Get platforms that can be installed on the current platform.
+    /// Get architectures that can be installed on the current platform.
     /// </summary>
-    Task<IEnumerable<CachePlatform>> GetInstallablePlatforms();
+    Task<Architecture> GetInstallableArchitectures();
 
     /// <summary>
     /// The path to the file where settings are stored.

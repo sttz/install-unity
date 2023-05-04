@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+
+using static sttz.InstallUnity.UnityReleaseAPIClient;
 
 namespace sttz.InstallUnity
 {
@@ -67,6 +67,11 @@ public class UnityInstaller
     /// </summary>
     public Scraper Scraper { get; protected set; }
 
+    /// <summary>
+    /// Client for the Unity Release API.
+    /// </summary>
+    public UnityReleaseAPIClient Releases { get; protected set; }
+
     // -------- API --------
 
     /// <summary>
@@ -107,6 +112,7 @@ public class UnityInstaller
     public class Queue
     {
         public VersionMetadata metadata;
+        public string downloadPath;
         public IList<QueueItem> items;
     }
 
@@ -118,7 +124,8 @@ public class UnityInstaller
         /// <summary>
         /// Description of the item's current state.
         /// </summary>
-        public enum State {
+        public enum State
+        {
             /// <summary>
             /// Waiting for the download to start.
             /// </summary>
@@ -148,7 +155,7 @@ public class UnityInstaller
         /// <summary>
         /// The package metadata of this item.
         /// </summary>
-        public PackageMetadata package;
+        public Download package;
         /// <summary>
         /// The item's current state.
         /// </summary>
@@ -212,11 +219,11 @@ public class UnityInstaller
         GlobalLogger = CreateLogger("Global");
 
         // Initialize platform-specific classes
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+        if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX)) {
             Logger.LogDebug("Loading platform integration for macOS");
             Platform = new MacPlatform();
         } else {
-            throw new NotImplementedException("Installer does not currently support the platform: " + RuntimeInformation.OSDescription);
+            throw new NotImplementedException("Installer does not currently support the platform: " + System.Runtime.InteropServices.RuntimeInformation.OSDescription);
         }
 
         DataPath = dataPath;
@@ -244,6 +251,7 @@ public class UnityInstaller
         // Initialize components
         Versions = new VersionsCache(GetCacheFilePath());
         Scraper = new Scraper();
+        Releases = new UnityReleaseAPIClient();
     }
 
     /// <summary>
@@ -270,7 +278,7 @@ public class UnityInstaller
     public string GetDownloadDirectory(VersionMetadata metadata)
     {
         var downloadPath = DataPath ?? Platform.GetDownloadDirectory();
-        return Path.Combine(downloadPath, string.Format(Configuration.downloadSubdirectory, metadata.version));
+        return Path.Combine(downloadPath, string.Format(Configuration.downloadSubdirectory, metadata.Version));
     }
 
     /// <summary>
@@ -289,49 +297,46 @@ public class UnityInstaller
     /// <summary>
     /// Update the Unity versions cache.
     /// </summary>
-    /// <param name="cachePlatform">Name of platform to update (only used for loading hub JSON)</param>
+    /// <param name="platform">Name of platform to update (only used for loading hub JSON)</param>
     /// <param name="type">Undefined = update latest, others = update archive of type and higher types</param>
     /// <returns>Task returning the newly discovered versions</returns>
-    public async Task<IEnumerable<VersionMetadata>> UpdateCache(CachePlatform cachePlatform, UnityVersion.Type type = UnityVersion.Type.Undefined, CancellationToken cancellation = default)
+    public async Task<IEnumerable<VersionMetadata>> UpdateCache(Platform platform, Architecture architecture, UnityVersion.Type type = UnityVersion.Type.Undefined, CancellationToken cancellation = default)
     {
         var added = new List<VersionMetadata>();
 
-        switch (type) {
-            case UnityVersion.Type.Final:
-            case UnityVersion.Type.Beta:
-            case UnityVersion.Type.Alpha:
-                Logger.LogDebug($"Updating Final Unity Versions...");
-                var newVersions = await Scraper.LoadFinal(cancellation);
-                Logger.LogInformation($"Scraped {newVersions.Count()} versions of type Final");
-                Versions.Add(newVersions, added);
-                
-                Versions.SetLastUpdate(UnityVersion.Type.Final, DateTime.Now);
-                break;
-        }
+        var req = new UnityReleaseAPIClient.RequestParams();
+        req.platform = platform;
+        req.architecture = architecture;
 
-        switch (type) {
-            case UnityVersion.Type.Beta:
-            case UnityVersion.Type.Alpha:
-                Logger.LogDebug($"Updating Prerelease Unity Versions...");
-                var newVersions = await Scraper.LoadPrerelease(
-                    type == UnityVersion.Type.Alpha, 
-                    Versions.Select(m => m.version), 
-                    Configuration.scrapeDelayMs, 
-                    cancellation
-                );
-                Logger.LogInformation($"Scraped {newVersions.Count()} versions of type Beta/Alpha");
-                Versions.Add(newVersions, added);
-                
-                Versions.SetLastUpdate(UnityVersion.Type.Beta, DateTime.Now);
-                if (type == UnityVersion.Type.Alpha) {
-                    Versions.SetLastUpdate(UnityVersion.Type.Alpha, DateTime.Now);
-                }
-                break;
+        req.stream = ReleaseStream.Tech | ReleaseStream.LTS;
+        if (type == UnityVersion.Type.Beta) req.stream |= ReleaseStream.Beta;
+        if (type == UnityVersion.Type.Alpha) req.stream |= ReleaseStream.Beta | ReleaseStream.Alpha;
+
+        var lastUpdate = Versions.GetLastUpdate(type);
+        var updatePeriod = DateTime.Now - lastUpdate;
+
+        var maxAge = TimeSpan.FromDays(Configuration.latestMaxAge);
+        if (updatePeriod > maxAge) updatePeriod = maxAge;
+
+        Logger.LogDebug($"Loading the latest Unity releases from the last {updatePeriod} days");
+
+        var releases = await Releases.LoadLatest(req, updatePeriod, cancellation);
+        Logger.LogInformation($"Loaded {releases.Count()} releases from the Unity Release API");
+
+        var metaReleases = releases.Select(r => VersionMetadata.FromRelease(r));
+        Versions.Add(metaReleases, added);
+
+        Versions.SetLastUpdate(UnityVersion.Type.Final, DateTime.Now);
+        if (type == UnityVersion.Type.Beta) {
+            Versions.SetLastUpdate(UnityVersion.Type.Beta, DateTime.Now);
+        }
+        if (type == UnityVersion.Type.Beta || type == UnityVersion.Type.Alpha) {
+            Versions.SetLastUpdate(UnityVersion.Type.Alpha, DateTime.Now);
         }
 
         Versions.Save();
 
-        added.Sort((m1, m2) => m2.version.CompareTo(m1.version));
+        added.Sort((m1, m2) => m2.Version.CompareTo(m1.Version));
         return added;
     }
 
@@ -340,27 +345,32 @@ public class UnityInstaller
     /// </summary>
     /// <param name="metadata">Unity version</param>
     /// <param name="cachePlatform">Name of platform</param>
-    public IEnumerable<string> GetDefaultPackages(VersionMetadata metadata, CachePlatform cachePlatform)
+    public IEnumerable<string> GetDefaultPackages(VersionMetadata metadata, Platform platform, Architecture architecture)
     {
-        var packages = metadata.GetPackages(cachePlatform);
-        if (packages == null) throw new ArgumentException($"Unity version contains no packages: {metadata.version}");
-        return packages.Where(p => p.install).Select(p => p.name);
+        var editor = metadata.GetEditorDownload(platform, architecture);
+        if (editor == null) throw new ArgumentException($"No Unity version in cache for {platform}-{architecture}: {metadata.Version}");
+        return editor.modules.Where(p => p.preSelected).Select(p => p.id);
     }
 
     /// <summary>
     /// Resolve package patterns to package metadata.
     /// This method also adds package dependencies.
     /// </summary>
-    public IEnumerable<PackageMetadata> ResolvePackages(
+    public IEnumerable<Download> ResolvePackages(
         VersionMetadata metadata, 
-        CachePlatform cachePlatform,
+        Platform platform, Architecture architecture,
         IEnumerable<string> packages, 
         IList<string> notFound = null
     ) {
-        var packageMetadata = metadata.GetPackages(cachePlatform);
-        var metas = new List<PackageMetadata>();
+        var editor = metadata.GetEditorDownload(platform, architecture);
+        var metas = new List<Download>();
         foreach (var pattern in packages) {
             var id = pattern;
+            if (id.Equals(EditorDownload.ModuleId, StringComparison.OrdinalIgnoreCase)) {
+                metas.Add(editor);
+                continue;
+            }
+
             bool fuzzy = false, addDependencies = true;
             while (id.StartsWith("~") || id.StartsWith("=")) {
                 if (id.StartsWith("~")) {
@@ -372,26 +382,26 @@ public class UnityInstaller
                 }
             }
 
-            PackageMetadata resolved = default;
+            Module resolved = null;
             if (fuzzy) {
                 // Contains lookup
-                foreach (var package in packageMetadata) {
-                    if (package.name.IndexOf(id, StringComparison.OrdinalIgnoreCase) >= 0) {
-                        if (resolved.name == null) {
-                            Logger.LogDebug($"Fuzzy lookup '{pattern}' matched package '{resolved.name}'");
+                foreach (var package in editor.AllModules.Values) {
+                    if (package.id.IndexOf(id, StringComparison.OrdinalIgnoreCase) >= 0) {
+                        if (resolved == null) {
+                            Logger.LogDebug($"Fuzzy lookup '{pattern}' matched package '{package.id}'");
                             resolved = package;
                         } else {
-                            throw new Exception($"Fuzzy package match '{pattern}' is ambiguous between '{package.name}' and '{resolved.name}'");
+                            throw new Exception($"Fuzzy package match '{pattern}' is ambiguous between '{package.id}' and '{resolved.id}'");
                         }
                     }
                 }
             } else {
                 // Exact lookup
-                resolved = metadata.GetPackage(cachePlatform, id);
+                editor.AllModules.TryGetValue(id, out resolved);
             }
 
-            if (resolved.name != null) {
-                AddPackageWithDependencies(packageMetadata, metas, resolved, addDependencies);
+            if (resolved != null) {
+                AddPackageWithDependencies(editor, metas, resolved, addDependencies);
             } else if (notFound != null) {
                 notFound.Add(id);
             }
@@ -403,9 +413,9 @@ public class UnityInstaller
     /// Recursive method to add package and dependencies.
     /// </summary>
     void AddPackageWithDependencies(
-        IEnumerable<PackageMetadata> packages, 
-        List<PackageMetadata> selected, 
-        PackageMetadata package, 
+        EditorDownload editor, 
+        List<Download> selected, 
+        Module package, 
         bool addDependencies,
         bool isDependency = false
     ) {
@@ -416,32 +426,76 @@ public class UnityInstaller
 
         if (!addDependencies) return;
 
-        foreach (var dep in packages) {
-            if (dep.sync == package.name && !selected.Contains(dep)) {
-                Logger.LogInformation($"Adding '{dep.name}' which '{package.name}' is synced with");
-                AddPackageWithDependencies(packages, selected, dep, addDependencies, true);
-            }
+        foreach (var subModule in package.subModules) {
+            if (selected.Contains(subModule))
+                continue;
+
+            Logger.LogInformation($"Adding '{subModule.id}' which '{package.id}' depends on");
+            AddPackageWithDependencies(editor, selected, subModule, addDependencies, true);
         }
+    }
+
+    /// <summary>
+    /// Get the file name to use for the package.
+    /// </summary>
+    public string GetFileName(Download download)
+    {
+        string fileName;
+
+        // Try to get file name from URL
+        var uri = new Uri(download.url, UriKind.RelativeOrAbsolute);
+        if (uri.IsAbsoluteUri) {
+            fileName = uri.Segments.Last();
+        } else {
+            fileName = Path.GetFileName(download.url);
+        }
+
+        // Fallback to type-based extension
+        if (Path.GetExtension(fileName) == "" && download.type != FileType.Undefined) {
+            var typeExtension = download.type switch {
+                FileType.TEXT   => ".txt",
+                FileType.TAR_GZ => ".tar.gz",
+                FileType.TAR_XZ => ".tar.xz",
+                FileType.ZIP    => ".zip",
+                FileType.PKG    => ".pkg",
+                FileType.EXE    => ".exe",
+                FileType.PO     => ".po",
+                FileType.DMG    => ".dmg",
+                FileType.LZMA   => ".lzma",
+                FileType.LZ4    => ".lz4",
+                FileType.PDF    => ".pdf",
+                _ => throw new Exception($"Unhandled download type: {download.type}")
+            };
+
+            fileName = download.Id + typeExtension;
+        }
+
+        // Force an extension for older versions that have neither extension nor type
+        if (Path.GetExtension(fileName) == "") {
+            fileName = download.Id + ".pkg";
+        }
+
+        return fileName;
     }
 
     /// <summary>
     /// Create a download and install queue from the given version and packages.
     /// </summary>
     /// <param name="metadata">The Unity version</param>
-    /// <param name="cachePlatform">Name of platform</param>
+    /// <param name="platform">Name of platform</param>
     /// <param name="downloadPath">Location of the downloaded the packages</param>
     /// <param name="packageIds">Packages to download and/or install</param>
     /// <returns>The queue list with the created queue items</returns>
-    public Queue CreateQueue(VersionMetadata metadata, CachePlatform cachePlatform, string downloadPath, IEnumerable<PackageMetadata> packages)
+    public Queue CreateQueue(VersionMetadata metadata, Platform platform, Architecture architecture, string downloadPath, IEnumerable<Download> packages)
     {
-        if (!metadata.version.IsFullVersion)
+        if (!metadata.Version.IsFullVersion)
             throw new ArgumentException("VersionMetadata.version needs to contain a full Unity version", nameof(metadata));
         
-        var packageMetadata = metadata.GetPackages(cachePlatform);
+        var editor = metadata.GetEditorDownload(platform, architecture);
 
-        if (packageMetadata == null || !packageMetadata.Any())
-            throw new ArgumentException("VersionMetadata.packages cannot be null or empty", nameof(metadata));
-        
+        if (editor == null || !editor.modules.Any())
+            throw new ArgumentException("VersionMetadata.release cannot be null or empty", nameof(metadata));
+
         var items = new List<QueueItem>();
         foreach (var package in packages) {
             var fullUrl = package.url;
@@ -449,8 +503,8 @@ public class UnityInstaller
                 fullUrl = metadata.baseUrl + package.url;
             }
 
-            var fileName = package.GetFileName();
-            Logger.LogDebug($"{package.name}: Using file name '{fileName}' for url '{fullUrl}'");
+            var fileName = GetFileName(package);
+            Logger.LogDebug($"{package.Id}: Using file name '{fileName}' for url '{fullUrl}'");
             var outputPath = Path.Combine(downloadPath, fileName);
 
             items.Add(new QueueItem() {
@@ -463,6 +517,7 @@ public class UnityInstaller
 
         return new Queue() {
             metadata = metadata,
+            downloadPath = downloadPath,
             items = items
         };
     }
@@ -473,7 +528,7 @@ public class UnityInstaller
     /// <param name="steps">Which steps to perform.</param>
     /// <param name="queue">The queue to process</param>
     /// <param name="cancellation">Cancellation token</param>
-    public async Task<Installation> Process(InstallStep steps, Queue queue, bool skipChecks = false, CancellationToken cancellation = default)
+    public async Task<Installation> Process(InstallStep steps, Queue queue, Downloader.ExistingFile existingFile = Downloader.ExistingFile.Undefined, CancellationToken cancellation = default)
     {
         if (queue == null) throw new ArgumentNullException(nameof(queue));
 
@@ -485,12 +540,12 @@ public class UnityInstaller
         Logger.LogDebug($"download = {download}, install = {install}");
 
         foreach (var item in queue.items) {
-            var size = skipChecks ? -1 : item.package.size;
-            var hash = skipChecks ? null : item.package.md5;
+            var size = item.package.downloadSize.GetBytes();
+            var hash = item.package.integrity;
 
             if (!download) {
                 if (!File.Exists(item.filePath))
-                    throw new InvalidOperationException($"File for package {item.package.name} not found at path: {item.filePath}");
+                    throw new InvalidOperationException($"File for package {item.package.Id} not found at path: {item.filePath}");
 
                 if (hash == null) {
                     Logger.LogWarning($"File exists but cannot be checked for completeness: {item.filePath}");
@@ -508,7 +563,13 @@ public class UnityInstaller
                     item.currentState = install ? QueueItem.State.WaitingForInstall : QueueItem.State.Complete;
                 } else {
                     item.downloader = new Downloader();
-                    item.downloader.Resume = Configuration.resumeDownloads;
+                    if (existingFile != Downloader.ExistingFile.Undefined) {
+                        item.downloader.Existing = existingFile;
+                    } else {
+                        item.downloader.Existing = Configuration.resumeDownloads
+                            ? Downloader.ExistingFile.Resume
+                            : Downloader.ExistingFile.Redownload;
+                    }
                     item.downloader.Timeout = Configuration.requestTimeout;
                     item.downloader.Prepare(item.downloadUrl, item.filePath, size, hash);
                 }
@@ -517,17 +578,17 @@ public class UnityInstaller
 
         if (install) {
             string installationPaths = null;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+            if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX)) {
                 installationPaths = Configuration.installPathMac;
             } else {
-                throw new NotImplementedException("Installer does not currently support the platform: " + RuntimeInformation.OSDescription);
+                throw new NotImplementedException("Installer does not currently support the platform: " + System.Runtime.InteropServices.RuntimeInformation.OSDescription);
             }
 
             await Platform.PrepareInstall(queue, installationPaths, cancellation);
         }
 
         try {
-            var editorItem = queue.items.FirstOrDefault(i => i.package.name == PackageMetadata.EDITOR_PACKAGE_NAME);
+            var editorItem = queue.items.FirstOrDefault(i => i.package is EditorDownload);
             while (!cancellation.IsCancellationRequested) {
                 // Check completed and count active
                 int downloading = 0, installing = 0, complete = 0;
@@ -541,18 +602,19 @@ public class UnityInstaller
                                     item.retries--;
                                     Logger.LogError(item.downloadTask.Exception.InnerException.Message 
                                         + $" (retrying in {Configuration.retryDelay}s, {item.retries} retries remaining)");
+                                    Logger.LogInformation(item.downloadTask.Exception.InnerException.StackTrace);
                                     item.waitUntil = DateTime.UtcNow + TimeSpan.FromSeconds(Configuration.retryDelay);
                                     item.downloader.Reset();
                                     item.currentState = QueueItem.State.WaitingForDownload;
                                 }
                             } else {
                                 item.currentState = install ? QueueItem.State.WaitingForInstall : QueueItem.State.Complete;
-                                Logger.LogDebug($"{item.package.name} download complete: now {item.currentState}");
+                                Logger.LogDebug($"{item.package.Id} download complete: now {item.currentState}");
                             }
                         } else {
                             if (item.currentState == QueueItem.State.Hashing && item.downloader.CurrentState == Downloader.State.Downloading) {
                                 item.currentState = QueueItem.State.Downloading;
-                                Logger.LogDebug($"{item.package.name} hashed: now {item.currentState}");
+                                Logger.LogDebug($"{item.package.Id} hashed: now {item.currentState}");
                             }
                             downloading++;
                         }
@@ -563,7 +625,7 @@ public class UnityInstaller
                                 throw item.installTask.Exception;
                             }
                             item.currentState = QueueItem.State.Complete;
-                            Logger.LogDebug($"{item.package.name}: install complete");
+                            Logger.LogDebug($"{item.package.Id}: install complete");
                         } else {
                             installing++;
                         }
@@ -584,7 +646,7 @@ public class UnityInstaller
                         if (item.waitUntil > DateTime.UtcNow) {
                             continue;
                         }
-                        Logger.LogDebug($"{item.package.name}: Starting download");
+                        Logger.LogDebug($"{item.package.Id}: Starting download");
                         if (download) {
                             item.downloadTask = item.downloader.Start(cancellation);
                         } else {
@@ -598,7 +660,7 @@ public class UnityInstaller
                             // Wait for the editor to complete installation
                             continue;
                         }
-                        Logger.LogDebug($"{item.package.name}: Starting install");
+                        Logger.LogDebug($"{item.package.Id}: Starting install");
                         item.installTask = Platform.Install(queue, item, cancellation);
                         item.currentState = QueueItem.State.Installing;
                         installing++;
@@ -628,29 +690,29 @@ public class UnityInstaller
     /// <param name="downloadPath">Where downloads were stored.</param>
     /// <param name="metadata">The Unity version downloaded</param>
     /// <param name="packageIds">Downloaded packages.</param>
-    public void CleanUpDownloads(VersionMetadata metadata, string downloadPath, IEnumerable<PackageMetadata> packages)
+    public void CleanUpDownloads(Queue queue)
     {
-        if (!Directory.Exists(downloadPath))
+        if (!Directory.Exists(queue.downloadPath))
             return;
         
-        foreach (var directory in Directory.GetDirectories(downloadPath)) {
+        foreach (var directory in Directory.GetDirectories(queue.downloadPath)) {
             throw new Exception("Unexpected directory in downloads folder: " + directory);
         }
 
-        var packageFileNames = packages
-            .Select(p => p.GetFileName())
+        var packageFilePaths = queue.items
+            .Select(p => Path.GetFullPath(p.filePath))
             .ToList();
-        foreach (var path in Directory.GetFiles(downloadPath)) {
+        foreach (var path in Directory.GetFiles(queue.downloadPath)) {
             var fileName = Path.GetFileName(path);
             if (fileName == ".DS_Store" || fileName == "thumbs.db" || fileName == "desktop.ini")
                 continue;
-            
-            if (!packageFileNames.Contains(fileName)) {
+
+            if (!packageFilePaths.Contains(path)) {
                 throw new Exception("Unexpected file in downloads folder: " + path);
             }
         }
 
-        Directory.Delete(downloadPath, true);
+        Directory.Delete(queue.downloadPath, true);
     }
 }
 

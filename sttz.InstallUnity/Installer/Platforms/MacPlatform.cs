@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Claunia.PropertyList;
 using Microsoft.Extensions.Logging;
+
+using static sttz.InstallUnity.UnityReleaseAPIClient;
 
 namespace sttz.InstallUnity
 {
@@ -44,34 +46,30 @@ public class MacPlatform : IInstallerPlatform
 
     // -------- IInstallerPlatform --------
 
-    public async Task<CachePlatform> GetCurrentPlatform()
+    public Task<(Platform, Architecture)> GetCurrentPlatform()
     {
-        var result = await Command.Run("uname", "-a");
-        if (result.exitCode != 0) {
-            throw new Exception($"ERROR: {result.error}");
-        }
+        #if !NET7_0_OR_GREATER
+            #error MacPlatform requires .Net 7 or newer to reliably detect Arm64 Macs
+        #endif
 
-        if (result.output.Contains("_ARM64_")) {
-            return CachePlatform.macOSArm;
-        } else if (result.output.Contains("x86_64")) {
-            return CachePlatform.macOSIntel;
+        var arch = System.Runtime.InteropServices.RuntimeInformation.OSArchitecture;
+        switch (arch) {
+            case System.Runtime.InteropServices.Architecture.Arm64:
+                return Task.FromResult((Platform.Mac_OS, Architecture.ARM64));
+            case System.Runtime.InteropServices.Architecture.X64:
+                return Task.FromResult((Platform.Mac_OS, Architecture.X86_64));
+            default:
+                throw new Exception($"Unexpected macOS architecture: {arch}");
         }
-
-        throw new Exception($"Unknown runtime architecture: '{result.output.Trim()}'");
     }
 
-    public async Task<IEnumerable<CachePlatform>> GetInstallablePlatforms()
+    public async Task<Architecture> GetInstallableArchitectures()
     {
-        var platform = await GetCurrentPlatform();
-        if (platform == CachePlatform.macOSIntel) {
-            return new CachePlatform[] {
-                CachePlatform.macOSIntel
-            };
+        var (_, arch) = await GetCurrentPlatform();
+        if (arch == Architecture.X86_64) {
+            return Architecture.X86_64;
         } else {
-            return new CachePlatform[] {
-                CachePlatform.macOSIntel,
-                CachePlatform.macOSArm
-            };
+            return Architecture.ARM64 | Architecture.X86_64;
         }
     }
 
@@ -133,13 +131,6 @@ public class MacPlatform : IInstallerPlatform
 
     public async Task<IEnumerable<Installation>> FindInstallations(CancellationToken cancellation = default)
     {
-        var spotlightResult = await Command.Run("/usr/bin/mdutil", "-s /Applications", null, cancellation);
-        if (spotlightResult.exitCode != 0) {
-            Logger.LogWarning($"Could not determine Spotlight status of '/Applications', finding Unity installations might not work.");
-        } else if (spotlightResult.output.Contains("disabled") || spotlightResult.output.Contains("No index")) {
-            Logger.LogWarning($"Spotlight is disabled for '/Applications', existing Unity installations might not be found.");
-        }
-
         var findResult = await Command.Run("/usr/bin/mdfind", $"kMDItemCFBundleIdentifier = '{BUNDLE_ID}'", null, cancellation);
         if (findResult.exitCode != 0) {
             throw new Exception($"ERROR: {findResult.error}");
@@ -162,23 +153,20 @@ public class MacPlatform : IInstallerPlatform
                 continue;
             }
 
-            var versionResult = await Command.Run("/usr/bin/defaults", $"read \"{appPath}/Contents/Info\" CFBundleVersion", null, cancellation);
-            if (versionResult.exitCode != 0) {
-                throw new Exception($"ERROR: {versionResult.error}");
-            }
+            // Extract version and build hash from Info.plist
+            var plistPath = Path.Combine(appPath, "Contents/Info.plist");
+            var rootDict = (NSDictionary)PropertyListParser.Parse(plistPath);
 
-            var version = new UnityVersion(versionResult.output.Trim());
+            var versionString = rootDict.ObjectForKey("CFBundleVersion")?.ToString() ?? "";
+
+            var version = new UnityVersion(versionString);
             if (!version.IsFullVersion) {
-                Logger.LogWarning($"Could not determine Unity version at path '{appPath}': {versionResult.output.Trim()}");
+                Logger.LogWarning($"Could not determine Unity version at path '{appPath}': {versionString}");
                 continue;
             }
 
-            var hashResult = await Command.Run("/usr/bin/defaults", $"read \"{appPath}/Contents/Info\" UnityBuildNumber", null, cancellation);
-            if (hashResult.exitCode != 0) {
-                throw new Exception($"ERROR: {hashResult.error}");
-            }
-
-            version.hash = hashResult.output.Trim();
+            var hashString = rootDict.ObjectForKey("UnityBuildNumber")?.ToString();
+            version.hash = hashString;
 
             var executable = ExecutableFromAppPath(appPath);
             if (executable == null) continue;
@@ -191,13 +179,23 @@ public class MacPlatform : IInstallerPlatform
             });
         }
 
+        if (installations.Count == 0) {
+            // Check spotlight status if we couldn't find any installations
+            var spotlightResult = await Command.Run("/usr/bin/mdutil", "-s /Applications", null, cancellation);
+            if (spotlightResult.exitCode != 0) {
+                Logger.LogWarning($"Could not determine Spotlight status of '/Applications', finding Unity installations might not work.");
+            } else if (spotlightResult.output.Contains("disabled") || spotlightResult.output.Contains("No index")) {
+                Logger.LogWarning($"Spotlight is disabled for '/Applications', existing Unity installations might not be found.");
+            }
+        }
+
         return installations;
     }
 
     public async Task PrepareInstall(UnityInstaller.Queue queue, string installationPaths, CancellationToken cancellation = default)
     {
-        if (installing.version.IsValid)
-            throw new InvalidOperationException($"Already installing another version: {installing.version}");
+        if (installing.Version.IsValid)
+            throw new InvalidOperationException($"Already installing another version: {installing.Version}");
 
         installing = queue.metadata;
         this.installationPaths = installationPaths;
@@ -205,11 +203,11 @@ public class MacPlatform : IInstallerPlatform
 
         // Check for upgrading installation
         upgradeOriginalPath = null;
-        if (!queue.items.Any(i => i.package.name == PackageMetadata.EDITOR_PACKAGE_NAME)) {
+        if (!queue.items.Any(i => i.package is EditorDownload)) {
             var installs = await FindInstallations(cancellation);
-            var existingInstall = installs.Where(i => i.version == queue.metadata.version).FirstOrDefault();
+            var existingInstall = installs.Where(i => i.version == queue.metadata.Version).FirstOrDefault();
             if (existingInstall == null) {
-                throw new InvalidOperationException($"Not installing editor but version {queue.metadata.version} not already installed.");
+                throw new InvalidOperationException($"Not installing editor but version {queue.metadata.Version} not already installed.");
             }
 
             upgradeOriginalPath = existingInstall.path;
@@ -237,35 +235,51 @@ public class MacPlatform : IInstallerPlatform
 
     public async Task Install(UnityInstaller.Queue queue, UnityInstaller.QueueItem item, CancellationToken cancellation = default)
     {
-        if (item.package.name != PackageMetadata.EDITOR_PACKAGE_NAME && !installedEditor && upgradeOriginalPath == null) {
+        if (item.package is not EditorDownload && !installedEditor && upgradeOriginalPath == null) {
             throw new InvalidOperationException("Cannot install package without installing editor first.");
         }
 
-        var extentsion = Path.GetExtension(item.filePath).ToLower();
-        if (extentsion == ".pkg") {
+        var module = (item.package as Module);
+
+        if (item.package is EditorDownload editor) {
+            // Install main editor
+            if (Path.GetExtension(item.filePath).ToLowerInvariant() != ".pkg")
+                throw new Exception($"Unexpected file type for editor package (expected PKG but got '{Path.GetFileName(item.filePath)}')");
             await InstallPkg(item.filePath, cancellation);
-        } else if (extentsion == ".dmg") {
-            await InstallDmg(item.filePath, item.package.destination, cancellation);
-        } else if (extentsion == ".zip") {
-            await InstallZip(item.filePath, item.package.destination, cancellation);
-        } else if (extentsion == ".po") {
-            await InstallFile(item.filePath, item.package.destination, cancellation);
+
         } else {
-            throw new Exception("Cannot install package of type: " + extentsion);
+            // Install additional module
+            var extension = Path.GetExtension(item.filePath);
+            switch (extension.ToLowerInvariant()) {
+                case ".pkg":
+                    await InstallPkg(item.filePath, cancellation);
+                    break;
+                case ".dmg":
+                    await InstallDmg(item.filePath, module.destination, cancellation);
+                    break;
+                case ".zip":
+                    await InstallZip(item.filePath, module.destination, cancellation);
+                    break;
+                case ".po":
+                    await InstallFile(item.filePath, module.destination, cancellation);
+                    break;
+                default:
+                    throw new Exception("Cannot install package of type: " + module.type);
+            }
         }
 
-        if (!string.IsNullOrEmpty(item.package.renameFrom) && !string.IsNullOrEmpty(item.package.renameTo)) {
-            await Rename(item.filePath, item.package.renameFrom, item.package.renameTo, cancellation);
+        if (module?.extractedPathRename.IsSet == true) {
+            await Rename(item.filePath, module.extractedPathRename, cancellation);
         }
 
-        if (item.package.name == PackageMetadata.EDITOR_PACKAGE_NAME) {
+        if (item.package is EditorDownload) {
             installedEditor = true;
         }
     }
 
     public async Task<Installation> CompleteInstall(bool aborted, CancellationToken cancellation = default)
     {
-        if (!installing.version.IsValid)
+        if (!installing.Version.IsValid)
             throw new InvalidOperationException("Not installing any version to complete");
 
         string destination = null;
@@ -278,7 +292,7 @@ public class MacPlatform : IInstallerPlatform
             }
         } else if (!aborted) {
             // Move new installations to "Unity VERSION"
-            destination = GetUniqueInstallationPath(installing.version, installationPaths);
+            destination = GetUniqueInstallationPath(installing.Version, installationPaths);
             Logger.LogInformation("Moving newly installed version to: " + destination);
             await Move(INSTALL_PATH, destination, cancellation);
         } else if (aborted) {
@@ -298,7 +312,7 @@ public class MacPlatform : IInstallerPlatform
             if (executable == null) return default;
 
             var installation = new Installation() {
-                version = installing.version,
+                version = installing.Version,
                 executable = executable,
                 path = destination
             };
@@ -408,8 +422,8 @@ public class MacPlatform : IInstallerPlatform
     /// </summary>
     async Task InstallPkg(string filePath, CancellationToken cancellation = default)
     {
-        var platform = await GetCurrentPlatform();
-        if (platform == CachePlatform.macOSIntel) {
+        var (_, arch) = await GetCurrentPlatform();
+        if (arch == Architecture.X86_64) {
             var result = await Sudo("/usr/sbin/installer", $"-pkg \"{filePath}\" -target \"{INSTALL_VOLUME}\" -verbose", cancellation);
             if (result.exitCode != 0) {
                 throw new Exception($"ERROR: {result.error}");
@@ -544,10 +558,10 @@ public class MacPlatform : IInstallerPlatform
     /// <summary>
     /// Rename an installed filed or folder after inital installation.
     /// </summary>
-    async Task Rename(string filePath, string renameFrom, string renameTo, CancellationToken cancellation = default)
+    async Task Rename(string filePath, PathRename rename, CancellationToken cancellation = default)
     {
-        var from = renameFrom.Replace("{UNITY_PATH}", INSTALL_PATH);
-        var to = renameTo.Replace("{UNITY_PATH}", INSTALL_PATH);
+        var from = rename.from.Replace("{UNITY_PATH}", INSTALL_PATH);
+        var to = rename.to.Replace("{UNITY_PATH}", INSTALL_PATH);
         if (!Directory.Exists(from) && !File.Exists(from)) {
             throw new Exception($"{filePath}: renameFrom path does not exist: {from}");
         }

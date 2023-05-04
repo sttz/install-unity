@@ -8,6 +8,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
+using static sttz.InstallUnity.UnityReleaseAPIClient;
+
 namespace sttz.InstallUnity
 {
 
@@ -121,7 +123,7 @@ public class Scraper
         var html = await response.Content.ReadAsStringAsync();
         Logger.LogTrace($"Got response: {html}");
 
-        return ExtractFromHtml(html).Values;
+        return ExtractFromHtml(html, ReleaseStream.None).Values;
     }
 
     /// <summary>
@@ -134,10 +136,10 @@ public class Scraper
         var results = new Dictionary<UnityVersion, VersionMetadata>();
 
         if (includeAlpha) {
-            await LoadPrerelease(UNITY_ALPHA, results, knownVersions, scrapeDelay, cancellation);
+            await LoadPrerelease(UNITY_ALPHA, ReleaseStream.Alpha, results, knownVersions, scrapeDelay, cancellation);
         }
 
-        await LoadPrerelease(UNITY_BETA, results, knownVersions, scrapeDelay, cancellation);
+        await LoadPrerelease(UNITY_BETA, ReleaseStream.Beta, results, knownVersions, scrapeDelay, cancellation);
 
         return results.Values;
     }
@@ -145,7 +147,7 @@ public class Scraper
     /// <summary>
     /// Load the available prerelase versions from a alpha/beta landing page.
     /// </summary>
-    async Task LoadPrerelease(string url, Dictionary<UnityVersion, VersionMetadata> results, IEnumerable<UnityVersion> knownVersions = null, int scrapeDelay = 50, CancellationToken cancellation = default)
+    async Task LoadPrerelease(string url, ReleaseStream stream, Dictionary<UnityVersion, VersionMetadata> results, IEnumerable<UnityVersion> knownVersions = null, int scrapeDelay = 50, CancellationToken cancellation = default)
     {
         // Load major version's individual prerelease page to get individual versions
         Logger.LogInformation($"Scraping latest prereleases from '{url}'");
@@ -177,7 +179,7 @@ public class Scraper
 
             html = await response.Content.ReadAsStringAsync();
             Logger.LogTrace($"Got response: {html}");
-            ExtractFromHtml(html, true, results);
+            ExtractFromHtml(html, stream, results);
         }
     }
 
@@ -196,7 +198,7 @@ public class Scraper
     /// <summary>
     /// Extract the versions and the base URLs from the html string.
     /// </summary>
-    Dictionary<UnityVersion, VersionMetadata> ExtractFromHtml(string html, bool prerelease = false, Dictionary<UnityVersion, VersionMetadata> results = null)
+    Dictionary<UnityVersion, VersionMetadata> ExtractFromHtml(string html, ReleaseStream stream, Dictionary<UnityVersion, VersionMetadata> results = null)
     {
         var matches = UNITYHUB_RE.Matches(html);
         results = results ?? new Dictionary<UnityVersion, VersionMetadata>();
@@ -206,11 +208,11 @@ public class Scraper
 
             VersionMetadata metadata = default;
             if (!results.TryGetValue(version, out metadata)) {
-                metadata.version = version;
+                if (stream == ReleaseStream.None)
+                metadata = CreateEmptyVersion(version, stream);
             }
 
             metadata.baseUrl = GetIniBaseUrl(version.type) + version.hash + "/";
-            metadata.prerelease = prerelease;
             results[version] = metadata;
         }
 
@@ -221,11 +223,10 @@ public class Scraper
 
             VersionMetadata metadata = default;
             if (!results.TryGetValue(version, out metadata)) {
-                metadata.version = version;
+                metadata = CreateEmptyVersion(version, stream);
             }
 
             metadata.baseUrl = GetIniBaseUrl(version.type) + version.hash + "/";
-            metadata.prerelease = prerelease;
             results[version] = metadata;
         }
 
@@ -246,8 +247,7 @@ public class Scraper
         var version = new UnityVersion(match.Groups[1].Value);
         version.hash = match.Groups[2].Value;
 
-        var metadata = new VersionMetadata();
-        metadata.version = version;
+        var metadata = CreateEmptyVersion(version, ReleaseStream.None);
         metadata.baseUrl = GetIniBaseUrl(version.type) + version.hash + "/";
 
         return metadata;
@@ -271,8 +271,9 @@ public class Scraper
         if (version.type != UnityVersion.Type.Final && version.type != UnityVersion.Type.Undefined && version.build < 0) {
             throw new ArgumentException("The Unity version is incomplete (build missing)", nameof(version));
         }
-        
-        var url = GetReleaseNotesUrl(version);
+
+        var stream = GuessStreamFromVersion(version);
+        var url = GetReleaseNotesUrl(stream, version);
         if (url == null) {
             throw new ArgumentException("The Unity version type is not supported: " + version.type, nameof(version));
         }
@@ -297,7 +298,7 @@ public class Scraper
 
         var html = await response.Content.ReadAsStringAsync();
         Logger.LogTrace($"Got response: {html}");
-        return ExtractFromHtml(html).Values.FirstOrDefault();
+        return ExtractFromHtml(html, ReleaseStream.None).Values.FirstOrDefault();
     }
 
     /// <summary>
@@ -305,40 +306,31 @@ public class Scraper
     /// The VersionMetadata must have iniUrl set.
     /// </summary>
     /// <param name="metadata">Version metadata with iniUrl.</param>
-    /// <param name="cachePlatform">Name of platform to load the packages for</param>
+    /// <param name="platform">Name of platform to load the packages for</param>
     /// <returns>A Task returning the metadata with packages filled in.</returns>
-    public async Task<VersionMetadata> LoadPackages(VersionMetadata metadata, CachePlatform cachePlatform, CancellationToken cancellation = default)
+    public async Task<VersionMetadata> LoadPackages(VersionMetadata metadata, Platform platform, Architecture architecture, CancellationToken cancellation = default)
     {
-        if (!metadata.version.IsFullVersion) {
+        if (!metadata.Version.IsFullVersion) {
             throw new ArgumentException("Unity version needs to be a full version", nameof(metadata));
         }
 
-        if (cachePlatform == CachePlatform.macOSArm && metadata.version < new UnityVersion(2021, 2)) {
+        if (platform == Platform.Mac_OS && architecture == Architecture.ARM64 && metadata.Version < new UnityVersion(2021, 2)) {
             throw new ArgumentException("Apple Silicon builds are only available from Unity 2021.2", nameof(metadata));
         }
 
-        string platformName;
-        switch (cachePlatform) {
-            case CachePlatform.macOSIntel:
-            case CachePlatform.macOSArm:
-                platformName = "osx";
-                break;
-            case CachePlatform.Windows:
-                platformName = "win";
-                break;
-            case CachePlatform.Linux:
-                platformName = "linux";
-                break;
-            default:
-                throw new NotImplementedException("Invalid platform name: " + cachePlatform);
-        }
+        string platformName = platform switch {
+            Platform.Mac_OS  => "osx",
+            Platform.Windows => "win",
+            Platform.Linux   => "linux",
+            _ => throw new NotImplementedException("Invalid platform name: " + platform)
+        };
 
         if (string.IsNullOrEmpty(metadata.baseUrl)) {
-            throw new ArgumentException("VersionMetadata.baseUrl is not set for " + metadata.version, nameof(metadata));
+            throw new ArgumentException("VersionMetadata.baseUrl is not set for " + metadata.Version, nameof(metadata));
         }
 
-        var url = metadata.baseUrl + string.Format(UNITY_INI_FILENAME, metadata.version.ToString(false), platformName);
-        Logger.LogInformation($"Loading packages for {metadata.version} and {platformName} from '{url}'");
+        var url = metadata.baseUrl + string.Format(UNITY_INI_FILENAME, metadata.Version.ToString(false), platformName);
+        Logger.LogInformation($"Loading packages for {metadata.Version} and {platformName} from '{url}'");
         var response = await client.GetAsync(url, cancellation);
         response.EnsureSuccessStatusCode();
 
@@ -355,136 +347,208 @@ public class Scraper
             data = parser.Parse(ini);
         }
 
-        var packages = new PackageMetadata[data.Sections.Count];
-        var i = 0;
-        foreach (var section in data.Sections) {
-            var meta = new PackageMetadata();
-            meta.name = section.SectionName;
+        var editorDownload = new EditorDownload();
+        editorDownload.platform = platform;
+        editorDownload.architecture = architecture;
+        editorDownload.modules = new List<Module>();
 
-            foreach (var pair in section.Keys) {
-                switch (pair.KeyName) {
-                    case "title":
-                        meta.title = pair.Value;
-                        break;
-                    case "description":
-                        meta.description = pair.Value;
-                        break;
-                    case "url":
-                        meta.url = pair.Value;
-                        break;
-                    case "install":
-                        meta.install = bool.Parse(pair.Value);
-                        break;
-                    case "mandatory":
-                        meta.mandatory = bool.Parse(pair.Value);
-                        break;
-                    case "size":
-                        meta.size = long.Parse(pair.Value);
-                        break;
-                    case "installedsize":
-                        meta.installedsize = long.Parse(pair.Value);
-                        break;
-                    case "version":
-                        meta.version = pair.Value;
-                        break;
-                    case "hidden":
-                        meta.hidden = bool.Parse(pair.Value);
-                        break;
-                    case "extension":
-                        meta.extension = pair.Value;
-                        break;
-                    case "sync":
-                        meta.sync = pair.Value;
-                        break;
-                    case "md5":
-                        meta.md5 = pair.Value;
-                        break;
-                    case "requires_unity":
-                        meta.requires_unity = bool.Parse(pair.Value);
-                        break;
-                    case "appidentifier":
-                        meta.appidentifier = pair.Value;
-                        break;
-                    case "eulamessage":
-                        meta.eulamessage = pair.Value;
-                        break;
-                    case "eulalabel1":
-                        meta.eulalabel1 = pair.Value;
-                        break;
-                    case "eulaurl1":
-                        meta.eulaurl1 = pair.Value;
-                        break;
-                    case "eulalabel2":
-                        meta.eulalabel2 = pair.Value;
-                        break;
-                    case "eulaurl2":
-                        meta.eulaurl2 = pair.Value;
-                        break;
-                    default:
-                        Logger.LogDebug($"Unknown ini field {pair.KeyName}: {pair.Value}");
-                        break;
-                }
+        // Create modules from all entries
+        var allModules = new Dictionary<string, Module>(StringComparer.OrdinalIgnoreCase);
+        foreach (var section in data.Sections) {
+            if (section.SectionName.Equals(EditorDownload.ModuleId, StringComparison.OrdinalIgnoreCase)) {
+                SetDownloadKeys(editorDownload, section);
+                continue;
             }
 
-            packages[i++] = meta;
+            var module = new Module();
+            module.id = section.SectionName;
+
+            SetDownloadKeys(module, section);
+            SetModuleKeys(module, section);
+
+            allModules.Add(module.id, module);
         }
+
+        // Add virtual packages
+        foreach (var virutal in VirtualPackages.GeneratePackages(metadata.Version, editorDownload)) {
+            allModules.Add(virutal.id, virutal);
+        }
+
+        // Register sub-modules with their parents
+        foreach (var module in allModules.Values) {
+            if (module.parentModuleId == null) continue;
+
+            if (!allModules.TryGetValue(module.parentModuleId, out var parentModule))
+                throw new Exception($"Missing parent module '{module.parentModuleId}' for modules '{module.id}'");
+
+            if (parentModule.subModules == null)
+                parentModule.subModules = new List<Module>();
+            
+            parentModule.subModules.Add(module);
+            module.parentModule = parentModule;
+        }
+
+        // Register remaining root modules with main editor download
+        foreach (var possibleRoot in allModules.Values) {
+            if (possibleRoot.parentModule != null)
+                continue;
+            
+            editorDownload.modules.Add(possibleRoot);
+        }
+
+        Logger.LogInformation($"Found {allModules.Count} packages");
 
         // Patch editor URL to point to Apple Silicon editor
         // The old ini system probably won't be updated to include Apple Silicon variants
-        if (cachePlatform == CachePlatform.macOSArm) {
-            for (i = 0; i < packages.Length; i++) {
-                if (packages[i].name == "Unity") {
-                    // Change e.g.
-                    // https://download.unity3d.com/download_unity/e50cafbb4399/MacEditorInstaller/Unity.pkg
-                    // to
-                    // https://download.unity3d.com/download_unity/e50cafbb4399/MacEditorInstallerArm64/Unity.pkg
-                    var editorUrl = packages[i].url;
-                    if (!editorUrl.StartsWith("MacEditorInstaller/")) {
-                        throw new Exception($"Cannot convert to Apple Silicon editor URL: Does not start with 'MacEditorInstaller' (got '{editorUrl}')");
-                    }
-                    editorUrl = editorUrl.Replace("MacEditorInstaller/", "MacEditorInstallerArm64/");
-                    packages[i].url = editorUrl;
-                    packages[i].description += " (Apple Silicon)";
-                    // Clear fields that are now invalid
-                    packages[i].md5 = null;
-                }
+        if (platform == Platform.Mac_OS && architecture == Architecture.ARM64) {
+            // Change e.g.
+            // https://download.unity3d.com/download_unity/e50cafbb4399/MacEditorInstaller/Unity.pkg
+            // to
+            // https://download.unity3d.com/download_unity/e50cafbb4399/MacEditorInstallerArm64/Unity.pkg
+            var editorUrl = editorDownload.url;
+            if (!editorUrl.StartsWith("MacEditorInstaller/")) {
+                throw new Exception($"Cannot convert to Apple Silicon editor URL: Does not start with 'MacEditorInstaller' (got '{editorUrl}')");
             }
+            editorUrl = editorUrl.Replace("MacEditorInstaller/", "MacEditorInstallerArm64/");
+            editorDownload.url = editorUrl;
+
+            // Clear fields that are now invalid
+            editorDownload.integrity = null;
         }
 
-        Logger.LogInformation($"Found {packages.Length} packages");
-        metadata.SetPackages(cachePlatform, packages);
-
+        metadata.SetEditorDownload(editorDownload);
         return metadata;
     }
 
-    /// <summary>
-    /// Guess the release notes URL for a version metadata.
-    /// </summary>
-    public string GetReleaseNotesUrl(VersionMetadata metadata)
+    void SetDownloadKeys(Download download, IniParser.Model.SectionData section)
     {
-        // Release candidates have a final version but are still on the beta page
-        if (metadata.IsReleaseCandidate) {
-            return UNITY_RELEASE_NOTES_BETA + metadata.version.ToString(false);
+        foreach (var pair in section.Keys) {
+            switch (pair.KeyName) {
+                case "url":
+                    download.url = pair.Value;
+                    break;
+                case "extension":
+                    download.type = pair.Value switch {
+                        "txt" => FileType.TEXT,
+                        "zip" => FileType.ZIP,
+                        "pkg" => FileType.PKG,
+                        "exe" => FileType.EXE,
+                        "po"  => FileType.PO,
+                        "dmg" => FileType.DMG,
+                        _     => FileType.Undefined,
+                    };
+                    break;
+                case "size":
+                    download.downloadSize.value = long.Parse(pair.Value);
+                    download.downloadSize.unit = "BYTE";
+                    break;
+                case "installedsize":
+                    download.installedSize.value = long.Parse(pair.Value);
+                    download.installedSize.unit = "BYTE";
+                    break;
+                case "md5":
+                    download.integrity = $"md5-{pair.Value}";
+                    break;
+            }
+        }
+    }
+
+    void SetModuleKeys(Module download, IniParser.Model.SectionData section)
+    {
+        var eulaUrl1 = section.Keys["eulaurl1"];
+        if (eulaUrl1 != null) {
+            var eulaMessage = section.Keys["eulamessage"];
+            var eulaUrl2 = section.Keys["eulaurl2"];
+
+            var eulaCount = (eulaUrl2 != null ? 2 : 1);
+            download.eula = new Eula[eulaCount];
+
+            download.eula[0] = new Eula() {
+                message = eulaMessage,
+                label = section.Keys["eulalabel1"],
+                url = eulaUrl1
+            };
+
+            if (eulaCount > 1) {
+                download.eula[1] = new Eula() {
+                    message = eulaMessage,
+                    label = section.Keys["eulalabel2"],
+                    url = eulaUrl2
+                };
+            }
         }
 
-        return GetReleaseNotesUrl(metadata.version);
+        foreach (var pair in section.Keys) {
+            switch (pair.KeyName) {
+                case "title":
+                    download.name = pair.Value;
+                    break;
+                case "description":
+                    download.description = pair.Value;
+                    break;
+                case "install":
+                    download.preSelected = bool.Parse(pair.Value);
+                    break;
+                case "mandatory":
+                    download.required = bool.Parse(pair.Value);
+                    break;
+                case "hidden":
+                    download.hidden = bool.Parse(pair.Value);
+                    break;
+                case "sync":
+                    download.parentModuleId = pair.Value;
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Create a new empty version.
+    /// </summary>
+    static VersionMetadata CreateEmptyVersion(UnityVersion version, ReleaseStream stream)
+    {
+        var meta = new VersionMetadata();
+        meta.release = new Release();
+        meta.release.version = version;
+        meta.release.shortRevision = version.hash;
+
+        if (stream == ReleaseStream.None)
+            stream = GuessStreamFromVersion(version);
+        meta.release.stream = stream;
+
+        return meta;
+    }
+
+    /// <summary>
+    /// Guess the release stream based on the Unity version.
+    /// </summary>
+    public static ReleaseStream GuessStreamFromVersion(UnityVersion version)
+    {
+        if (version.type == UnityVersion.Type.Alpha) {
+            return ReleaseStream.Alpha;
+        } else if (version.type == UnityVersion.Type.Beta) {
+            return ReleaseStream.Beta;
+        } else if (version.major >= 2017 && version.major <= 2019 && version.minor == 4) {
+            return ReleaseStream.LTS;
+        } else if (version.major >= 2020 && version.minor == 3) {
+            return ReleaseStream.LTS;
+        } else {
+            return ReleaseStream.Tech;
+        }
     }
 
     /// <summary>
     /// Guess the release notes URL for a version.
     /// </summary>
-    public string GetReleaseNotesUrl(UnityVersion version)
+    public static string GetReleaseNotesUrl(ReleaseStream stream, UnityVersion version)
     {
-        switch (version.type) {
-            case UnityVersion.Type.Undefined:
-            case UnityVersion.Type.Final:
-                return UNITY_RELEASE_NOTES_FINAL + version.major + "." + version.minor + "." + version.patch;
-            case UnityVersion.Type.Beta:
-                return UNITY_RELEASE_NOTES_BETA + version.ToString(false);
-            case UnityVersion.Type.Alpha:
+        switch (stream) {
+            case ReleaseStream.Alpha:
                 return UNITY_RELEASE_NOTES_ALPHA + version.ToString(false);
+            case ReleaseStream.Beta:
+                return UNITY_RELEASE_NOTES_BETA + version.ToString(false);
             default:
-                return null;
+                return UNITY_RELEASE_NOTES_FINAL + $"{version.major}.{version.minor}.{version.patch}";
         }
     }
 }
