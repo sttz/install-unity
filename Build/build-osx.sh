@@ -4,22 +4,15 @@ PROJECT="Command/Command.csproj"
 TARGET="net7.0"
 ARCHES=("osx-x64" "osx-arm64")
 SIGN_IDENTITY="Developer ID Application: Feist GmbH (DHNHQKSSYT)"
-ASC_PROVIDER="DHNHQKSSYT"
 ENTITLEMENTS="Build/notarization.entitlements"
-BUNDLE_ID="ch.sttz.install-unity"
 
 # Mapping of arche names used by .Net to the ones used by lipo
 typeset -A LIPO_ARCHES=()
 LIPO_ARCHES[osx-x64]=x86_64
 LIPO_ARCHES[osx-arm64]=arm64
 
-if [[ -z "$ASC_USER" ]]; then
-    echo "ASC user not set in ASC_USER"
-    exit 1
-fi
-
-if [[ -z "$ASC_KEYCHAIN" ]]; then
-    echo "ASC keychain item not set in ASC_KEYCHAIN"
+if [[ -z "$NOTARY_PROFILE" ]]; then
+    echo "notarytool keychain profile not set in NOTARY_PROFILE"
     exit 1
 fi
 
@@ -42,7 +35,7 @@ for arch in $ARCHES; do
         -r "$arch" \
         -c release \
         -f "$TARGET" \
-        --self-contained
+        --self-contained \
         "$PROJECT" \
         || exit 1
 
@@ -77,7 +70,7 @@ pushd "$ARCHIVE"
 zip "../install-unity-$VERSION.zip" "install-unity" || exit 1
 popd
 
-xcrun altool --notarize-app --primary-bundle-id "$BUNDLE_ID" --asc-provider "$ASC_PROVIDER" --username "$ASC_USER" --password "@keychain:$ASC_KEYCHAIN" --file "$ZIPARCHIVE" || exit 1
+xcrun notarytool submit --wait --keychain-profile "$NOTARY_PROFILE" --wait --progress "$ZIPARCHIVE" || exit 1
 
 # Shasum for Homebrew
 
