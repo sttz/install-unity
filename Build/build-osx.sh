@@ -42,9 +42,7 @@ for arch in $ARCHES; do
         -r "$arch" \
         -c release \
         -f "$TARGET" \
-        -p:PublishSingleFile=true \
-        -p:PublishReadyToRun=true \
-        -p:PublishTrimmed=true \
+        --self-contained
         "$PROJECT" \
         || exit 1
 
