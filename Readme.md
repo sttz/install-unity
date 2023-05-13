@@ -114,10 +114,11 @@ The project will use Unity's default setup, including packages. Alternatively, y
 ## CLI Help
 
 ````
-install-unity v2.11.1
+install-unity v2.12.0
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
-                     [--data-path <path>] [--opt <name>=<value>...] <action> 
+                     [--clear-cache] [--data-path <path>] 
+                     [--opt <name>=<value>...] <action> 
 
 GLOBAL OPTIONS:
  -h, --help       Show this help 
@@ -125,6 +126,7 @@ GLOBAL OPTIONS:
  -v, --verbose    Increase verbosity of output, can be repeated 
  -y, --yes        Don't prompt for confirmation (use with care) 
  -u, --update     Force an update of the versions cache 
+     --clear-cache  Clear the versions cache before running any commands 
      --data-path <path>  Store all data at the given path, also don't delete 
                   packages after install 
      --opt <name>=<value>  Set additional options. Use '--opt list' to show all 
@@ -139,8 +141,9 @@ ACTIONS:
 
 USAGE: install-unity [options] [install] [--packages <name,name>...] 
                      [--download] [--install] [--upgrade] 
-                     [--platform none|macosintel|macosarm|windows|linux] 
-                     [--yolo] [<version>] 
+                     [--platform none|mac_os|linux|windows|all] 
+                     [--arch none|x86_64|arm64|all] [--redownload] [--yolo] 
+                     [<version>] 
 
 OPTIONS:
  <version>        Pattern to match Unity version or release notes / unity hub 
@@ -152,9 +155,12 @@ OPTIONS:
                   '--data-path') 
      --upgrade    Replace existing matching Unity installation after successful 
                   install 
-     --platform none|macosintel|macosarm|windows|linux  Platform to download 
-                  the packages for (only valid with '--download', default = 
-                  current platform) 
+     --platform none|mac_os|linux|windows|all  Platform to download the 
+                  packages for (only valid with '--download', default = current 
+                  platform) 
+     --arch none|x86_64|arm64|all  Architecture to download the packages for 
+                  (default = current architecture) 
+     --redownload  Force redownloading all files 
      --yolo       Skip size and hash checks of downloaded files 
 
 
@@ -162,28 +168,32 @@ OPTIONS:
      Get an overview of available or installed Unity versions 
 
 USAGE: install-unity [options] list [--installed] 
-                     [--platform none|macosintel|macosarm|windows|linux] 
-                     [<version>] 
+                     [--platform none|mac_os|linux|windows|all] 
+                     [--arch none|x86_64|arm64|all] [<version>] 
 
 OPTIONS:
  <version>        Pattern to match Unity version 
  -i, --installed  List installed versions of Unity 
-     --platform none|macosintel|macosarm|windows|linux  Platform to list the 
-                  versions for (default = current platform) 
+     --platform none|mac_os|linux|windows|all  Platform to list the versions 
+                  for (default = current platform) 
+     --arch none|x86_64|arm64|all  Architecture to list the versions for 
+                  (default = current architecture) 
 
 
 ---- DETAILS:
      Show version information and all its available packages 
 
 USAGE: install-unity [options] details 
-                     [--platform none|macosintel|macosarm|windows|linux] 
-                     [<version>] 
+                     [--platform none|mac_os|linux|windows|all] 
+                     [--arch none|x86_64|arm64|all] [<version>] 
 
 OPTIONS:
  <version>        Pattern to match Unity version or release notes / unity hub 
                   url 
-     --platform none|macosintel|macosarm|windows|linux  Platform to show the 
-                  details for (default = current platform) 
+     --platform none|mac_os|linux|windows|all  Platform to show the details for 
+                  (default = current platform) 
+     --arch none|x86_64|arm64|all  Architecture to show the details for 
+                  (default = current architecture) 
 
 
 ---- UNINSTALL:

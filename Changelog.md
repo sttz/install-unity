@@ -1,5 +1,22 @@
 # Changelog
 
+### 2.12.0 (2023-05-??)
+* Use Unity's official Release API to get release and package information
+  * Releases should appear quicker when Unity is slow to update their archive webpage
+  * Can directly request information of a specific Unity version from the API
+  * No need to load the whole archive, update can be stopped once the last known version is reached
+  * Reduces number of requests and amount of data transferred when updating cache
+  * Previously synthesized packages are now provided by Unity (Documentation, language packs and Android components)
+  * Legacy scraper and ini-based system can still be used for irregular Unity releases
+* Split platform and architecture options (e.g. `--platform macOSIntel` becomes `--platform mac_os --arch x68_64`)
+* Added `--clear-cache` to force clearing the versions and package cache
+* Added `--redownload` to force redownloading all files
+* Improve handling of already downloaded or partially downloaded files
+* Speed up detecting of current platform (.Net now reports Apple Silicon properly)
+* Speed up detecting installed Unity versions by keeping command line invocations to a minimum
+* Removed support for Unity patch releases
+* Update to .Net 7
+
 ### 2.11.1 (2023-02-05)
 * Add warning when Spotlight is disabled and installations cannot be found
 * Update Android packages for Unity 2023.1
