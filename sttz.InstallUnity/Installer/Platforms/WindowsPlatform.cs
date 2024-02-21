@@ -4,10 +4,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
+
+using static sttz.InstallUnity.UnityReleaseAPIClient;
 
 namespace sttz.InstallUnity
 {
@@ -35,8 +36,8 @@ public class WindowsPlatform : IInstallerPlatform
     /// Path to the program files directory.
     /// </summary>
     static string ProgramFilesPath { get {
-        if (RuntimeInformation.OSArchitecture != Architecture.X86
-                && RuntimeInformation.ProcessArchitecture == Architecture.X86) {
+        if (System.Runtime.InteropServices.RuntimeInformation.OSArchitecture != System.Runtime.InteropServices.Architecture.X86
+            && System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.X86) {
             // The unity editor since 2017.1 is 64bit
             // If install-unity is run as X86 on a non-X86 system, GetFolderPath will return
             // the "Program Files (x86)" directory instead of the main one where the editor
@@ -57,20 +58,30 @@ public class WindowsPlatform : IInstallerPlatform
         this.configuration = configuration;
     }
 
-    public Task<CachePlatform> GetCurrentPlatform()
+    public async Task<Architecture> GetInstallableArchitectures()
     {
-        return Task.FromResult(CachePlatform.Windows);
+        var (_, arch) = await GetCurrentPlatform();
+        if (arch == Architecture.X86_64) {
+            return Architecture.X86_64;
+        } else {
+            return Architecture.ARM64 | Architecture.X86_64;
+        }
     }
 
-    public Task<IEnumerable<CachePlatform>> GetInstallablePlatforms()
+    public Task<IEnumerable<Platform>> GetInstallablePlatforms()
     {
-        IEnumerable<CachePlatform> platforms = new CachePlatform[] { CachePlatform.Windows };
+        IEnumerable<Platform> platforms = new Platform[] { Platform.Windows };
         return Task.FromResult(platforms);
     }
 
     public string GetCacheDirectory()
     {
         return GetLocalApplicationDataDirectory();
+    }
+
+    public Task<(Platform, Architecture)> GetCurrentPlatform()
+    {
+        return Task.FromResult((Platform.Windows, Architecture.X86_64));
     }
 
     public string GetConfigurationDirectory()
@@ -92,7 +103,7 @@ public class WindowsPlatform : IInstallerPlatform
 
     public Task<Installation> CompleteInstall(bool aborted, CancellationToken cancellation = default)
     {
-        if (!installing.version.IsValid)
+        if (!installing.Version.IsValid)
             throw new InvalidOperationException("Not installing any version to complete");
 
         if (!aborted)
@@ -103,7 +114,7 @@ public class WindowsPlatform : IInstallerPlatform
 
             var installation = new Installation()
             {
-                version = installing.version,
+                version = installing.Version,
                 executable = executable,
                 path = installPath
             };
@@ -164,7 +175,7 @@ public class WindowsPlatform : IInstallerPlatform
 
     public async Task Install(UnityInstaller.Queue queue, UnityInstaller.QueueItem item, CancellationToken cancellation = default)
     {
-        if (item.package.name != PackageMetadata.EDITOR_PACKAGE_NAME && !installedEditor)
+        if (item.package is not EditorDownload && !installedEditor && upgradeOriginalPath == null)
         {
             throw new InvalidOperationException("Cannot install package without installing editor first.");
         }
@@ -175,7 +186,7 @@ public class WindowsPlatform : IInstallerPlatform
             throw new Exception($"Failed to install {item.filePath} output: {result.output} / {result.error}");
         }
 
-        if (item.package.name == PackageMetadata.EDITOR_PACKAGE_NAME)
+        if (item.package is EditorDownload)
         {
             installedEditor = true;
         }
@@ -189,26 +200,26 @@ public class WindowsPlatform : IInstallerPlatform
 
     public async Task PrepareInstall(UnityInstaller.Queue queue, string installationPaths, CancellationToken cancellation = default)
     {
-        if (installing.version.IsValid)
-            throw new InvalidOperationException($"Already installing another version: {installing.version}");
+        if (installing.Version.IsValid)
+            throw new InvalidOperationException($"Already installing another version: {installing.Version}");
 
         installing = queue.metadata;
         installedEditor = false;
 
         // Check for upgrading installation
-        if (!queue.items.Any(i => i.package.name == PackageMetadata.EDITOR_PACKAGE_NAME))
+        if (!queue.items.Any(i => i.package is EditorDownload))
         {
             var installs = await FindInstallations(cancellation);
-            var existingInstall = installs.Where(i => i.version == queue.metadata.version).FirstOrDefault();
+            var existingInstall = installs.Where(i => i.version == queue.metadata.Version).FirstOrDefault();
             if (existingInstall == null)
             {
-                throw new InvalidOperationException($"Not installing editor but version {queue.metadata.version} not already installed.");
+                throw new InvalidOperationException($"Not installing editor but version {queue.metadata.Version} not already installed.");
             }
 
             installedEditor = true;
         }
 
-        installPath = GetInstallationPath(installing.version, installationPaths);
+        installPath = GetInstallationPath(installing.Version, installationPaths);
     }
 
     public Task<bool> PromptForPasswordIfNecessary(CancellationToken cancellation = default)
@@ -279,10 +290,14 @@ public class WindowsPlatform : IInstallerPlatform
 
     Configuration configuration;
 
+    bool? isRoot;
+    string pwd;
     VersionMetadata installing;
     string installPath;
+    string upgradeOriginalPath;
+    bool movedExisting;
     bool installedEditor;
-
+    
     async Task<(int exitCode, string output, string error)> RunAsAdmin(string filename, string arguments)
     {
         var startInfo = new ProcessStartInfo();

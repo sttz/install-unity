@@ -222,7 +222,7 @@ public class UnityInstaller
         if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX)) {
             Logger.LogDebug("Loading platform integration for macOS");
             Platform = new MacPlatform();
-        } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+        } else if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)) {
             Logger.LogDebug("Loading platform integration for Windows");
             Platform = new WindowsPlatform();
         } else {
@@ -303,7 +303,7 @@ public class UnityInstaller
     /// <param name="platform">Name of platform to update (only used for loading hub JSON)</param>
     /// <param name="type">Undefined = update latest, others = update archive of type and higher types</param>
     /// <returns>Task returning the newly discovered versions</returns>
-    public async Task<IEnumerable<VersionMetadata>> UpdateCache(Platform platform, Architecture architecture, UnityVersion.Type type = UnityVersion.Type.Undefined, CancellationToken cancellation = default)
+    public async Task<IEnumerable<VersionMetadata>> UpdateCache(Platform platform, UnityReleaseAPIClient.Architecture architecture, UnityVersion.Type type = UnityVersion.Type.Undefined, CancellationToken cancellation = default)
     {
         var added = new List<VersionMetadata>();
 
@@ -348,7 +348,7 @@ public class UnityInstaller
     /// </summary>
     /// <param name="metadata">Unity version</param>
     /// <param name="cachePlatform">Name of platform</param>
-    public IEnumerable<string> GetDefaultPackages(VersionMetadata metadata, Platform platform, Architecture architecture)
+    public IEnumerable<string> GetDefaultPackages(VersionMetadata metadata, Platform platform, UnityReleaseAPIClient.Architecture architecture)
     {
         var editor = metadata.GetEditorDownload(platform, architecture);
         if (editor == null) throw new ArgumentException($"No Unity version in cache for {platform}-{architecture}: {metadata.Version}");
@@ -361,7 +361,7 @@ public class UnityInstaller
     /// </summary>
     public IEnumerable<Download> ResolvePackages(
         VersionMetadata metadata, 
-        Platform platform, Architecture architecture,
+        Platform platform, UnityReleaseAPIClient.Architecture architecture,
         IEnumerable<string> packages, 
         IList<string> notFound = null
     ) {
@@ -489,7 +489,7 @@ public class UnityInstaller
     /// <param name="downloadPath">Location of the downloaded the packages</param>
     /// <param name="packageIds">Packages to download and/or install</param>
     /// <returns>The queue list with the created queue items</returns>
-    public Queue CreateQueue(VersionMetadata metadata, Platform platform, Architecture architecture, string downloadPath, IEnumerable<Download> packages)
+    public Queue CreateQueue(VersionMetadata metadata, Platform platform, UnityReleaseAPIClient.Architecture architecture, string downloadPath, IEnumerable<Download> packages)
     {
         if (!metadata.Version.IsFullVersion)
             throw new ArgumentException("VersionMetadata.version needs to contain a full Unity version", nameof(metadata));
@@ -583,7 +583,7 @@ public class UnityInstaller
             string installationPaths = null;
             if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX)) {
                 installationPaths = Configuration.installPathMac;
-            } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+            } else if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)) {
                 installationPaths = Configuration.installPathWindows;
             } else {
                 throw new NotImplementedException("Installer does not currently support the platform: " + System.Runtime.InteropServices.RuntimeInformation.OSDescription);
@@ -712,8 +712,8 @@ public class UnityInstaller
             if (fileName == ".DS_Store" || fileName == "thumbs.db" || fileName == "desktop.ini")
                 continue;
             
-            if (!packageFileNames.Contains(path)) {
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+            if (!packageFilePaths.Contains(path)) {
+                if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)) {
                     // Don't throw on unexcpeted files in Windows Download folder
                     Logger.LogWarning("Unexpected file in downloads folder: " + path);
                 } else {
