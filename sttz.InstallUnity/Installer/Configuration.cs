@@ -62,9 +62,9 @@ public class Configuration
 
     [Description("Mac installation paths, separated by ; (first non-existing will be used, variables: {major} {minor} {patch} {type} {build} {hash}).")]
     public string installPathMac = 
-          "/Applications/Unity {major}.{minor};"
-        + "/Applications/Unity {major}.{minor}.{patch}{type}{build};"
-        + "/Applications/Unity {major}.{minor}.{patch}{type}{build} ({hash})";
+          "/Applications/Unity{major}.{minor};"
+        + "/Applications/Unity{major}.{minor}.{patch}{type}{build};"
+        + "/Applications/Unity{major}.{minor}.{patch}{type}{build}({hash})";
 
     // -------- Serialization --------
 
