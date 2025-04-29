@@ -308,7 +308,7 @@ public class UnityInstaller
         req.platform = platform;
         req.architecture = architecture;
 
-        req.stream = ReleaseStream.Tech | ReleaseStream.LTS;
+        req.stream = ReleaseStream.ReleaseMask;
         if (type == UnityVersion.Type.Beta) req.stream |= ReleaseStream.Beta;
         if (type == UnityVersion.Type.Alpha) req.stream |= ReleaseStream.Beta | ReleaseStream.Alpha;
 

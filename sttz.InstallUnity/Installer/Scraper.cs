@@ -532,8 +532,10 @@ public class Scraper
             return ReleaseStream.LTS;
         } else if (version.major >= 2020 && version.minor == 3) {
             return ReleaseStream.LTS;
-        } else {
+        } else if (version.major < 6000) {
             return ReleaseStream.Tech;
+        } else {
+            return ReleaseStream.Supported;
         }
     }
 

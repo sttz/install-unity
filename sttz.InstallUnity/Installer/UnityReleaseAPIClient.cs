@@ -33,8 +33,10 @@ public class UnityReleaseAPIClient
         Beta  = 1<<1,
         Tech  = 1<<2,
         LTS   = 1<<3,
+        Supported = 1<<4,
 
-        PrereleaseMask = (Alpha | Beta),
+        ReleaseMask = Tech | LTS | Supported,
+        PrereleaseMask = Alpha | Beta,
 
         All = -1,
     }
@@ -728,7 +730,7 @@ public class UnityReleaseAPIClient
         req.architecture = architecture;
 
         // Set release stream based on input version
-        req.stream = ReleaseStream.Tech | ReleaseStream.LTS;
+        req.stream = ReleaseStream.ReleaseMask;
         if (version.type == UnityVersion.Type.Beta) req.stream |= ReleaseStream.Beta;
         if (version.type == UnityVersion.Type.Alpha) req.stream |= ReleaseStream.Beta | ReleaseStream.Alpha;
 
@@ -777,10 +779,11 @@ public class UnityReleaseAPIClient
     /// Query string values for streams.
     /// </summary>
     static readonly Dictionary<ReleaseStream, string> StreamValues = new() {
-        { ReleaseStream.Alpha, "ALPHA" },
-        { ReleaseStream.Beta,  "BETA" },
-        { ReleaseStream.Tech,  "TECH" },
-        { ReleaseStream.LTS,   "LTS" },
+        { ReleaseStream.Alpha,     "ALPHA" },
+        { ReleaseStream.Beta,      "BETA" },
+        { ReleaseStream.Tech,      "TECH" },
+        { ReleaseStream.LTS,       "LTS" },
+        { ReleaseStream.Supported, "SUPPORTED" },
     };
     /// <summary>
     /// Query string values for platforms.
