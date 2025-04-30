@@ -29,6 +29,11 @@ public class MacPlatform : IInstallerPlatform
     const string INSTALL_VOLUME = "/";
 
     /// <summary>
+    /// Install path for the editor package (which contains the "Unity" folder).
+    /// </summary>
+    const string INSTALL_DIRECTORY = "/Applications";
+
+    /// <summary>
     /// Default installation path.
     /// </summary>
     const string INSTALL_PATH = "/Applications/Unity";
@@ -240,14 +245,18 @@ public class MacPlatform : IInstallerPlatform
             // Install main editor
             if (Path.GetExtension(item.filePath).ToLowerInvariant() != ".pkg")
                 throw new Exception($"Unexpected file type for editor package (expected PKG but got '{Path.GetFileName(item.filePath)}')");
-            await InstallPkg(item.filePath, cancellation);
+            await UnpackPkg(item.filePath, INSTALL_DIRECTORY, cancellation);
 
         } else {
             // Install additional module
             var extension = Path.GetExtension(item.filePath);
             switch (extension.ToLowerInvariant()) {
                 case ".pkg":
-                    await InstallPkg(item.filePath, cancellation);
+                    if (string.IsNullOrEmpty(module.destination)) {
+                        await InstallPkg(item.filePath, cancellation);
+                    } else {
+                        await UnpackPkg(item.filePath, module.destination, cancellation);
+                    }
                     break;
                 case ".dmg":
                     await InstallDmg(item.filePath, module.destination, cancellation);
@@ -435,6 +444,71 @@ public class MacPlatform : IInstallerPlatform
     }
 
     /// <summary>
+    /// Unpack and copy a PKG payload directly to a destination.
+    /// </summary>
+    /// <remarks>
+    /// This matches what UnityHub is doing when a destination is set in the metadata.
+    /// This will not work with any package and relies on Unity not changing the package layout and format.
+    /// Reference `services/localInstaller/platform_dependent/unityInstaller_mac.js` in UnityHub's "app.asar"
+    /// </remarks>
+    async Task UnpackPkg(string filePath, string destination, CancellationToken cancellation = default)
+    {
+        string tmpDir = null;
+        try {
+            tmpDir = Path.Combine(Path.GetTempPath(), UnityInstaller.PRODUCT_NAME, Path.GetFileNameWithoutExtension(filePath));
+            Directory.CreateDirectory(tmpDir);
+
+            var result = await Command.Run("/usr/bin/xar", $"-xf \"{filePath}\" -C \"{tmpDir}\"", cancellation: cancellation);
+            if (result.exitCode != 0) {
+                throw new Exception($"ERROR: {result.error}");
+            }
+
+            var pkgs = Directory.GetDirectories(tmpDir, "*.pkg.tmp");
+            if (pkgs.Length == 0) {
+                throw new Exception($"Could not find any sub-pkg when unpacking pkg '{filePath}'");
+            } else if (pkgs.Length > 1) {
+                throw new Exception($"Found multiple sub-pkg when unpacking pkg '{filePath}': {string.Join(", ", pkgs.Select(Path.GetFileName))}");
+            }
+
+            var payloadPath = Path.Combine(pkgs[0], "Payload");
+            if (!File.Exists(payloadPath)) {
+                throw new Exception($"Could not find 'Payload' when unpacking pkg '{filePath}', expected at '{payloadPath}'");
+            }
+
+            var targetDir = destination.Replace("{UNITY_PATH}", INSTALL_PATH);
+
+            var retryWithRoot = false;
+            try {
+                Directory.CreateDirectory(targetDir);
+
+                result = await Command.Run("/usr/bin/tar", $"-zmxf \"{payloadPath}\" -C \"{targetDir}\"", cancellation: cancellation);
+                if (result.exitCode != 0) {
+                    throw new Exception($"ERROR: {result.error}");
+                }
+            } catch (Exception e) {
+                Logger.LogInformation($"Tar as user failed, trying as root... ({e.Message})");
+                retryWithRoot = true;
+            }
+
+            if (retryWithRoot) {
+                result = await Sudo("/bin/mkdir", $"-p \"{targetDir}\"", cancellation);
+                if (result.exitCode != 0) {
+                    throw new Exception($"ERROR: {result.error}");
+                }
+
+                result = await Sudo("/usr/bin/tar", $"-zmxf \"{payloadPath}\" -C \"{targetDir}\"", cancellation);
+                if (result.exitCode != 0) {
+                    throw new Exception($"ERROR: {result.error}");
+                }
+            }
+        } finally {
+            if (tmpDir != null && Directory.Exists(tmpDir)) {
+                Directory.Delete(tmpDir, true);
+            }
+        }
+    }
+
+    /// <summary>
     /// Install a DMG package by mounting it and copying the app bundle.
     /// </summary>
     async Task InstallDmg(string filePath, string destination = null, CancellationToken cancellation = default)
@@ -521,9 +595,7 @@ public class MacPlatform : IInstallerPlatform
         var retryWithRoot = false;
         (int exitCode, string output, string error) result;
         try {
-            if (!Directory.Exists(target)) {
-                Directory.CreateDirectory(target);
-            }
+            Directory.CreateDirectory(target);
 
             result = await Command.Run("/usr/bin/unzip", $"-o -d \"{target}\" \"{filePath}\"", cancellation: cancellation);
             if (result.exitCode != 0) {
@@ -616,9 +688,7 @@ public class MacPlatform : IInstallerPlatform
         var baseDst = Path.GetDirectoryName(newPath);
 
         try {
-            if (!Directory.Exists(baseDst)) {
-                Directory.CreateDirectory(baseDst);
-            }
+            Directory.CreateDirectory(baseDst);
             Directory.Move(sourcePath, newPath);
             return;
         } catch (Exception e) {
