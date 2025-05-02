@@ -1,5 +1,12 @@
 # Changelog
 
+### 2.13.0 (2025-05-02)
+* Add support for Unity 6.1
+  * Handle the new "Supported" release stream Unity 6.1 is part of
+  * Unpack packages directly to the destination instead of installing them.
+    (Matches the behavior of Unity Hub and falls back to installing for packages without
+    a destination defined in the metadata.)
+
 ### 2.12.1 (2024-05-22)
 * Convert new single-digit Unity versions (6+) to the internal four-digit one (6000+)
 * More strict version parsing, preventing arguments being misinterpreted as versions

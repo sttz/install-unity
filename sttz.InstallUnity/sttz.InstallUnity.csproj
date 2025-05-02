@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <PropertyGroup Label="Package">
-    <Version>2.12.1</Version>
+    <Version>2.13.0</Version>
     <Authors>Adrian Stutz (sttz.ch)</Authors>
     <Product>install-unity</Product>
     <Description>install-unity unofficial Unity installer library</Description>
