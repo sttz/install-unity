@@ -477,11 +477,16 @@ public class MacPlatform : IInstallerPlatform
 
             var targetDir = destination.Replace("{UNITY_PATH}", INSTALL_PATH);
 
+            // Args to make tar run the same as user and root
+            // When tar runs as root, it tires to restore much more
+            // and fails when applying it to /Applications, when the tar contains an entry for '.'
+            var tarArgs = "--extract --modification-time --no-same-owner --no-same-permissions --no-acls --no-fflags --no-mac-metadata --no-xattrs";
+
             var retryWithRoot = false;
             try {
                 Directory.CreateDirectory(targetDir);
 
-                result = await Command.Run("/usr/bin/tar", $"-zmxf \"{payloadPath}\" -C \"{targetDir}\"", cancellation: cancellation);
+                result = await Command.Run("/usr/bin/tar", $"{tarArgs} -f \"{payloadPath}\" -C \"{targetDir}\"", cancellation: cancellation);
                 if (result.exitCode != 0) {
                     throw new Exception($"ERROR: {result.error}");
                 }
@@ -496,7 +501,7 @@ public class MacPlatform : IInstallerPlatform
                     throw new Exception($"ERROR: {result.error}");
                 }
 
-                result = await Sudo("/usr/bin/tar", $"-zmxf \"{payloadPath}\" -C \"{targetDir}\"", cancellation);
+                result = await Sudo("/usr/bin/tar", $"{tarArgs} -f \"{payloadPath}\" -C \"{targetDir}\"", cancellation);
                 if (result.exitCode != 0) {
                     throw new Exception($"ERROR: {result.error}");
                 }
