@@ -1,5 +1,8 @@
 # Changelog
 
+### 2.13.1 (2025-06-11)
+* Fix installation when running as root (tar error "Can't set user=0/group=0 for .")
+
 ### 2.13.0 (2025-05-02)
 * Add support for Unity 6.1
   * Handle the new "Supported" release stream Unity 6.1 is part of

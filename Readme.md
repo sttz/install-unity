@@ -114,7 +114,7 @@ The project will use Unity's default setup, including packages. Alternatively, y
 ## CLI Help
 
 ````
-install-unity v2.13.0
+install-unity v2.13.1
 
 USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
                      [--clear-cache] [--data-path <path>] 
