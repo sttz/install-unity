@@ -49,6 +49,14 @@ public interface IInstallerPlatform
     string GetConfigurationDirectory();
 
     /// <summary>
+    /// Set the configuration instance to use.
+    /// </summary>
+    /// <remarks>
+    /// Note that other methods might be called before the configuration is set, neamely <see cref="GetConfigurationDirectory"/>
+    /// </remarks>
+    void SetConfiguration(Configuration configuration);
+
+    /// <summary>
     /// The directory where cache files are stored.
     /// </summary>
     string GetCacheDirectory();
@@ -105,7 +113,7 @@ public interface IInstallerPlatform
     /// <summary>
     /// Uninstall a Unity installation.
     /// </summary>
-    Task Uninstall(Installation instalation, CancellationToken cancellation = default);
+    Task Uninstall(Installation installation, CancellationToken cancellation = default);
 
     /// <summary>
     /// Run a Unity installation with the given arguments.

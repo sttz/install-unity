@@ -347,6 +347,13 @@ public class Scraper
             data = parser.Parse(ini);
         }
 
+        // var sizeFactor = 1;
+        // if (platform == Platform.Windows)
+        // {
+        //     // Windows ini files are in kb, osx ini file and all jsons in bytes
+        //     sizeFactor = 1024;
+        // }
+
         var editorDownload = new EditorDownload();
         editorDownload.platform = platform;
         editorDownload.architecture = architecture;

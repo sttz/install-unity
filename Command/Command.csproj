@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
+    <RuntimeIdentifiers>win-x64;osx-x64</RuntimeIdentifiers>
     <LangVersion>latest</LangVersion>
     <PublishAot>true</PublishAot>
     <PublishReadyToRun>true</PublishReadyToRun>
