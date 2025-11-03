@@ -94,6 +94,11 @@ public class MacPlatform : IInstallerPlatform
         return GetUserApplicationSupportDirectory();
     }
 
+    public void SetConfiguration(Configuration configuration)
+    {
+        // Not used
+    }
+
     public string GetDownloadDirectory()
     {
         return Path.Combine(Path.GetTempPath(), UnityInstaller.PRODUCT_NAME);
@@ -358,6 +363,7 @@ public class MacPlatform : IInstallerPlatform
             while (!cmd.HasExited) {
                 await Task.Delay(100);
             }
+            await cmd.WaitForExitAsync();
 
         } else {
             if (!arguments.Contains("-logFile")) {
@@ -386,11 +392,8 @@ public class MacPlatform : IInstallerPlatform
             cmd.BeginOutputReadLine();
             cmd.BeginErrorReadLine();
 
-            while (!cmd.HasExited) {
-                await Task.Delay(100);
-            }
-
-            cmd.WaitForExit(); // Let stdout and stderr flush
+            await cmd.WaitForExitAsync();
+            
             Logger.LogInformation($"Unity exited with code {cmd.ExitCode}");
             Environment.Exit(cmd.ExitCode);
         }
