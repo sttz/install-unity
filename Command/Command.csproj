@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <PropertyGroup Label="Package">
-    <Version>2.13.1</Version>
+    <Version>2.13.2</Version>
     <Authors>Adrian Stutz (sttz.ch)</Authors>
     <Product>install-unity CLI</Product>
     <Description>CLI for install-unity unofficial Unity installer library</Description>

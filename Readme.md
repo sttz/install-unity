@@ -6,14 +6,14 @@ Currently only supports macOS (Intel & Apple Silicon) and Windows, but support f
 
 ## Table of Contents
 
-* [Introduction](#introduction)
-* [Versions](#versions)
-* [Packages](#packages)
-* [Offline Install](#offline-install)
-* [Run](#run)
-* [Create](#create)
-* [CLI Help](#cli-help)
-* [Changelog](#changelog)
+- [Introduction](#introduction)
+- [Versions](#versions)
+- [Packages](#packages)
+- [Offline Install](#offline-install)
+- [Run](#run)
+- [Create](#create)
+- [CLI Help](#cli-help)
+- [Changelog](#changelog)
 
 # Introduction
 
@@ -69,6 +69,7 @@ In case install-unity fails to discover a release, it's also possible to pass a 
 
     install-unity details https://unity3d.com/unity/whats-new/unity-2018.3.0
     install-unity install unityhub://2018.3.0f2/6e9a27477296
+
 ## Packages
 
 The command above will install the default packages as specified by Unity.
@@ -83,7 +84,7 @@ Will show the available packages for a given version. You can then select the pa
 
 ## Apple Silicon
 
-By default, `install-unity` will download and install the Unity editor matching the current platform. 
+By default, `install-unity` will download and install the Unity editor matching the current platform.
 
 Use `--platform macOSIntel` to download and install the Intel editor on Apple Silicon.
 
@@ -139,132 +140,132 @@ The project will use Unity's default setup, including packages. Alternatively, y
 
 ## CLI Help
 
-````
-install-unity v2.13.1
+```
+install-unity v2.13.2
 
-USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update] 
-                     [--clear-cache] [--data-path <path>] 
-                     [--opt <name>=<value>...] <action> 
+USAGE: install-unity [--help] [--version] [--verbose...] [--yes] [--update]
+                     [--clear-cache] [--data-path <path>]
+                     [--opt <name>=<value>...] <action>
 
 GLOBAL OPTIONS:
- -h, --help       Show this help 
-     --version    Print the version of this program 
- -v, --verbose    Increase verbosity of output, can be repeated 
- -y, --yes        Don't prompt for confirmation (use with care) 
- -u, --update     Force an update of the versions cache 
-     --clear-cache  Clear the versions cache before running any commands 
-     --data-path <path>  Store all data at the given path, also don't delete 
-                  packages after install 
-     --opt <name>=<value>  Set additional options. Use '--opt list' to show all 
-                  options and their default value and '--opt save' to create an 
-                  editable JSON config file. 
+ -h, --help       Show this help
+     --version    Print the version of this program
+ -v, --verbose    Increase verbosity of output, can be repeated
+ -y, --yes        Don't prompt for confirmation (use with care)
+ -u, --update     Force an update of the versions cache
+     --clear-cache  Clear the versions cache before running any commands
+     --data-path <path>  Store all data at the given path, also don't delete
+                  packages after install
+     --opt <name>=<value>  Set additional options. Use '--opt list' to show all
+                  options and their default value and '--opt save' to create an
+                  editable JSON config file.
 
 
 ACTIONS:
 
 ---- INSTALL (default):
-     Download and install a version of Unity 
+     Download and install a version of Unity
 
-USAGE: install-unity [options] [install] [--packages <name,name>...] 
-                     [--download] [--install] [--upgrade] 
-                     [--platform none|mac_os|linux|windows|all] 
-                     [--arch none|x86_64|arm64|all] [--redownload] [--yolo] 
-                     [<version>] 
+USAGE: install-unity [options] [install] [--packages <name,name>...]
+                     [--download] [--install] [--upgrade]
+                     [--platform none|mac_os|linux|windows|all]
+                     [--arch none|x86_64|arm64|all] [--redownload] [--yolo]
+                     [<version>]
 
 OPTIONS:
- <version>        Pattern to match Unity version or release notes / unity hub 
-                  url 
- -p, --packages <name,name>  Select packages to download and install ('all' 
-                  selects all available, '~NAME' matches substrings) 
-     --download   Only download the packages (requires '--data-path') 
-     --install    Install previously downloaded packages (requires 
-                  '--data-path') 
-     --upgrade    Replace existing matching Unity installation after successful 
-                  install 
-     --platform none|mac_os|linux|windows|all  Platform to download the 
-                  packages for (only valid with '--download', default = current 
-                  platform) 
-     --arch none|x86_64|arm64|all  Architecture to download the packages for 
-                  (default = current architecture) 
-     --redownload  Force redownloading all files 
-     --yolo       Skip size and hash checks of downloaded files 
+ <version>        Pattern to match Unity version or release notes / unity hub
+                  url
+ -p, --packages <name,name>  Select packages to download and install ('all'
+                  selects all available, '~NAME' matches substrings)
+     --download   Only download the packages (requires '--data-path')
+     --install    Install previously downloaded packages (requires
+                  '--data-path')
+     --upgrade    Replace existing matching Unity installation after successful
+                  install
+     --platform none|mac_os|linux|windows|all  Platform to download the
+                  packages for (only valid with '--download', default = current
+                  platform)
+     --arch none|x86_64|arm64|all  Architecture to download the packages for
+                  (default = current architecture)
+     --redownload  Force redownloading all files
+     --yolo       Skip size and hash checks of downloaded files
 
 
 ---- LIST:
-     Get an overview of available or installed Unity versions 
+     Get an overview of available or installed Unity versions
 
-USAGE: install-unity [options] list [--installed] 
-                     [--platform none|mac_os|linux|windows|all] 
-                     [--arch none|x86_64|arm64|all] [<version>] 
+USAGE: install-unity [options] list [--installed]
+                     [--platform none|mac_os|linux|windows|all]
+                     [--arch none|x86_64|arm64|all] [<version>]
 
 OPTIONS:
- <version>        Pattern to match Unity version 
- -i, --installed  List installed versions of Unity 
-     --platform none|mac_os|linux|windows|all  Platform to list the versions 
-                  for (default = current platform) 
-     --arch none|x86_64|arm64|all  Architecture to list the versions for 
-                  (default = current architecture) 
+ <version>        Pattern to match Unity version
+ -i, --installed  List installed versions of Unity
+     --platform none|mac_os|linux|windows|all  Platform to list the versions
+                  for (default = current platform)
+     --arch none|x86_64|arm64|all  Architecture to list the versions for
+                  (default = current architecture)
 
 
 ---- DETAILS:
-     Show version information and all its available packages 
+     Show version information and all its available packages
 
-USAGE: install-unity [options] details 
-                     [--platform none|mac_os|linux|windows|all] 
-                     [--arch none|x86_64|arm64|all] [<version>] 
+USAGE: install-unity [options] details
+                     [--platform none|mac_os|linux|windows|all]
+                     [--arch none|x86_64|arm64|all] [<version>]
 
 OPTIONS:
- <version>        Pattern to match Unity version or release notes / unity hub 
-                  url 
-     --platform none|mac_os|linux|windows|all  Platform to show the details for 
-                  (default = current platform) 
-     --arch none|x86_64|arm64|all  Architecture to show the details for 
-                  (default = current architecture) 
+ <version>        Pattern to match Unity version or release notes / unity hub
+                  url
+     --platform none|mac_os|linux|windows|all  Platform to show the details for
+                  (default = current platform)
+     --arch none|x86_64|arm64|all  Architecture to show the details for
+                  (default = current architecture)
 
 
 ---- UNINSTALL:
-     Remove a previously installed version of Unity 
+     Remove a previously installed version of Unity
 
-USAGE: install-unity [options] uninstall [<version-or-path>] 
+USAGE: install-unity [options] uninstall [<version-or-path>]
 
 OPTIONS:
- <version-or-path> Pattern to match Unity version or path to installation root 
+ <version-or-path> Pattern to match Unity version or path to installation root
 
 
 ---- RUN:
-     Execute a version of Unity or a Unity project, matching it to its Unity 
-     version 
+     Execute a version of Unity or a Unity project, matching it to its Unity
+     version
 
-USAGE: install-unity [options] run [--child] 
-                     [--allow-newer none|hash|build|patch|minor|all] 
-                     [--upgrade <version>] <version-or-path> 
-                     [<unity-arguments>...] 
+USAGE: install-unity [options] run [--child]
+                     [--allow-newer none|hash|build|patch|minor|all]
+                     [--upgrade <version>] <version-or-path>
+                     [<unity-arguments>...]
 
 OPTIONS:
- <version-or-path> Pattern to match Unity version or path to a Unity project 
- <unity-arguments> Arguments to launch Unity with (put a -- first to avoid 
-                  Unity options being parsed as install-unity options) 
- -c, --child      Run Unity as a child process and forward its log output (only 
-                  errors, use -v to see the full log) 
- -a, --allow-newer none|hash|build|patch|minor|all  Allow newer versions of 
-                  Unity to open a project 
-     --upgrade <version>  Run the project with the highest installed Unity 
-                  version matching the pattern 
+ <version-or-path> Pattern to match Unity version or path to a Unity project
+ <unity-arguments> Arguments to launch Unity with (put a -- first to avoid
+                  Unity options being parsed as install-unity options)
+ -c, --child      Run Unity as a child process and forward its log output (only
+                  errors, use -v to see the full log)
+ -a, --allow-newer none|hash|build|patch|minor|all  Allow newer versions of
+                  Unity to open a project
+     --upgrade <version>  Run the project with the highest installed Unity
+                  version matching the pattern
 
 
 ---- CREATE:
-     Create a new empty Unity project 
+     Create a new empty Unity project
 
-USAGE: install-unity [options] create [--type <basic|minimal>] [--open] 
-                     <version> <path> 
+USAGE: install-unity [options] create [--type <basic|minimal>] [--open]
+                     <version> <path>
 
 OPTIONS:
- <version>        Pattern to match the Unity version to create the project with 
- <path>           Path to the new Unity project 
-     --type <basic|minimal>  Type of project to create (basic = standard 
-                  project, minimal = no packages/modules) 
- -o, --open       Open the new project in the editor 
-````
+ <version>        Pattern to match the Unity version to create the project with
+ <path>           Path to the new Unity project
+     --type <basic|minimal>  Type of project to create (basic = standard
+                  project, minimal = no packages/modules)
+ -o, --open       Open the new project in the editor
+```
 
 # Legacy
 
