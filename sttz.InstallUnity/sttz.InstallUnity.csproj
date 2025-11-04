@@ -21,12 +21,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ini-parser" Version="2.5.2" NoWarn="NU1701" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="6.0.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="plist-cil" Version="2.2.0" />
-    <PackageReference Include="System.Text.Json" Version="6.0.11" />
+    <PackageReference Include="ini-parser" Version="3.4.0" NoWarn="NU1701" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.10" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="plist-cil" Version="2.3.1" />
+    <PackageReference Include="System.Text.Json" Version="9.0.10" />
   </ItemGroup>
 
 </Project>
