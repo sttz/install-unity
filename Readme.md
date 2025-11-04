@@ -2,7 +2,7 @@
 
 A command-line utility to install any recent version of Unity.
 
-Currently only supports macOS (Intel & Apple Silicon) but support for Windows/Linux is possible, PRs welcome.
+Currently only supports macOS (Intel & Apple Silicon) and Windows, but support for Linux is possible, PRs welcome.
 
 ## Table of Contents
 
@@ -24,6 +24,32 @@ Or you can install via [Homebrew](https://brew.sh) using [sttz/homebrew-tap](htt
 Installing the latest release version of Unity is as simple as:
 
     install-unity install f
+
+# How to build plugin on Windows
+
+Clone the project using
+
+```shell
+git clone https://github.com/equinor/install-unity.git
+```
+
+Right click in your cloned folder `{yourprojects}\install-unity` and open in Terminal and write:
+
+```shell
+dotnet publish -r win-x64 -c Release --self-contained --framework net8.0
+```
+
+Then go to `{yourprojects}\install-unity\Command\bin\Release\net8.0\win-x64\publish` and find `Command.exe`.
+
+Rename `Command.exe` to `install-unity.exe`.
+
+This is the release, and can now be used to run commands, to test it run this in the Terminal:
+
+```shell
+./install-unity.exe list --installed
+```
+
+This should list all your installed unity versions.
 
 ## Versions
 
